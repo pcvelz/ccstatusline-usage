@@ -1,4 +1,7 @@
-import { execSync, spawnSync } from 'child_process';
+import {
+    execSync,
+    spawnSync
+} from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -24,6 +27,10 @@ interface ApiData {
     sessionUsage?: number;  // five_hour.utilization (percentage)
     sessionResetAt?: string; // five_hour.reset_at
     weeklyUsage?: number;   // seven_day.utilization (percentage)
+    extraUsageEnabled?: boolean;
+    extraUsageLimit?: number;      // in cents
+    extraUsageUsed?: number;       // in cents
+    extraUsageUtilization?: number;
     error?: ApiError;
 }
 
@@ -205,6 +212,12 @@ function fetchApiData(): ApiData {
         if (data.seven_day) {
             apiData.weeklyUsage = data.seven_day.utilization;
         }
+        if (data.extra_usage) {
+            apiData.extraUsageEnabled = data.extra_usage.is_enabled === true;
+            apiData.extraUsageLimit = data.extra_usage.monthly_limit;
+            apiData.extraUsageUsed = data.extra_usage.used_credits;
+            apiData.extraUsageUtilization = data.extra_usage.utilization;
+        }
 
         // Validate we got actual data
         if (apiData.sessionUsage === undefined && apiData.weeklyUsage === undefined) {
@@ -307,10 +320,10 @@ export class WeeklyUsageWidget implements Widget {
     supportsColors(item: WidgetItem): boolean { return true; }
 }
 
-// Reset Timer Widget
+// Reset Timer Widget — shows extra usage spending when weekly limit is reached, otherwise reset timer
 export class ResetTimerWidget implements Widget {
     getDefaultColor(): string { return 'brightBlue'; }
-    getDescription(): string { return 'Shows time until daily limit reset'; }
+    getDescription(): string { return 'Shows extra usage spending or time until limit reset'; }
     getDisplayName(): string { return 'Reset Timer'; }
 
     getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
@@ -324,6 +337,14 @@ export class ResetTimerWidget implements Widget {
         const data = fetchApiData();
         if (data.error)
             return getErrorMessage(data.error);
+
+        // When extra usage is active, show spending instead of reset timer
+        if (data.extraUsageEnabled && data.extraUsageUsed !== undefined && data.extraUsageLimit !== undefined) {
+            const used = formatCents(data.extraUsageUsed);
+            const limit = formatCents(data.extraUsageLimit);
+            return `Extra: ${used}/${limit}`;
+        }
+
         if (!data.sessionResetAt)
             return null;
 
@@ -345,6 +366,22 @@ export class ResetTimerWidget implements Widget {
 
     supportsRawValue(): boolean { return false; }
     supportsColors(item: WidgetItem): boolean { return true; }
+}
+
+function getCurrencySymbol(): string {
+    try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz.startsWith('Europe/'))
+            return '€';
+    } catch {
+        // Fall through to default
+    }
+    return '$';
+}
+
+function formatCents(cents: number): string {
+    const symbol = getCurrencySymbol();
+    return `${symbol}${(cents / 100).toFixed(2)}`;
 }
 
 // Context Bar Widget (enhanced context display)
