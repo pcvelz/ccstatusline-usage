@@ -94,6 +94,9 @@ function renderPowerlineStatusLine(
             } else if (flexMode === 'full-until-compact') {
                 terminalWidth = detectedWidth - 6;
             }
+        } else if (context.terminalEnv?.isMobile) {
+            // On mobile terminals, use full width — no auto-compact sidebar
+            terminalWidth = detectedWidth - 6;
         } else {
             // In actual rendering mode
             if (flexMode === 'full') {
@@ -669,6 +672,9 @@ export function renderStatusLine(
                 // For preview, always show full width minus preview padding
                 terminalWidth = detectedWidth - 6;
             }
+        } else if (context.terminalEnv?.isMobile) {
+            // On mobile terminals, use full width — no auto-compact sidebar
+            terminalWidth = detectedWidth - 6;
         } else {
             // In actual rendering mode
             if (flexMode === 'full') {
@@ -718,6 +724,20 @@ export function renderStatusLine(
                 }
             }
             if (!hasContentBefore)
+                continue;
+
+            // Also check if there's any widget after this separator that rendered content
+            let hasContentAfter = false;
+            for (let j = i + 1; j < widgets.length; j++) {
+                const nextWidget = widgets[j];
+                if (nextWidget && nextWidget.type !== 'separator' && nextWidget.type !== 'flex-separator') {
+                    if (preRenderedWidgets[j]?.content) {
+                        hasContentAfter = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasContentAfter)
                 continue;
 
             const sepChar = widget.character ?? (settings.defaultSeparator ?? '|');

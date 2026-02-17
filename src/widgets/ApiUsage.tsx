@@ -258,10 +258,18 @@ function getErrorMessage(error: ApiError): string {
     }
 }
 
-function makeProgressBar(percent: number, width = 15): string {
+const MOBILE_BAR_WIDTH = 4;
+const DEFAULT_BAR_WIDTH = 15;
+
+function makeProgressBar(percent: number, width = DEFAULT_BAR_WIDTH): string {
     const filled = Math.round((percent / 100) * width);
     const empty = width - filled;
     return '[' + '█'.repeat(filled) + '░'.repeat(empty) + ']';
+}
+
+function formatUsageBar(label: string, shortLabel: string, percent: number, mobile: boolean): string {
+    const bar = makeProgressBar(percent, mobile ? MOBILE_BAR_WIDTH : DEFAULT_BAR_WIDTH);
+    return `${mobile ? shortLabel : label}: ${bar} ${percent.toFixed(1)}%`;
 }
 
 // Session Usage Widget
@@ -284,8 +292,7 @@ export class SessionUsageWidget implements Widget {
         if (data.sessionUsage === undefined)
             return null;
 
-        const percent = data.sessionUsage;
-        return `Session: ${makeProgressBar(percent)} ${percent.toFixed(1)}%`;
+        return formatUsageBar('Session', 'S', data.sessionUsage, Boolean(context.terminalEnv?.isMobile));
     }
 
     supportsRawValue(): boolean { return false; }
@@ -312,8 +319,7 @@ export class WeeklyUsageWidget implements Widget {
         if (data.weeklyUsage === undefined)
             return null;
 
-        const percent = data.weeklyUsage;
-        return `Weekly: ${makeProgressBar(percent)} ${percent.toFixed(1)}%`;
+        return formatUsageBar('Weekly', 'W', data.weeklyUsage, Boolean(context.terminalEnv?.isMobile));
     }
 
     supportsRawValue(): boolean { return false; }
@@ -424,7 +430,11 @@ export class ContextBarWidget implements Widget {
         const usedK = Math.round(used / 1000);
         const totalK = Math.round(total / 1000);
 
-        return `Context: ${makeProgressBar(percent)} ${usedK}k/${totalK}k (${Math.round(percent)}%)`;
+        const mobile = Boolean(context.terminalEnv?.isMobile);
+        const bar = makeProgressBar(percent, mobile ? MOBILE_BAR_WIDTH : DEFAULT_BAR_WIDTH);
+        const label = mobile ? 'C' : 'Context';
+        const suffix = mobile ? '' : ` (${Math.round(percent)}%)`;
+        return `${label}: ${bar} ${usedK}k/${totalK}k${suffix}`;
     }
 
     supportsRawValue(): boolean { return false; }

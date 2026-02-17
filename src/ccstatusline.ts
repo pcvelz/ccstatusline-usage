@@ -24,6 +24,7 @@ import {
     preRenderAllWidgets,
     renderStatusLine
 } from './utils/renderer';
+import { detectTerminalEnvironment } from './utils/terminal';
 
 async function readStdin(): Promise<string | null> {
     // Check if stdin is a TTY (terminal) - if it is, there's no piped data
@@ -90,13 +91,18 @@ async function renderMultipleLines(data: StatusJSON) {
         blockMetrics = getBlockMetrics();
     }
 
+    // Detect terminal environment (tmux, mobile, etc.)
+    const terminalEnv = detectTerminalEnvironment();
+
     // Create render context
     const context: RenderContext = {
         data,
         tokenMetrics,
         sessionDuration,
         blockMetrics,
-        isPreview: false
+        terminalWidth: terminalEnv.terminalWidth,
+        isPreview: false,
+        terminalEnv
     };
 
     // Always pre-render all widgets once (for efficiency)

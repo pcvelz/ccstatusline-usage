@@ -19,6 +19,9 @@ export class SessionClockWidget implements Widget {
             return item.rawValue ? '2hr 15m' : 'Session: 2hr 15m';
         }
 
+        if (context.terminalEnv?.isMobile)
+            return null;
+
         const duration = context.sessionDuration ?? '0m';
         return item.rawValue ? duration : `Session: ${duration}`;
     }

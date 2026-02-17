@@ -2,6 +2,23 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Mobile terminal detection threshold (columns)
+const MOBILE_THRESHOLD = 80;
+
+export interface TmuxClient {
+    width: number;
+    height: number;
+    tty: string;
+}
+
+export interface TerminalEnvironment {
+    inTmux: boolean;
+    tmuxClients: TmuxClient[];
+    terminalWidth: number | null;
+    isMobile: boolean;
+    smallestClientWidth: number | null;
+}
+
 // Get package version
 // __PACKAGE_VERSION__ will be replaced at build time
 const PACKAGE_VERSION = '__PACKAGE_VERSION__';
@@ -123,4 +140,79 @@ export function canDetectTerminalWidth(): boolean {
     } catch {
         return false;
     }
+}
+
+// Parse tmux client list into structured data
+function parseTmuxClients(): TmuxClient[] {
+    try {
+        const output = execSync(
+            "tmux list-clients -F '#{client_width} #{client_height} #{client_tty}'",
+            { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], timeout: 2000 }
+        ).trim();
+
+        if (!output) return [];
+
+        const clients: TmuxClient[] = [];
+        for (const line of output.split('\n')) {
+            const parts = line.trim().split(' ');
+            if (parts.length >= 3) {
+                const width = parseInt(parts[0] ?? '', 10);
+                const height = parseInt(parts[1] ?? '', 10);
+                const tty = parts.slice(2).join(' ');
+                if (!isNaN(width) && !isNaN(height) && tty) {
+                    clients.push({ width, height, tty });
+                }
+            }
+        }
+        return clients;
+    } catch {
+        return [];
+    }
+}
+
+// Get the actual tmux pane width (accounts for client constraints)
+function getTmuxPaneWidth(): number | null {
+    try {
+        const output = execSync(
+            "tmux display-message -p '#{pane_width}'",
+            { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], timeout: 2000 }
+        ).trim();
+        const parsed = parseInt(output, 10);
+        if (!isNaN(parsed) && parsed > 0)
+            return parsed;
+    } catch {
+        // tmux command failed
+    }
+    return null;
+}
+
+// Detect terminal environment including tmux and mobile status
+export function detectTerminalEnvironment(): TerminalEnvironment {
+    const inTmux = Boolean(process.env.TMUX);
+    let terminalWidth = getTerminalWidth();
+    let smallestClientWidth: number | null = null;
+    let tmuxClients: TmuxClient[] = [];
+
+    if (inTmux) {
+        // Use actual tmux pane width — more accurate than TTY-based detection
+        const paneWidth = getTmuxPaneWidth();
+        if (paneWidth !== null)
+            terminalWidth = paneWidth;
+
+        // Parse clients for debugging info and smallestClientWidth
+        tmuxClients = parseTmuxClients();
+        if (tmuxClients.length > 0)
+            smallestClientWidth = Math.min(...tmuxClients.map(c => c.width));
+    }
+
+    // Determine mobile: pane width (already set from tmux if available) is the effective width
+    const isMobile = terminalWidth !== null && terminalWidth < MOBILE_THRESHOLD;
+
+    return {
+        inTmux,
+        tmuxClients,
+        terminalWidth,
+        isMobile,
+        smallestClientWidth
+    };
 }

@@ -19,6 +19,9 @@ export class ModelWidget implements Widget {
             return item.rawValue ? 'Claude' : 'Model: Claude';
         }
 
+        if (context.terminalEnv?.isMobile)
+            return null;
+
         const model = context.data?.model;
         const modelDisplayName = typeof model === 'string'
             ? model

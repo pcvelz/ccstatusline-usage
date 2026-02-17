@@ -33,12 +33,20 @@ This fork adds API-based usage widgets beyond the upstream:
 - **Reset Timer** - Time until 5-hour session window resets
 - **Context Window Display** - Visual bar showing context usage
 - **Two-line Layout** - Session info on line 1, context on line 2
+- **Narrow Terminal Detection** - Auto-compact rendering on terminals < 80 cols via tmux pane width detection
 
 ### Enhanced Status Line Preview
 
+**Desktop (full width):**
 ```
 Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████████████░░░] 86.0% | 1:56 hr | Extra: $41.24/$47.00 | Model: Opus 4.6 | Session ID: 714aa815-8a...
-  Context: [███████░░░░░░░░] 103k/200k (51%)
+Context: [███████░░░░░░░░] 103k/200k (51%)
+```
+
+**Narrow terminal (< 80 cols, e.g. mobile SSH via tmux):**
+```
+S: [██░░] 51.0% | W: [████] 92.0% | 0:00 hr
+C: [██░░] 100k/200k
 ```
 
 These widgets are enabled by default. Just install and run!
@@ -64,6 +72,19 @@ These widgets are enabled by default. Just install and run!
 ---
 
 ## 🆕 Recent Updates
+
+### [v2.1.1](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.1.1) - Automatic mobile/narrow terminal detection
+
+- **Automatic compact rendering** on terminals < 80 columns via tmux pane width detection:
+  ```
+  S: [██░░] 51.0% | W: [████] 92.0% | 0:00 hr
+  C: [██░░] 100k/200k
+  ```
+- Widgets hidden on narrow terminals: Model, Session Clock, Session ID
+- Progress bars shrink from 15 to 4 characters, labels abbreviated (Session → S, Weekly → W, Context → C)
+- Orphaned separators automatically removed when adjacent widgets are hidden
+- FlexMode `-40` override on narrow terminals (no auto-compact sidebar)
+- Works with any tmux-based remote access setup (SSH clients, mobile terminals, etc.)
 
 ### [v2.0.46](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.0.46) - Upstream sync
 
@@ -163,6 +184,7 @@ These widgets are enabled by default. Just install and run!
 - **⚙️ Global Options** - Apply consistent formatting across all widgets (padding, separators, bold, background)
 - **🚀 Cross-platform** - Works seamlessly with both Bun and Node.js
 - **🔧 Flexible Configuration** - Supports custom Claude Code config directory via `CLAUDE_CONFIG_DIR` environment variable
+- **📱 Narrow Terminal Detection** - Auto-compact rendering on terminals < 80 columns via tmux pane width detection
 - **📏 Smart Width Detection** - Automatically adapts to terminal width with flex separators
 - **⚡ Zero Config** - Sensible defaults that work out of the box
 
