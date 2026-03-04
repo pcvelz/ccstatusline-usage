@@ -64,6 +64,7 @@ export const SettingsSchema = z.object({
         theme: undefined,
         autoAlign: false
     }),
+    extraUsageBalance: z.number().optional(), // Override extra usage limit display (in cents, e.g. 5000 = $50.00)
     updatemessage: z.object({
         message: z.string().nullable().optional(),
         remaining: z.number().nullable().optional()

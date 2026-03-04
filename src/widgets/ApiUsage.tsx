@@ -393,7 +393,8 @@ export class ResetTimerWidget implements Widget {
         if (data.extraUsageEnabled && data.weeklyUsage !== undefined && data.weeklyUsage >= 100
             && data.extraUsageUsed !== undefined && data.extraUsageLimit !== undefined) {
             const used = formatCents(data.extraUsageUsed);
-            const limit = formatCents(data.extraUsageLimit);
+            const displayLimit = settings.extraUsageBalance ?? data.extraUsageLimit;
+            const limit = formatCents(displayLimit);
             return `Extra: ${used}/${limit}`;
         }
 
