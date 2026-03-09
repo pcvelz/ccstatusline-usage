@@ -20,6 +20,7 @@ const LOCK_FILE = path.join(os.homedir(), '.cache', 'ccstatusline-api.lock');
 const CACHE_MAX_AGE = 180; // seconds
 const LOCK_MAX_AGE = 30;   // rate limit: only try API once per 30 seconds
 const TOKEN_CACHE_MAX_AGE = 3600; // 1 hour
+const STALE_MAX_AGE = 600; // 10 minutes: after this, stale cache is discarded
 
 // Error types matching shell script
 type ApiError = 'no-credentials' | 'timeout' | 'api-error' | 'parse-error';
@@ -32,6 +33,7 @@ interface ApiData {
     extraUsageLimit?: number;      // in cents
     extraUsageUsed?: number;       // in cents
     extraUsageUtilization?: number;
+    fetchedAt?: number;     // unix timestamp when data was fetched from API
     error?: ApiError;
 }
 
@@ -95,14 +97,27 @@ function getToken(): string | null {
 
 function readStaleCache(): ApiData | null {
     try {
-        return JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+        const data: ApiData = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+        // Discard stale cache after STALE_MAX_AGE to prevent serving outdated data forever
+        if (data.fetchedAt) {
+            const age = Math.floor(Date.now() / 1000) - data.fetchedAt;
+            if (age > STALE_MAX_AGE)
+                return null;
+        } else {
+            // Legacy cache without fetchedAt: check file mtime instead
+            const stat = fs.statSync(CACHE_FILE);
+            const age = Math.floor(Date.now() / 1000) - Math.floor(stat.mtimeMs / 1000);
+            if (age > STALE_MAX_AGE)
+                return null;
+        }
+        return data;
     } catch {
         return null;
     }
 }
 
-// Fetch result: null = network/other error, 'auth-error' = 401, string = response body
-type FetchResult = string | 'auth-error' | null;
+// Fetch result: null = network/other error, 'auth-error' = 401, 'rate-limited' = 429, string = response body
+type FetchResult = string | 'auth-error' | 'rate-limited' | null;
 
 // Fetch API using Node's built-in https module (no curl dependency)
 function fetchFromApi(token: string): FetchResult {
@@ -128,6 +143,8 @@ function fetchFromApi(token: string): FetchResult {
                     process.stdout.write(data);
                 } else if (res.statusCode === 401) {
                     process.exit(2);
+                } else if (res.statusCode === 429) {
+                    process.exit(3);
                 } else {
                     process.exit(1);
                 }
@@ -147,11 +164,15 @@ function fetchFromApi(token: string): FetchResult {
     if (result.error || !result.stdout) {
         if (result.status === 2)
             return 'auth-error';
+        if (result.status === 3)
+            return 'rate-limited';
         return null;
     }
     if (result.status !== 0) {
         if (result.status === 2)
             return 'auth-error';
+        if (result.status === 3)
+            return 'rate-limited';
         return null;
     }
 
@@ -208,6 +229,12 @@ function fetchApiData(): ApiData {
         // Ignore lock file errors
     }
 
+    // If stale cache is gone (expired), also invalidate token cache to force re-read
+    const staleBeforeFetch = readStaleCache();
+    if (!staleBeforeFetch) {
+        invalidateTokenCache();
+    }
+
     // Get token
     const token = getToken();
     if (!token) {
@@ -222,13 +249,26 @@ function fetchApiData(): ApiData {
         const response = fetchFromApi(token);
 
         // On auth error, invalidate cached token so next call re-reads from disk
-        // (Claude Code may have refreshed the token via /login)
         if (response === 'auth-error') {
             invalidateTokenCache();
             const stale = readStaleCache();
             if (stale && !stale.error)
                 return stale;
             return { error: 'api-error' };
+        }
+
+        // On rate limit (429), extend lock to back off properly
+        if (response === 'rate-limited') {
+            try {
+                const futureTime = new Date(Date.now() + 90_000);
+                fs.utimesSync(LOCK_FILE, futureTime, futureTime);
+            } catch {
+                // Ignore
+            }
+            const stale = readStaleCache();
+            if (stale && !stale.error)
+                return stale;
+            return { error: 'timeout' };
         }
 
         if (!response) {
@@ -264,7 +304,8 @@ function fetchApiData(): ApiData {
             return { error: 'parse-error' };
         }
 
-        // Save to cache
+        // Save to cache with fetch timestamp
+        apiData.fetchedAt = now;
         try {
             const cacheDir = path.dirname(CACHE_FILE);
             if (!fs.existsSync(cacheDir)) {

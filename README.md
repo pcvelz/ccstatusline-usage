@@ -64,6 +64,12 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.1.13](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.1.13) - Fix stale API cache causing stuck usage display
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Stale cache expiry** — API usage data older than 10 minutes is now discarded instead of served indefinitely, preventing frozen percentage displays
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **429 rate limit handling** — Properly detects HTTP 429 responses and backs off for 120s instead of hammering the API every 30s
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Token cache invalidation** — Automatically re-reads OAuth token from Keychain/disk when stale cache expires, recovering from expired tokens
+
 ### [v2.1.12](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.1.12) - Remove thinking effort bars from model widget
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Remove thinking effort bars** — Claude Code now shows thinking intensity natively in its own UI, so the `▌▌▌` bars after the model name have been removed from the Model widget
