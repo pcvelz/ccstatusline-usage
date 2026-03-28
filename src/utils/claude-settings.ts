@@ -154,6 +154,16 @@ export async function loadClaudeSettings(options: LoadClaudeSettingsOptions = {}
     }
 }
 
+async function ensureDir(dir: string): Promise<void> {
+    try {
+        await mkdir(dir, { recursive: true });
+    } catch (err: unknown) {
+        // On Windows, mkdir { recursive: true } can still throw EEXIST
+        // for junction points, symlinks, or certain filesystem edge cases.
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+    }
+}
+
 export async function saveClaudeSettings(
     settings: ClaudeSettings
 ): Promise<void> {
@@ -163,7 +173,7 @@ export async function saveClaudeSettings(
     // Backup settings before overwriting
     await backupClaudeSettings();
 
-    await mkdir(dir, { recursive: true });
+    await ensureDir(dir);
     await writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
 }
 

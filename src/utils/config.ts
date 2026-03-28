@@ -55,8 +55,18 @@ function getSettingsPaths(): SettingsPaths {
     };
 }
 
+async function ensureDir(dir: string): Promise<void> {
+    try {
+        await mkdir(dir, { recursive: true });
+    } catch (err: unknown) {
+        // On Windows, mkdir { recursive: true } can still throw EEXIST
+        // for junction points, symlinks, or certain filesystem edge cases.
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+    }
+}
+
 async function writeSettingsJson(settings: unknown, paths: SettingsPaths): Promise<void> {
-    await mkdir(paths.configDir, { recursive: true });
+    await ensureDir(paths.configDir);
     await writeFile(paths.settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
 }
 
