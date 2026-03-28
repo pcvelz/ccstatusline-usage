@@ -55,7 +55,7 @@ function getSettingsPaths(): SettingsPaths {
     };
 }
 
-async function ensureDir(dir: string): Promise<void> {
+export async function ensureDir(dir: string): Promise<void> {
     try {
         await mkdir(dir, { recursive: true });
     } catch (err: unknown) {

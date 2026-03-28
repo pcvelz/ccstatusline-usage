@@ -10,6 +10,7 @@ import {
 } from '../types/Settings';
 
 import {
+    ensureDir,
     getConfigPath,
     isCustomConfigPath
 } from './config';
@@ -151,16 +152,6 @@ export async function loadClaudeSettings(options: LoadClaudeSettingsOptions = {}
             console.error('Failed to load Claude settings:', error);
         }
         throw error;
-    }
-}
-
-async function ensureDir(dir: string): Promise<void> {
-    try {
-        await mkdir(dir, { recursive: true });
-    } catch (err: unknown) {
-        // On Windows, mkdir { recursive: true } can still throw EEXIST
-        // for junction points, symlinks, or certain filesystem edge cases.
-        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
     }
 }
 
