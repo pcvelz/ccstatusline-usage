@@ -18,6 +18,8 @@ import {
     type Settings
 } from '../../types/Settings';
 
+import { ensureDir } from '../config';
+
 const MOCK_HOME_DIR = '/tmp/ccstatusline-config-test-home';
 const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 
@@ -157,6 +159,24 @@ describe('config utilities', () => {
         expect(migrated.version).toBe(CURRENT_VERSION);
         expect(migrated.updatemessage?.message).toContain('v2.0.2');
         expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('ensureDir succeeds when directory already exists', async () => {
+        const { configDir } = getSettingsPaths();
+        fs.mkdirSync(configDir, { recursive: true });
+
+        // Should not throw
+        await ensureDir(configDir);
+
+        expect(fs.existsSync(configDir)).toBe(true);
+    });
+
+    it('ensureDir swallows EEXIST but rethrows other errors', async () => {
+        // Create a file so mkdir on a child path fails with ENOTDIR (not EEXIST)
+        const blocker = path.join(MOCK_HOME_DIR, 'blocker-file');
+        fs.mkdirSync(MOCK_HOME_DIR, { recursive: true });
+        fs.writeFileSync(blocker, '');
+        await expect(ensureDir(path.join(blocker, 'child'))).rejects.toThrow();
     });
 
     it('always saves current version in saveSettings', async () => {

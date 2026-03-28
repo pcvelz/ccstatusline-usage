@@ -61,7 +61,8 @@ export async function ensureDir(dir: string): Promise<void> {
     } catch (err: unknown) {
         // On Windows, mkdir { recursive: true } can still throw EEXIST
         // for junction points, symlinks, or certain filesystem edge cases.
-        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST')
+            throw err;
     }
 }
 

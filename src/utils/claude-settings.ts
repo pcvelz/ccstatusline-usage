@@ -21,7 +21,6 @@ export type { ClaudeSettings };
 // Use fs.promises directly
 const readFile = fs.promises.readFile;
 const writeFile = fs.promises.writeFile;
-const mkdir = fs.promises.mkdir;
 
 export const CCSTATUSLINE_COMMANDS = {
     NPM: 'npx -y ccstatusline-usage@latest',
