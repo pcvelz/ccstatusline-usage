@@ -66,6 +66,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.3.6](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.3.6) - Remove expired 2x promo code
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Off-Peak cleanup** — Removed expired March 2026 promo (2x) code path, leaving only the permanent peak/off-peak indicator
+
 ### [v2.3.5](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.3.5) - Upstream sync + permanent peak/off-peak widget
 
 - [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Major upstream sync** — 180 commits merged, including Weekly Reset Timer widget, new test infrastructure, Windows support, and various improvements

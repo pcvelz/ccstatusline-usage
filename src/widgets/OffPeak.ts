@@ -6,12 +6,7 @@ import type {
     WidgetItem
 } from '../types/Widget';
 
-// Promotion: March 13, 2026 00:00 PT through March 28, 2026 23:59 PT
-// PT = PDT = UTC-7 in March (DST started March 8)
-const PROMO_START_MS = Date.UTC(2026, 2, 13, 7, 0, 0);   // March 13 00:00 PDT = 07:00 UTC
-const PROMO_END_MS   = Date.UTC(2026, 2, 29, 6, 59, 0);   // March 28 23:59 PDT = March 29 06:59 UTC
-
-// Peak hours on weekdays: 8 AM–2 PM EDT (UTC-4), March 2026 is already on EDT
+// Peak hours on weekdays: 8 AM–2 PM EDT (UTC-4)
 // Peak = 12:00–18:00 UTC
 const PEAK_START_UTC_HOUR = 12;
 const PEAK_END_UTC_HOUR   = 18;
@@ -24,11 +19,6 @@ function isWeekend(now: Date): boolean {
 function isPeakHour(now: Date): boolean {
     const utcHour = now.getUTCHours();
     return utcHour >= PEAK_START_UTC_HOUR && utcHour < PEAK_END_UTC_HOUR;
-}
-
-function isPromoActive(now: Date): boolean {
-    const ms = now.getTime();
-    return ms >= PROMO_START_MS && ms < PROMO_END_MS;
 }
 
 function isOffPeak(now: Date): boolean {
@@ -92,15 +82,6 @@ export class OffPeakWidget implements Widget {
         const countdown = ` (${formatCountdown(mins)} hr)`;
         const mobile = (context.terminalWidth ?? 0) > 0 && (context.terminalWidth ?? 0) < 80;
 
-        // During promo period: show 2x label for off-peak
-        if (isPromoActive(now)) {
-            if (offPeak) {
-                return mobile ? `2x${countdown}` : `Off-peak 2x${countdown}`;
-            }
-            return `Peak${countdown}`;
-        }
-
-        // Post-promo: permanent peak/off-peak indicator (no 2x)
         if (offPeak) {
             return mobile ? `OffPk${countdown}` : `Off-peak${countdown}`;
         }
