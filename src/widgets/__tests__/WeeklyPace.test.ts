@@ -8,10 +8,15 @@ import {
 } from 'vitest';
 
 import type { RenderContext } from '../../types/RenderContext';
+import type {
+    OffHoursConfig,
+    Settings
+} from '../../types/Settings';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { WidgetItem } from '../../types/Widget';
 import * as usage from '../../utils/usage';
 import type { UsageWindowMetrics } from '../../utils/usage-types';
+import { SEVEN_DAY_WINDOW_MS } from '../../utils/usage-types';
 import { WeeklyPaceWidget } from '../WeeklyPace';
 
 const BASE_ITEM: WidgetItem = { id: 'pace', type: 'weekly-pace' };
@@ -428,5 +433,157 @@ describe('WeeklyPaceWidget', () => {
         const item: WidgetItem = { ...BASE_ITEM, metadata: { display: 'pendulum', showPercent: 'true', decimals: '1' } };
         const display = widget.getEditorDisplay(item);
         expect(display.modifierText).toBe('(pendulum bar, always %, .0)');
+    });
+
+    // --- Off-hours integration ---
+
+    /**
+     * Build a RenderContext with a real weeklyResetAt and a mocked window.
+     * The window's elapsedMs is reconstructed from local-time "now" and the
+     * window start (resetAt - 7d), so the widget's off-hours math can
+     * reconstruct a consistent nowMs for the adjustment pass.
+     */
+    function buildPaceContext(opts: {
+        windowStartLocal: Date;
+        nowLocal: Date;
+        weeklyUsage: number;
+    }): RenderContext {
+        const resetAtMs = opts.windowStartLocal.getTime() + SEVEN_DAY_WINDOW_MS;
+        const elapsedMs = opts.nowLocal.getTime() - opts.windowStartLocal.getTime();
+        const elapsedPercent = (elapsedMs / SEVEN_DAY_WINDOW_MS) * 100;
+
+        mockResolveWeeklyUsageWindow.mockReturnValue({
+            sessionDurationMs: SEVEN_DAY_WINDOW_MS,
+            elapsedMs,
+            remainingMs: SEVEN_DAY_WINDOW_MS - elapsedMs,
+            elapsedPercent,
+            remainingPercent: 100 - elapsedPercent
+        });
+
+        return {
+            usageData: {
+                weeklyUsage: opts.weeklyUsage,
+                weeklyResetAt: new Date(resetAtMs).toISOString()
+            }
+        };
+    }
+
+    const NIGHT_OFF_HOURS: OffHoursConfig = {
+        enabled: true,
+        startMinutes: 22 * 60,
+        endMinutes: 7 * 60
+    };
+
+    function settingsWithOffHours(offHours: OffHoursConfig): Settings {
+        return { ...DEFAULT_SETTINGS, offHours };
+    }
+
+    it('uses raw elapsed for delta when off-hours is disabled (default)', () => {
+        // 3 days into the week: raw elapsed = 3/7 ≈ 42.86%, usage = 50%
+        // → delta ≈ +7.14% → Warm
+        const windowStart = new Date(2026, 2, 1, 7, 0); // Sun 07:00 local
+        const now = new Date(2026, 2, 4, 7, 0);          // Wed 07:00 local
+        const ctx = buildPaceContext({ windowStartLocal: windowStart, nowLocal: now, weeklyUsage: 50 });
+
+        const result = new WeeklyPaceWidget().render(BASE_ITEM, ctx, DEFAULT_SETTINGS);
+        // 50 - 42.857 ≈ +7.14 → Warm
+        expect(result).toMatch(/^D3\/7: Warm \+7%$/);
+    });
+
+    it('produces a stable delta across a sleep window when off-hours is enabled', () => {
+        // Weekly window: Sun 07:00 local → next Sun 07:00 local
+        // Compare "going to sleep" Wed 22:00 vs "waking up" Thu 07:00.
+        // Usage stays at 50% both times. With off-hours enabled, the
+        // expected% should not drift across the 9-hour sleep → the delta
+        // is the same at both timestamps.
+        const windowStart = new Date(2026, 2, 1, 7, 0);
+        const wedNight = new Date(2026, 2, 4, 22, 0);
+        const thuMorning = new Date(2026, 2, 5, 7, 0);
+        const usage = 50;
+
+        const ctxNight = buildPaceContext({ windowStartLocal: windowStart, nowLocal: wedNight, weeklyUsage: usage });
+        const nightResult = new WeeklyPaceWidget().render(
+            { ...BASE_ITEM, metadata: { showPercent: 'true', decimals: '2' } },
+            ctxNight,
+            settingsWithOffHours(NIGHT_OFF_HOURS)
+        );
+
+        const ctxMorning = buildPaceContext({ windowStartLocal: windowStart, nowLocal: thuMorning, weeklyUsage: usage });
+        const morningResult = new WeeklyPaceWidget().render(
+            { ...BASE_ITEM, metadata: { showPercent: 'true', decimals: '2' } },
+            ctxMorning,
+            settingsWithOffHours(NIGHT_OFF_HOURS)
+        );
+
+        // Extract the delta from each result and verify they match.
+        const extractDelta = (s: string | null) => s?.match(/([+-]\d+\.\d+)%/)?.[1];
+        expect(nightResult).not.toBeNull();
+        expect(morningResult).not.toBeNull();
+        expect(extractDelta(nightResult)).toBe(extractDelta(morningResult));
+    });
+
+    it('raw (no off-hours) delta DOES drift across the same sleep window', () => {
+        // Baseline: without off-hours, the delta naturally shrinks by ~5.36%
+        // across 9 hours of sleep. (9h / 168h * 100 ≈ 5.36)
+        const windowStart = new Date(2026, 2, 1, 7, 0);
+        const wedNight = new Date(2026, 2, 4, 22, 0);
+        const thuMorning = new Date(2026, 2, 5, 7, 0);
+        const usage = 50;
+
+        const ctxNight = buildPaceContext({ windowStartLocal: windowStart, nowLocal: wedNight, weeklyUsage: usage });
+        const nightResult = new WeeklyPaceWidget().render(
+            { ...BASE_ITEM, metadata: { showPercent: 'true', decimals: '2' } },
+            ctxNight,
+            DEFAULT_SETTINGS
+        );
+
+        const ctxMorning = buildPaceContext({ windowStartLocal: windowStart, nowLocal: thuMorning, weeklyUsage: usage });
+        const morningResult = new WeeklyPaceWidget().render(
+            { ...BASE_ITEM, metadata: { showPercent: 'true', decimals: '2' } },
+            ctxMorning,
+            DEFAULT_SETTINGS
+        );
+
+        const extractDelta = (s: string | null) => Number(s?.match(/([+-]\d+\.\d+)%/)?.[1] ?? 'NaN');
+        const nightDelta = extractDelta(nightResult);
+        const morningDelta = extractDelta(morningResult);
+
+        // Drift is roughly 9h / 168h = 5.36%
+        expect(nightDelta - morningDelta).toBeCloseTo(5.36, 1);
+    });
+
+    it('still uses wall-clock for the day label regardless of off-hours', () => {
+        // Even with off-hours enabled, D<n>/7 tracks calendar progress, not
+        // active-hours progress. At Wed 07:00 (3 days elapsed), we still see D3/7.
+        const windowStart = new Date(2026, 2, 1, 7, 0);
+        const now = new Date(2026, 2, 4, 7, 0);
+        const ctx = buildPaceContext({ windowStartLocal: windowStart, nowLocal: now, weeklyUsage: 50 });
+
+        const result = new WeeklyPaceWidget().render(
+            BASE_ITEM,
+            ctx,
+            settingsWithOffHours(NIGHT_OFF_HOURS)
+        );
+        expect(result).toMatch(/^D3\/7:/);
+    });
+
+    it('does not adjust expected% when weeklyResetAt is missing', () => {
+        // Gracefully falls back to raw elapsed if we can't parse the window.
+        const elapsedPercent = (3 / 7) * 100;
+        mockResolveWeeklyUsageWindow.mockReturnValue({
+            sessionDurationMs: SEVEN_DAY_WINDOW_MS,
+            elapsedMs: 3 * 24 * 60 * 60 * 1000,
+            remainingMs: 4 * 24 * 60 * 60 * 1000,
+            elapsedPercent,
+            remainingPercent: 100 - elapsedPercent
+        });
+        const ctx: RenderContext = { usageData: { weeklyUsage: 50 } };
+        const result = new WeeklyPaceWidget().render(
+            BASE_ITEM,
+            ctx,
+            settingsWithOffHours(NIGHT_OFF_HOURS)
+        );
+        // Raw 42.86%, usage 50% → delta +7.14% → Warm
+        expect(result).toMatch(/^D3\/7: Warm \+7%$/);
     });
 });

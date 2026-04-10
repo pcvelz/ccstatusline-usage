@@ -50,6 +50,11 @@ describe('CurrentWorkingDirWidget', () => {
             endCaps: [],
             autoAlign: false,
             continueThemeAcrossLines: false
+        },
+        offHours: {
+            enabled: false,
+            startMinutes: 22 * 60,
+            endMinutes: 7 * 60
         }
     };
 

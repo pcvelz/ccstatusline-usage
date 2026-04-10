@@ -21,7 +21,8 @@ export function isOffHoursActive(offHours: OffHoursConfig | undefined): boolean 
  * Returns 0 when start === end.
  */
 export function offWindowDurationMinutes(startMinutes: number, endMinutes: number): number {
-    if (startMinutes === endMinutes) return 0;
+    if (startMinutes === endMinutes)
+        return 0;
     return (endMinutes - startMinutes + 1440) % 1440;
 }
 
@@ -44,10 +45,12 @@ export function offMsInRange(
     startMinutes: number,
     endMinutes: number
 ): number {
-    if (startMs >= endMs) return 0;
+    if (startMs >= endMs)
+        return 0;
 
     const durationMin = offWindowDurationMinutes(startMinutes, endMinutes);
-    if (durationMin === 0) return 0;
+    if (durationMin === 0)
+        return 0;
 
     const startHour = Math.floor(startMinutes / 60);
     const startMinute = startMinutes % 60;
@@ -79,7 +82,8 @@ export function offMsInRange(
         cursor.setDate(cursor.getDate() + 1);
         // Stop once cursor is past the end of the range — the next day's
         // period can no longer overlap [startMs, endMs].
-        if (cursor.getTime() >= endMs) break;
+        if (cursor.getTime() >= endMs)
+            break;
     }
 
     return total;
@@ -103,7 +107,8 @@ export function computeAdjustedExpectedPercent(
     offHours: OffHoursConfig | undefined
 ): number {
     const totalMs = windowEndMs - windowStartMs;
-    if (totalMs <= 0) return 0;
+    if (totalMs <= 0)
+        return 0;
 
     const elapsedMs = Math.max(0, Math.min(totalMs, nowMs - windowStartMs));
 
@@ -127,7 +132,8 @@ export function computeAdjustedExpectedPercent(
     const activeElapsedMs = elapsedMs - offInElapsed;
     const activeTotalMs = totalMs - offInTotal;
 
-    if (activeTotalMs <= 0) return 0;
+    if (activeTotalMs <= 0)
+        return 0;
 
     return (activeElapsedMs / activeTotalMs) * 100;
 }
@@ -138,7 +144,8 @@ export function computeAdjustedExpectedPercent(
  * work. Unaffected by DST (uses a flat 7-day assumption).
  */
 export function activeHoursPerWeek(offHours: OffHoursConfig | undefined): number {
-    if (!isOffHoursActive(offHours) || !offHours) return 7 * 24;
+    if (!isOffHoursActive(offHours) || !offHours)
+        return 7 * 24;
     const offMinutesPerDay = offWindowDurationMinutes(offHours.startMinutes, offHours.endMinutes);
     return 7 * 24 - (7 * offMinutesPerDay) / 60;
 }
@@ -158,11 +165,14 @@ export function formatHHMM(minutes: number): string {
 export function parseHHMM(input: string): number | null {
     const trimmed = input.trim();
     const match = /^(\d{1,2}):(\d{2})$/.exec(trimmed);
-    if (!match) return null;
+    if (!match)
+        return null;
     const h = Number(match[1]);
     const m = Number(match[2]);
-    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-    if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+    if (!Number.isFinite(h) || !Number.isFinite(m))
+        return null;
+    if (h < 0 || h > 23 || m < 0 || m > 59)
+        return null;
     return h * 60 + m;
 }
 

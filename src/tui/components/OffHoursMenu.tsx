@@ -5,7 +5,10 @@ import {
 } from 'ink';
 import React, { useState } from 'react';
 
-import type { OffHoursConfig, Settings } from '../../types/Settings';
+import type {
+    OffHoursConfig,
+    Settings
+} from '../../types/Settings';
 import {
     activeHoursPerWeek,
     formatHHMM,
@@ -16,15 +19,11 @@ import { shouldInsertInput } from '../../utils/input-guards';
 
 type EditingField = 'start' | 'end' | null;
 
-const DEFAULT_OFF_HOURS: OffHoursConfig = {
+export const DEFAULT_OFF_HOURS: OffHoursConfig = {
     enabled: false,
     startMinutes: 22 * 60,
     endMinutes: 7 * 60
 };
-
-export function getOffHoursOrDefault(settings: Settings): OffHoursConfig {
-    return settings.offHours ?? DEFAULT_OFF_HOURS;
-}
 
 export function describeOffWindow(offHours: OffHoursConfig): string {
     const duration = offWindowDurationMinutes(offHours.startMinutes, offHours.endMinutes);
@@ -52,7 +51,7 @@ export interface OffHoursMenuProps {
 }
 
 export const OffHoursMenu: React.FC<OffHoursMenuProps> = ({ settings, onUpdate, onBack }) => {
-    const offHours = getOffHoursOrDefault(settings);
+    const offHours = settings.offHours;
     const [editing, setEditing] = useState<EditingField>(null);
     const [inputValue, setInputValue] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -62,7 +61,8 @@ export const OffHoursMenu: React.FC<OffHoursMenuProps> = ({ settings, onUpdate, 
     };
 
     const beginEdit = (field: EditingField) => {
-        if (!field) return;
+        if (!field)
+            return;
         const current = field === 'start' ? offHours.startMinutes : offHours.endMinutes;
         setInputValue(formatHHMM(current));
         setEditing(field);
@@ -70,7 +70,8 @@ export const OffHoursMenu: React.FC<OffHoursMenuProps> = ({ settings, onUpdate, 
     };
 
     const commitEdit = () => {
-        if (!editing) return;
+        if (!editing)
+            return;
         const parsed = parseHHMM(inputValue);
         if (parsed === null) {
             setError('Invalid time. Use HH:MM (e.g., 22:30).');
