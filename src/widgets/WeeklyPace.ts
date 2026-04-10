@@ -7,10 +7,15 @@ import type {
     WidgetItem
 } from '../types/Widget';
 import {
+    computeAdjustedExpectedPercent,
+    isOffHoursActive
+} from '../utils/off-hours';
+import {
     getUsageErrorMessage,
     makePendulumBar,
     resolveWeeklyUsageWindow
 } from '../utils/usage';
+import { SEVEN_DAY_WINDOW_MS } from '../utils/usage-types';
 
 import { makeModifierText } from './shared/editor-display';
 import { formatRawOrLabeledValue } from './shared/raw-or-labeled';
@@ -35,9 +40,17 @@ function formatDelta(delta: number, decimals: DecimalPrecision): string {
     return delta.toFixed(decimals);
 }
 
-function computePace(actualPercent: number, expectedPercent: number, showPercent = false, decimals: DecimalPrecision = 0) {
+function computePace(
+    actualPercent: number,
+    expectedPercent: number,
+    rawElapsedPercent: number,
+    showPercent = false,
+    decimals: DecimalPrecision = 0
+) {
     const delta = actualPercent - expectedPercent;
-    const dayOfWeek = Math.max(1, Math.min(7, Math.ceil(expectedPercent * 7 / 100)));
+    // dayOfWeek reflects calendar progress through the 7-day window, not the
+    // off-hours-adjusted expected. Always advances with wall-clock time.
+    const dayOfWeek = Math.max(1, Math.min(7, Math.ceil(rawElapsedPercent * 7 / 100)));
 
     let status: string;
     if (delta > 15) {
@@ -152,7 +165,35 @@ export class WeeklyPaceWidget implements Widget {
         const actualPercent = Math.max(0, Math.min(100, data.weeklyUsage));
         const showPercent = item.metadata?.showPercent === 'true';
         const decimals = getDecimalPrecision(item);
-        const { delta, dayOfWeek, status } = computePace(actualPercent, window.elapsedPercent, showPercent, decimals);
+
+        // Raw expected from wall-clock. May be replaced below by an
+        // off-hours-adjusted value for delta calculation, but dayOfWeek
+        // always uses the raw value.
+        const rawExpectedPercent = window.elapsedPercent;
+        let expectedPercent = rawExpectedPercent;
+
+        if (isOffHoursActive(settings.offHours) && data.weeklyResetAt) {
+            const resetAtMs = Date.parse(data.weeklyResetAt);
+            if (!Number.isNaN(resetAtMs)) {
+                const windowStartMs = resetAtMs - SEVEN_DAY_WINDOW_MS;
+                const windowEndMs = resetAtMs;
+                const nowMs = windowStartMs + window.elapsedMs;
+                expectedPercent = computeAdjustedExpectedPercent(
+                    windowStartMs,
+                    windowEndMs,
+                    nowMs,
+                    settings.offHours
+                );
+            }
+        }
+
+        const { delta, dayOfWeek, status } = computePace(
+            actualPercent,
+            expectedPercent,
+            rawExpectedPercent,
+            showPercent,
+            decimals
+        );
 
         const width = context.terminalWidth ?? 0;
         const mobile = width > 0 && width < MOBILE_THRESHOLD;
