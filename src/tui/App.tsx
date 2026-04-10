@@ -78,6 +78,7 @@ import {
     LineSelector,
     MainMenu,
     ManageInstallationMenu,
+    OffHoursMenu,
     PowerlineSetup,
     RefreshIntervalMenu,
     StatusLinePreview,
@@ -111,6 +112,7 @@ type AppScreen = 'main'
     | 'terminalWidth'
     | 'terminalConfig'
     | 'globalOverrides'
+    | 'offHours'
     | 'confirm'
     | 'powerline'
     | 'install'
@@ -854,6 +856,9 @@ export const App: React.FC = () => {
             case 'globalOverrides':
                 setScreen('globalOverrides');
                 break;
+            case 'offHours':
+                setScreen('offHours');
+                break;
             case 'powerline':
                 setScreen('powerline');
                 break;
@@ -1106,6 +1111,19 @@ export const App: React.FC = () => {
                         onBack={() => {
                             // Save that we came from 'globalOverrides' menu (index 4)
                             setMenuSelections(prev => ({ ...prev, main: 4 }));
+                            setScreen('main');
+                        }}
+                    />
+                )}
+                {screen === 'offHours' && (
+                    <OffHoursMenu
+                        settings={settings}
+                        onUpdate={(updatedSettings) => {
+                            setSettings(updatedSettings);
+                        }}
+                        onBack={() => {
+                            // Save that we came from 'offHours' menu (index 5)
+                            setMenuSelections(prev => ({ ...prev, main: 5 }));
                             setScreen('main');
                         }}
                     />
