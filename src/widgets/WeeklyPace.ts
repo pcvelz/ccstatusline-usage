@@ -177,6 +177,15 @@ export class WeeklyPaceWidget implements Widget {
             if (!Number.isNaN(resetAtMs)) {
                 const windowStartMs = resetAtMs - SEVEN_DAY_WINDOW_MS;
                 const windowEndMs = resetAtMs;
+                // nowMs is RECONSTRUCTED from the (already-clamped) window
+                // metrics rather than calling Date.now() again. This keeps
+                // the widget deterministic under the test's mocked window
+                // and avoids a second clock read in production. Because
+                // window.elapsedMs is clamped to [0, durationMs], nowMs is
+                // guaranteed to land in [windowStartMs, windowEndMs], which
+                // is exactly what computeAdjustedExpectedPercent expects —
+                // do not repurpose nowMs for anything that needs the real
+                // wall-clock instant.
                 const nowMs = windowStartMs + window.elapsedMs;
                 expectedPercent = computeAdjustedExpectedPercent(
                     windowStartMs,

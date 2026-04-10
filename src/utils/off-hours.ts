@@ -36,8 +36,20 @@ function overlapMs(a1: number, a2: number, b1: number, b2: number): number {
  *
  * Handles:
  *   - Wrap across midnight (endMinutes < startMinutes)
- *   - DST transitions (uses Date.setHours, which operates in local time)
  *   - Multi-day ranges (bounded iteration, one day at a time)
+ *   - DST transitions: uses `Date.setHours`, which operates in local time.
+ *
+ * Known DST limitation: on spring-forward mornings, if the off-window
+ * boundary lands inside the nonexistent hour (typically 02:00–03:00 local),
+ * `setHours(2, 0, 0, 0)` gets silently normalized to 03:00, so that day's
+ * off-period is counted as 1h shorter. On fall-back mornings, the repeated
+ * hour (01:00–02:00) is anchored to the *second* occurrence, so the extra
+ * hour is lost. The default 22:00 → 07:00 window is unaffected because
+ * neither boundary touches the DST gap. Worst case is ≤1h of skew once or
+ * twice per year for an early-morning window — well below the ±5% "On Pace"
+ * band on a ~105h active-hours denominator. Not worth correcting today; a
+ * future fix would compare the realized hour to the requested hour and
+ * nudge by the DST offset.
  */
 export function offMsInRange(
     startMs: number,
@@ -66,8 +78,12 @@ export function offMsInRange(
 
     let total = 0;
 
-    // Safety cap at 10 iterations — a 7-day window + padding never needs more.
-    for (let i = 0; i < 10; i++) {
+    // Iterate day by day. The inner exit condition (`cursor.getTime() >= endMs`)
+    // is the real terminator; the outer `i` cap is a pure safety rail sized
+    // proportionally to the range so this helper stays correct if a future
+    // caller passes something longer than the weekly window.
+    const maxIterations = Math.ceil((endMs - startMs) / MS_PER_DAY) + 3;
+    for (let i = 0; i < maxIterations; i++) {
         const periodStart = new Date(cursor);
         periodStart.setHours(startHour, startMinute, 0, 0);
 
@@ -112,7 +128,10 @@ export function computeAdjustedExpectedPercent(
 
     const elapsedMs = Math.max(0, Math.min(totalMs, nowMs - windowStartMs));
 
-    if (!isOffHoursActive(offHours) || !offHours) {
+    // Lead with `!offHours` so TS narrows the parameter to defined for the
+    // rest of the function. `isOffHoursActive` already implies `!!offHours`,
+    // but the narrowing doesn't flow through a helper call.
+    if (!offHours || !isOffHoursActive(offHours)) {
         return (elapsedMs / totalMs) * 100;
     }
 

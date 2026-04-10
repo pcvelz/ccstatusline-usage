@@ -9,6 +9,7 @@ import type {
     OffHoursConfig,
     Settings
 } from '../../types/Settings';
+import { DEFAULT_OFF_HOURS } from '../../types/Settings';
 import {
     activeHoursPerWeek,
     formatHHMM,
@@ -18,12 +19,6 @@ import {
 import { shouldInsertInput } from '../../utils/input-guards';
 
 type EditingField = 'start' | 'end' | null;
-
-export const DEFAULT_OFF_HOURS: OffHoursConfig = {
-    enabled: false,
-    startMinutes: 22 * 60,
-    endMinutes: 7 * 60
-};
 
 export function describeOffWindow(offHours: OffHoursConfig): string {
     const duration = offWindowDurationMinutes(offHours.startMinutes, offHours.endMinutes);

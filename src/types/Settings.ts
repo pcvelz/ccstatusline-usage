@@ -39,6 +39,11 @@ export const OffHoursConfigSchema = z.object({
 });
 export type OffHoursConfig = z.infer<typeof OffHoursConfigSchema>;
 
+// Single source of truth for off-hours defaults. Consumed by the schema's
+// top-level `offHours.default(...)` AND by the TUI's "reset" action, so
+// tweaking any default only needs to change here.
+export const DEFAULT_OFF_HOURS: OffHoursConfig = OffHoursConfigSchema.parse({});
+
 // Schema for v1 settings (before version field was added)
 export const SettingsSchema_v1 = z.object({
     lines: z.array(z.array(WidgetItemSchema)).optional(),
@@ -101,11 +106,7 @@ export const SettingsSchema = z.object({
         autoAlign: false,
         continueThemeAcrossLines: false
     }),
-    offHours: OffHoursConfigSchema.default({
-        enabled: false,
-        startMinutes: 22 * 60,
-        endMinutes: 7 * 60
-    }),
+    offHours: OffHoursConfigSchema.default(DEFAULT_OFF_HOURS),
     updatemessage: z.object({
         message: z.string().nullable().optional(),
         remaining: z.number().nullable().optional()
