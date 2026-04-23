@@ -6,12 +6,12 @@ import {
 
 import type { OffHoursConfig } from '../../types/Settings';
 import {
+    MS_PER_DAY,
+    MS_PER_HOUR,
     activeHoursPerWeek,
     computeAdjustedExpectedPercent,
     formatHHMM,
     isOffHoursActive,
-    MS_PER_DAY,
-    MS_PER_HOUR,
     offMsInRange,
     offWindowDurationMinutes,
     parseHHMM

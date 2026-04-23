@@ -10,13 +10,13 @@ import type {
     Settings
 } from '../../types/Settings';
 import { DEFAULT_OFF_HOURS } from '../../types/Settings';
+import { shouldInsertInput } from '../../utils/input-guards';
 import {
     activeHoursPerWeek,
     formatHHMM,
     offWindowDurationMinutes,
     parseHHMM
 } from '../../utils/off-hours';
-import { shouldInsertInput } from '../../utils/input-guards';
 
 type EditingField = 'start' | 'end' | null;
 
