@@ -79,8 +79,12 @@ function parseDiffShortStat(stat: string): GitChangeCounts {
 }
 
 export function getGitChangeCounts(context: RenderContext): GitChangeCounts {
-    const unstagedStat = runGit('diff --shortstat', context) ?? '';
-    const stagedStat = runGit('diff --cached --shortstat', context) ?? '';
+    // --no-optional-locks: avoid taking .git/index.lock for the implicit index-stat refresh
+    // git diff would otherwise perform. Concurrent invocations can race for that lock and
+    // leak a stale .git/index.lock that breaks the user's next `git commit`. Same flag is
+    // already applied to `git status` below.
+    const unstagedStat = runGit('--no-optional-locks diff --shortstat', context) ?? '';
+    const stagedStat = runGit('--no-optional-locks diff --cached --shortstat', context) ?? '';
     const unstagedCounts = parseDiffShortStat(unstagedStat);
     const stagedCounts = parseDiffShortStat(stagedStat);
 

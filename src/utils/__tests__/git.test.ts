@@ -156,6 +156,15 @@ describe('git utils', () => {
             });
         });
 
+        it('passes --no-optional-locks so concurrent calls do not race for .git/index.lock', () => {
+            mockExecFileSync.mockReturnValue('');
+
+            getGitChangeCounts({});
+
+            expect(mockExecFileSync.mock.calls[0]?.[1]).toEqual(['--no-optional-locks', 'diff', '--shortstat']);
+            expect(mockExecFileSync.mock.calls[1]?.[1]).toEqual(['--no-optional-locks', 'diff', '--cached', '--shortstat']);
+        });
+
         it('handles singular insertion/deletion forms', () => {
             mockExecFileSync.mockReturnValueOnce('1 file changed, 1 insertion(+), 1 deletion(-)');
             mockExecFileSync.mockReturnValueOnce('');
