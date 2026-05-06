@@ -264,6 +264,32 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 - **🔗 Git widget link modes (v2.2.6)** - `Git Branch` can render clickable GitHub branch links, and `Git Root Dir` can render clickable IDE links for VS Code and Cursor.
 - **🤝 Better subagent-aware speed reporting** - Token speed calculations continue to include referenced subagent activity so displayed speeds better reflect actual concurrent work.
 
+### v2.2.9 - v2.2.12 - GitLab support, reset timers, context, compaction, and git widgets
+
+- **🦊 GitLab PR/MR support** - `Git Branch` and `Git PR/MR` now support GitHub, GitLab, and compatible self-hosted remotes, using `gh` or `glab` as appropriate.
+- **🔄 Status line refresh interval** - Installed configs can set Claude Code's `statusLine.refreshInterval` from the TUI when Claude Code >=2.1.97 supports it.
+- **🧭 Wrap-around TUI navigation** - Menu/list navigation and move/reorder modes now wrap at the first and last items.
+- **📋 Clone widget shortcut** - Press `k` in the item editor to duplicate the selected widget, with fresh Powerline background color for cloned Powerline items.
+- **📊 Short bar display modes** - Context percentage, Context Bar, Session Usage, Weekly Usage, Block Timer, and reset timer widgets can use compact bar variants.
+- **⏱️ Usage time cursor** - Session Usage and Weekly Usage progress bars can show the elapsed time position within the current usage window.
+- **🕒 Reset timer timestamps** - Block and Weekly Reset Timer widgets can show exact reset timestamps with compact formatting, 12/24-hour display, IANA time zones, and locale selection.
+- **🪟 Context Window widget** - Added a `Context Window` widget for total model window size, keeping `Context Length` focused on current context usage.
+- **🔁 Compaction Counter widget** - Added a `Compaction Counter` widget that tracks session context compactions, with icon/text/number formats, optional Nerd Font icon, and hide-when-zero behavior.
+- **🧮 Git file status widgets** - Added `Git Staged Files`, `Git Unstaged Files`, `Git Untracked Files`, and `Git Clean Status` for file counts and clean/dirty state.
+- **🏷️ Clear context percentage labels** - `Context %` and `Context % (usable)` now label rendered values as used or left when toggling used/remaining mode.
+- **⚡ More Powerline caps** - The Powerline separator editor now supports more than three start/end caps.
+- **🧠 Thinking Effort updates** - Added `xhigh`, show `default` when no effort is set, mark unknown future effort levels with `?`, and track live status JSON plus `/effort` command changes.
+- **🧮 More accurate token counts** - Streaming duplicate JSONL entries are deduped so token widgets do not overcount live Claude Code output.
+- **🏷️ Cleaner model display** - The Model widget strips trailing context suffixes like `(1M context)`; use `Context Window` when you want the total window size shown.
+- **🧹 Cleaner empty-widget separators** - Manual separators now collapse around widgets that render empty, avoiding dangling separators when hide-when-empty widgets disappear.
+- **🧱 More resilient Git helpers** - Git widgets handle missing or unusual git command output more defensively.
+
+### v2.2.8 - Git widgets, smarter picker search, and minimalist mode
+
+- **🌿 Git widgets** - Added `Git Branch`, `Git Insertions`, `Git Deletions`, `Git Changes`, `Git PR/MR`, and `Git Worktree` widgets for repository status.
+- **🔎 Smarter widget picker** - Category-based browsing, ranked fuzzy search, and recent/frequent shortcuts make finding and adding widgets faster.
+- **🎨 Minimalist mode** - Global option to strip icons, labels, and extra formatting for a cleaner status line.
+
 <br />
 <details>
 <summary><b>Older updates (v2.1.10 and earlier)</b></summary>
@@ -370,7 +396,7 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## ✨ Features
 
-- **📊 Real-time Metrics** - Display model name, git branch, token usage, session duration, block timer, and more
+- **📊 Real-time Metrics** - Display model name, git branch, token usage, session duration, compaction count, block timer, and more
 - **📈 API Usage Tracking** - Real-time 5-hour session and weekly utilization from Anthropic API with progress bars
 - **⏱️ Reset Timer** - Countdown to when your 5-hour session window resets
 - **🎨 Fully Customizable** - Choose what to display and customize colors for each element
@@ -415,6 +441,7 @@ The interactive configuration tool provides a terminal UI where you can:
 - Add/remove/reorder status line widgets
 - Customize colors for each widget
 - Configure flex separator behavior
+- Configure Claude Code status line refresh interval when supported
 - Edit custom text widgets
 - Install/uninstall to Claude Code settings
 - Preview your status line in real-time
@@ -443,10 +470,13 @@ When you install from the TUI, ccstatusline writes a `statusLine` command object
   "statusLine": {
     "type": "command",
     "command": "npx -y ccstatusline-usage@latest",
-    "padding": 0
+    "padding": 0,
+    "refreshInterval": 10
   }
 }
 ```
+
+`refreshInterval` is written only when your Claude Code version supports it (>=2.1.97). The TUI can set it to `1-60` seconds, or remove it by leaving the input empty.
 
 Other supported command values are:
 - `bunx -y ccstatusline-usage@latest`

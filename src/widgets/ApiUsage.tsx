@@ -1,8 +1,11 @@
+import type React from 'react';
 import type { RenderContext } from '../types/RenderContext';
 import type { Settings } from '../types/Settings';
 import type {
+    CustomKeybind,
     Widget,
     WidgetEditorDisplay,
+    WidgetEditorProps,
     WidgetItem
 } from '../types/Widget';
 import {
@@ -11,6 +14,19 @@ import {
     resolveWeeklyUsageWindow
 } from '../utils/usage';
 import { resolveProvider } from '../utils/usage/resolver';
+import {
+    LOCALE_EDITOR_ACTION,
+    renderUsageLocaleEditor
+} from './shared/locale-editor';
+import {
+    TIMEZONE_EDITOR_ACTION,
+    renderUsageTimezoneEditor
+} from './shared/timezone-editor';
+import {
+    getUsageTimerCustomKeybinds,
+    toggleUsageDateMode,
+    toggleUsageHourFormat
+} from './shared/usage-display';
 
 const DARK_RED_OPEN = '\x1b[38;2;204;0;0m';
 const DARK_RED_CLOSE = '\x1b[39m';
@@ -251,6 +267,35 @@ export class ResetTimerWidget implements Widget {
         } catch {
             return null;
         }
+    }
+
+    handleEditorAction(action: string, item: WidgetItem): WidgetItem | null {
+        if (action === 'toggle-date') {
+            return toggleUsageDateMode(item);
+        }
+        if (action === 'toggle-hour-format') {
+            return toggleUsageHourFormat(item);
+        }
+        return null;
+    }
+
+    getCustomKeybinds(item?: WidgetItem): CustomKeybind[] {
+        return getUsageTimerCustomKeybinds(item, {
+            includeDate: true,
+            includeHourFormat: true,
+            includeLocale: true,
+            includeTimezone: true
+        });
+    }
+
+    renderEditor(props: WidgetEditorProps): React.ReactElement | null {
+        if (props.action === LOCALE_EDITOR_ACTION) {
+            return renderUsageLocaleEditor(props);
+        }
+        if (props.action === TIMEZONE_EDITOR_ACTION) {
+            return renderUsageTimezoneEditor(props);
+        }
+        return null;
     }
 
     supportsRawValue(): boolean { return false; }
