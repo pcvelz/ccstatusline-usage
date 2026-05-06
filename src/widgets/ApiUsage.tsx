@@ -9,6 +9,10 @@ import type {
     WidgetItem
 } from '../types/Widget';
 import {
+    getContextConfig,
+    getModelContextIdentifier
+} from '../utils/model-context';
+import {
     getUsageErrorMessage,
     makeSplitUsageBar,
     resolveWeeklyUsageWindow
@@ -321,7 +325,14 @@ export class ContextBarWidget implements Widget {
         if (!cw)
             return null;
 
-        const total = Number(cw.context_window_size) || 200000;
+        const payloadSize = Number(cw.context_window_size) || 200000;
+
+        // Use model-specific context size when known (Ollama configs often differ from native model capability)
+        const modelId = getModelContextIdentifier(context.data?.model);
+        const modelConfig = modelId ? getContextConfig(modelId) : null;
+        const total = (modelConfig && modelConfig.maxTokens !== payloadSize)
+            ? modelConfig.maxTokens
+            : payloadSize;
 
         // current_usage can be a number or an object with token breakdown
         let used = 0;

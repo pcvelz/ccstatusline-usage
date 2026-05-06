@@ -87,7 +87,7 @@ describe('ApiUsage widgets with provider resolution', () => {
                 },
                 terminalWidth: 200
             };
-            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [████░░░░░░░░░░░] 50k/200k (25%)');
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [███░░░░░░░░░░░░] 50k/262k (19%)');
         });
 
         it('ContextBarWidget renders for qwen models in mobile mode', () => {
@@ -102,7 +102,7 @@ describe('ApiUsage widgets with provider resolution', () => {
                 },
                 terminalWidth: 100
             };
-            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('C: [█░░░] 50k/200k');
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('C: [█░░░] 50k/262k');
         });
 
         it('ContextBarWidget renders for non-qwen opencode models with context_window', () => {

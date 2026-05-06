@@ -100,6 +100,12 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.2](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.2) - Upstream sync + Reset Timer editor + JSON model config
+
+- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Upstream sync** — 24 commits merged, including Jujutsu VCS widgets (`jj-branch`, `jj-changes`, `jj-conflicts`, `jj-description`), context percentage label fixes, and separator collapse improvements.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Reset Timer editor actions** — `t` toggles date mode, `h` toggles hour format, `l` edits locale, `z` edits timezone directly in the TUI item editor.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **JSON-driven model context** — Third-party model context window sizes (Kimi, GLM, MiniMax, Qwen, Devstral, etc.) moved from hardcoded TypeScript to `src/utils/model-context.json` for easier updates and community contributions.
+
 ### [v2.4.1](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.1) - Weekly Pace: showPercent toggle + decimal precision
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **`%` keybind — always show delta on `On Pace`** — Previously `On Pace` was the only pace band that hid its delta. Toggle `showPercent` in the editor to render `D4/7: On Pace +3%` (or `-2%`, or `+0%`) so you can see how close to a band edge you are.

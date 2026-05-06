@@ -560,7 +560,7 @@ describe('items-editor input handlers', () => {
 
     it('uses t to toggle reset timer date mode in normal mode', () => {
         const widgets: WidgetItem[] = [
-            { id: '1', type: 'reset-timer' }
+            { id: '1', type: 'weekly-reset-timer' }
         ];
         const onUpdate = vi.fn();
 
@@ -586,7 +586,7 @@ describe('items-editor input handlers', () => {
 
     it('uses h to toggle reset timer hour format in timestamp mode', () => {
         const widgets: WidgetItem[] = [
-            { id: '1', type: 'reset-timer', metadata: { absolute: 'true' } }
+            { id: '1', type: 'weekly-reset-timer', metadata: { absolute: 'true' } }
         ];
         const onUpdate = vi.fn();
 
@@ -612,7 +612,7 @@ describe('items-editor input handlers', () => {
 
     it('opens custom editor for reset timer timezone action', () => {
         const widgets: WidgetItem[] = [
-            { id: '1', type: 'reset-timer', metadata: { absolute: 'true' } }
+            { id: '1', type: 'weekly-reset-timer', metadata: { absolute: 'true' } }
         ];
         const onUpdate = vi.fn();
         const setCustomEditorWidget = vi.fn();
@@ -638,12 +638,12 @@ describe('items-editor input handlers', () => {
             | { action?: string; widget?: WidgetItem }
             | undefined;
         expect(customEditorState?.action).toBe('edit-timezone');
-        expect(customEditorState?.widget?.type).toBe('reset-timer');
+        expect(customEditorState?.widget?.type).toBe('weekly-reset-timer');
     });
 
     it('opens custom editor for reset timer locale action', () => {
         const widgets: WidgetItem[] = [
-            { id: '1', type: 'reset-timer', metadata: { absolute: 'true' } }
+            { id: '1', type: 'weekly-reset-timer', metadata: { absolute: 'true' } }
         ];
         const onUpdate = vi.fn();
         const setCustomEditorWidget = vi.fn();
@@ -669,7 +669,7 @@ describe('items-editor input handlers', () => {
             | { action?: string; widget?: WidgetItem }
             | undefined;
         expect(customEditorState?.action).toBe('edit-locale');
-        expect(customEditorState?.widget?.type).toBe('reset-timer');
+        expect(customEditorState?.widget?.type).toBe('weekly-reset-timer');
     });
 
     it('uses v to cycle skills widget mode', () => {

@@ -127,26 +127,26 @@ describe('getContextConfig', () => {
         });
     });
 
-    describe('Opencode models', () => {
-        it('should return 1M context window for glm-5.1', () => {
+    describe('Third-party models', () => {
+        it('should return 200k context window for glm-5.1', () => {
             const config = getContextConfig('glm-5.1');
 
-            expect(config.maxTokens).toBe(1000000);
-            expect(config.usableTokens).toBe(800000);
+            expect(config.maxTokens).toBe(204800);
+            expect(config.usableTokens).toBe(163840);
         });
 
-        it('should return 1M context window for mm-2.7', () => {
-            const config = getContextConfig('mm-2.7');
+        it('should return 200k context window for minimax-m2.7', () => {
+            const config = getContextConfig('minimax-m2.7');
 
-            expect(config.maxTokens).toBe(1000000);
-            expect(config.usableTokens).toBe(800000);
+            expect(config.maxTokens).toBe(204800);
+            expect(config.usableTokens).toBe(163840);
         });
 
-        it('should return 1M context window for kimi-k2.6', () => {
-            const config = getContextConfig('kimi-k2.6');
+        it('should return 256k context window for kimi-for-coding', () => {
+            const config = getContextConfig('kimi-for-coding');
 
-            expect(config.maxTokens).toBe(1000000);
-            expect(config.usableTokens).toBe(800000);
+            expect(config.maxTokens).toBe(262144);
+            expect(config.usableTokens).toBe(209715);
         });
     });
 });
