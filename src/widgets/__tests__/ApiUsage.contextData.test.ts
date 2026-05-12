@@ -260,7 +260,7 @@ describe('ResetTimerWidget — reads from context.usageData', () => {
                     extraUsageLimit: 3000,
                     extraUsageUsed: 1250
                 },
-                { data: { model: { id: 'claude-sonnet-4-5[1m]' } } as RenderContext['data'] }
+                { data: { model: { id: 'claude-sonnet-4-5[1m]' } } }
             ),
             DEFAULT_SETTINGS
         );
@@ -308,7 +308,7 @@ describe('ResetTimerWidget — reads from context.usageData', () => {
                     extraUsageLimit: 3000,
                     extraUsageUsed: 1250
                 },
-                { data: { model: { id: 'claude-opus-4-7[1m]' } } as RenderContext['data'] }
+                { data: { model: { id: 'claude-opus-4-7[1m]' } } }
             ),
             DEFAULT_SETTINGS
         );

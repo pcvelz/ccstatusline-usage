@@ -10,6 +10,8 @@ export {
     makeSplitUsageBar,
     makeUsageProgressBar,
     resolveUsageWindowWithFallback,
+    resolveWeeklyOpusUsageWindow,
+    resolveWeeklySonnetUsageWindow,
     resolveWeeklyUsageWindow
 } from './usage-windows';
 export {

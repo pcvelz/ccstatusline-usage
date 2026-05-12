@@ -402,7 +402,7 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## ✨ Features
 
-- **📊 Real-time Metrics** - Display model name, git branch, token usage, session duration, compaction count, block timer, and more
+- **📊 Real-time Metrics** - Display model name, git branch, token usage, per-model weekly usage, voice input state, session duration, compaction count, block timer, and more
 - **📈 API Usage Tracking** - Real-time 5-hour session and weekly utilization from Anthropic API with progress bars
 - **⏱️ Reset Timer** - Countdown to when your 5-hour session window resets
 - **🎨 Fully Customizable** - Choose what to display and customize colors for each element
@@ -437,6 +437,8 @@ npx -y ccstatusline-usage@latest
 # Or with Bun (faster)
 bunx -y ccstatusline-usage@latest
 ```
+
+Both commands launch the same TUI. During the initial setup flow, choose **Pinned global install** if you want Claude Code to stay on the ccstatusline version you are running instead of following `@latest`; the TUI will install that version globally with npm or Bun and write the pinned `ccstatusline` command to Claude Code settings. After a pinned install, you can run `ccstatusline` directly to launch the TUI in the future.
 
 <br />
 <details>
@@ -1054,6 +1056,7 @@ jq 'del(.statusLine)' ~/.claude/settings.json > /tmp/cs.json && cat /tmp/cs.json
 - [tweakcc](https://github.com/Piebald-AI/tweakcc) - Customize Claude Code themes, thinking verbs, and more.
 - [ccusage](https://github.com/ryoppippi/ccusage) - Track and display Claude Code usage metrics.
 - [codachi](https://github.com/vincent-k2026/codachi) - A tamagotchi-style statusline pet that grows with your context window.
+- [AIWatch](https://ai-watch.dev) - Live status monitor for 30+ AI APIs and apps; pairs with a Custom Command widget to surface provider outages in your status line.
 
 
 ## 🙏 Acknowledgments

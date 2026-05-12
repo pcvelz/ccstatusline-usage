@@ -1,4 +1,5 @@
 import type React from 'react';
+
 import type { RenderContext } from '../types/RenderContext';
 import type { Settings } from '../types/Settings';
 import type {
@@ -18,6 +19,7 @@ import {
     resolveWeeklyUsageWindow
 } from '../utils/usage';
 import { resolveProvider } from '../utils/usage/resolver';
+
 import {
     LOCALE_EDITOR_ACTION,
     renderUsageLocaleEditor
