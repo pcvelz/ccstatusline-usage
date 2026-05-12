@@ -100,9 +100,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
-### [v2.4.2](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.2) - Upstream sync + Reset Timer editor + JSON model config
+### [v2.4.2](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.2) - Upstream sync + Reset Timer editor + JSON model config + provider gate
 
-- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Upstream sync** — 24 commits merged, including Jujutsu VCS widgets (`jj-branch`, `jj-changes`, `jj-conflicts`, `jj-description`), context percentage label fixes, and separator collapse improvements.
+- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Upstream sync** — 34 commits merged, including Jujutsu VCS widgets (`jj-branch`, `jj-changes`, `jj-conflicts`, `jj-description`), Voice Status widget, separate Weekly Sonnet and Weekly Opus usage widgets, short bar mode for timer widgets, pinned global install support, context percentage label fixes, and separator collapse improvements.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Off-peak widget provider gate** — Hides the Anthropic-only peak-hours indicator for non-Anthropic models (Kimi, GLM, Qwen, MiniMax, …). Introduces optional `getSupportedProviders()` on the Widget interface, with the gate enforced once in `renderer.preRenderAllWidgets()` — declarative per-widget routing that stays clean as new providers are added.
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Reset Timer editor actions** — `t` toggles date mode, `h` toggles hour format, `l` edits locale, `z` edits timezone directly in the TUI item editor.
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **JSON-driven model context** — Third-party model context window sizes (Kimi, GLM, MiniMax, Qwen, Devstral, etc.) moved from hardcoded TypeScript to `src/utils/model-context.json` for easier updates and community contributions.
 

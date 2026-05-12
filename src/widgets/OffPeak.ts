@@ -5,6 +5,7 @@ import type {
     WidgetEditorDisplay,
     WidgetItem
 } from '../types/Widget';
+import type { ProviderName } from '../utils/usage/types';
 
 // Peak hours on weekdays: 8 AM–2 PM EDT (UTC-4)
 // Peak = 12:00–18:00 UTC
@@ -95,4 +96,8 @@ export class OffPeakWidget implements Widget {
 
     supportsRawValue(): boolean { return true; }
     supportsColors(_item: WidgetItem): boolean { return true; }
+
+    // Peak hours are an Anthropic-plan concept (8 AM–2 PM EDT rate-limit window).
+    // Hide for non-Anthropic providers (Kimi, GLM, Qwen, ...) and unknown models.
+    getSupportedProviders(): ProviderName[] { return ['anthropic']; }
 }

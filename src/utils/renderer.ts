@@ -20,6 +20,10 @@ import {
 } from './colors';
 import { calculateContextPercentage } from './context-percentage';
 import { getTerminalWidth } from './terminal';
+import {
+    getModelIdFromContext,
+    resolveProvider
+} from './usage/resolver';
 import { getWidget } from './widgets';
 
 // Helper function to format token counts
@@ -513,6 +517,15 @@ export function preRenderAllWidgets(
             if (!widgetImpl) {
                 // Unknown widget type - skip it entirely
                 continue;
+            }
+
+            // Per-provider gate: skip widgets that don't apply to the current model's provider.
+            // Preview mode bypasses so the TUI editor renders examples regardless of model context.
+            const supported = widgetImpl.getSupportedProviders?.();
+            if (supported && !context.isPreview) {
+                const providerName = resolveProvider(getModelIdFromContext(context)).name;
+                if (!supported.includes(providerName))
+                    continue;
             }
 
             const effectiveWidget = context.minimalist ? { ...widget, rawValue: true } : widget;

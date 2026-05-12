@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import type { ProviderName } from '../utils/usage/types';
+
 import type { RenderContext } from './RenderContext';
 import type { Settings } from './Settings';
 
@@ -45,6 +47,10 @@ export interface Widget {
     supportsColors(item: WidgetItem): boolean;
     handleEditorAction?(action: string, item: WidgetItem): WidgetItem | null;
     getNumericValue?(context: RenderContext, item: WidgetItem): number | null;
+    // Optional provider gate: if defined, the renderer skips this widget when the
+    // resolved provider isn't in the list. Preview mode bypasses the gate so
+    // TUI editors keep working. Undefined = render for any provider.
+    getSupportedProviders?(): ProviderName[];
 }
 
 export interface WidgetEditorProps {

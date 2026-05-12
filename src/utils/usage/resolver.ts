@@ -1,3 +1,5 @@
+import type { RenderContext } from '../../types/RenderContext';
+
 import { anthropicProvider } from './providers/anthropic';
 import { nullProvider } from './providers/null';
 import { opencodeProvider } from './providers/opencode';
@@ -15,4 +17,9 @@ export function resolveProvider(modelId: string | undefined | null): UsageProvid
     if (OPENCODE_PATTERN.test(id))
         return opencodeProvider;
     return nullProvider;
+}
+
+export function getModelIdFromContext(context: RenderContext): string {
+    const model = context.data?.model;
+    return (typeof model === 'string' ? model : model?.id) ?? '';
 }

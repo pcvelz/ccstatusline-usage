@@ -123,12 +123,12 @@ describe('ContextPercentageUsableWidget', () => {
         });
 
         it('uses 1M context labels in model id for fallback denominator', () => {
-            const result = render('Opus 4.6 (1M context)', 42000);
+            const result = render('Opus 4.7 (1M context)', 42000);
             expect(result).toBe('Ctx(u) Used: 5.3%');
         });
 
         it('uses 1M in parentheses in model id for fallback denominator', () => {
-            const result = render('Opus 4.6 (1M)', 42000);
+            const result = render('Opus 4.7 (1M)', 42000);
             expect(result).toBe('Ctx(u) Used: 5.3%');
         });
     });

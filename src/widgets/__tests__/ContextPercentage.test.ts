@@ -91,12 +91,12 @@ describe('ContextPercentageWidget', () => {
         });
 
         it('should calculate percentage using 1M denominator for 1M context label model IDs', () => {
-            const result = render('Opus 4.6 (1M context)', 42000);
+            const result = render('Opus 4.7 (1M context)', 42000);
             expect(result).toBe('Ctx Used: 4.2%');
         });
 
         it('should calculate percentage using 1M denominator for 1M in parentheses model IDs', () => {
-            const result = render('Opus 4.6 (1M)', 42000);
+            const result = render('Opus 4.7 (1M)', 42000);
             expect(result).toBe('Ctx Used: 4.2%');
         });
     });
