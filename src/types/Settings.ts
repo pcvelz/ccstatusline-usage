@@ -27,6 +27,23 @@ export const InstallationMetadataSchema = z.discriminatedUnion('method', [
     })
 ]);
 
+// Off-hours configuration: a recurring daily window (local time) during which
+// the user is not expected to use Claude. Used by Weekly Pace to avoid having
+// the "expected %" drift upward while you sleep.
+export const OffHoursConfigSchema = z.object({
+    enabled: z.boolean().default(false),
+    // Minutes since local midnight, 0-1439. If start === end, no off-period.
+    // If end < start, the window wraps past midnight (e.g., 22:00 -> 07:00).
+    startMinutes: z.number().int().min(0).max(1439).default(22 * 60),
+    endMinutes: z.number().int().min(0).max(1439).default(7 * 60)
+});
+export type OffHoursConfig = z.infer<typeof OffHoursConfigSchema>;
+
+// Single source of truth for off-hours defaults. Consumed by the schema's
+// top-level `offHours.default(...)` AND by the TUI's "reset" action, so
+// tweaking any default only needs to change here.
+export const DEFAULT_OFF_HOURS: OffHoursConfig = OffHoursConfigSchema.parse({});
+
 // Schema for v1 settings (before version field was added)
 export const SettingsSchema_v1 = z.object({
     lines: z.array(z.array(WidgetItemSchema)).optional(),
@@ -89,6 +106,7 @@ export const SettingsSchema = z.object({
         autoAlign: false,
         continueThemeAcrossLines: false
     }),
+    offHours: OffHoursConfigSchema.default(DEFAULT_OFF_HOURS),
     updatemessage: z.object({
         message: z.string().nullable().optional(),
         remaining: z.number().nullable().optional()

@@ -17,6 +17,7 @@ export type MainMenuOption = 'lines'
     | 'powerline'
     | 'terminalConfig'
     | 'globalOverrides'
+    | 'offHours'
     | 'install'
     | 'manageInstallation'
     | 'checkUpdates'
@@ -112,6 +113,12 @@ export function buildMainMenuItems(
             value: 'globalOverrides',
             description:
                 'Set global padding, separators, and color overrides that apply to all widgets'
+        },
+        {
+            label: '🌙 Off Hours',
+            value: 'offHours',
+            description:
+                'Declare hours you won\'t use Claude (e.g., sleep). Weekly Pace holds its expected % steady through this window so the delta doesn\'t drift while you\'re away.'
         },
         {
             label: '🔧 Configure Status Line',
