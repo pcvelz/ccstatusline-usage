@@ -29,7 +29,7 @@
 This fork adds API-based usage widgets beyond the upstream:
 
 - **Session/Weekly Usage** - Real utilization from Anthropic API with progress bars
-- **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace
+- **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace (optional Off Hours window subtracts sleep time from the expected % calc)
 - **Reset Timer** - Time until weekly reset (when at 100% / on a charged model); otherwise time until 5-hour session window resets
 - **Context Window Display** - Visual bar showing context usage
 - **Off Peak** - Shows peak/off-peak status with countdown timer (peak hours drain sessions faster)
@@ -99,6 +99,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 <br />
 
 ## 🆕 Recent Updates
+
+### [v2.4.3](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.3) - Off Hours for Weekly Pace
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Off Hours configuration for Weekly Pace** — Optional recurring window (e.g. `22:00 → 07:00`) that Weekly Pace subtracts from both sides of its expected-% calculation, so the delta doesn't drift negative while you sleep. Wall-clock `dayOfWeek` still tracks calendar (D4/7 = Wednesday regardless of off-hours state). New TUI menu: `(e)` toggle, `(s)` / `(n)` edit start/end, `(r)` reset. Off by default — existing configs parse unchanged. Thanks to @BenIsLegit ([#4](https://github.com/pcvelz/ccstatusline-usage/pull/4)).
 
 ### [v2.4.2](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.2) - Upstream sync + Reset Timer editor + JSON model config + provider gate
 
