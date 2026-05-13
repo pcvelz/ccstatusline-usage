@@ -205,9 +205,12 @@ describe('SessionUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 14,
             extraUsageLimit: 100
         }, 200);
-        const expected = `Session: [███████|${DARK_RED_OPEN}█░░░░░░${DARK_RED_CLOSE}] 100.0%`;
+        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
 
-        expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe(expected);
+        expect(result).toContain(`Session: [███████|${DARK_RED_OPEN}█░░░░░░${DARK_RED_CLOSE}]`);
+        expect(result).toContain(DARK_RED_OPEN);
+        expect(result).toMatch(/[$€]0\.14\/[$€]1\.00/);
+        expect(result).not.toContain('100.0%');
     });
 
     it('does NOT render split bar when both session and weekly are 100 (weekly priority)', () => {
@@ -232,12 +235,15 @@ describe('SessionUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 14,
             extraUsageLimit: 100
         }, 200);
-        const expected = `Session: [███████|${DARK_RED_OPEN}█░░░░░░${DARK_RED_CLOSE}] 100.0%`;
+        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
 
-        expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe(expected);
+        expect(result).toContain(`Session: [███████|${DARK_RED_OPEN}█░░░░░░${DARK_RED_CLOSE}]`);
+        expect(result).toContain(DARK_RED_OPEN);
+        expect(result).toMatch(/[$€]0\.14\/[$€]1\.00/);
+        expect(result).not.toContain('100.0%');
     });
 
-    it('falls back to normal bar at mobile size (split skipped because too cramped)', () => {
+    it('shows amounts at mobile size (split bar skipped, plain full bar + amounts)', () => {
         const context = makeContext({
             sessionUsage: 100,
             weeklyUsage: 50,
@@ -245,9 +251,14 @@ describe('SessionUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 50,
             extraUsageLimit: 100
         }, 100);
-        const expected = 'S: [████] 100.0%';
+        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
 
-        expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe(expected);
+        expect(result).toContain('S: [████]');
+        expect(result).toContain(DARK_RED_OPEN);
+        // Mobile shows used amount only, no /limit
+        expect(result).toMatch(/[$€]0\.50/);
+        expect(result).not.toMatch(/[$€]0\.50\/[$€]/);
+        expect(result).not.toContain('100.0%');
     });
 
     it('renders normal bar when session=99 (gate not met)', () => {

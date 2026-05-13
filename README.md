@@ -100,6 +100,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.4](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.4) - Session extra usage dollar amount fix
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Session widget shows extra usage amounts** — When session hits 100% and extra usage is active (weekly still below 100%), the split bar now renders the actual dollar amount (`$0.97/$419.00`) instead of falling back to `100.0%`. The `SessionUsageWidget` was already drawing the split bar but wasn't passing `extraUsed`/`extraLimit` to `formatSplitUsageBar`; this fix completes the conditional chain so the amount always appears alongside the overdraft indicator.
+
 ### [v2.4.3](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.3) - Off Hours for Weekly Pace
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Off Hours configuration for Weekly Pace** — Optional recurring window (e.g. `22:00 → 07:00`) that Weekly Pace subtracts from both sides of its expected-% calculation, so the delta doesn't drift negative while you sleep. Wall-clock `dayOfWeek` still tracks calendar (D4/7 = Wednesday regardless of off-hours state). New TUI menu: `(e)` toggle, `(s)` / `(n)` edit start/end, `(r)` reset. Off by default — existing configs parse unchanged. Thanks to @BenIsLegit ([#4](https://github.com/pcvelz/ccstatusline-usage/pull/4)).

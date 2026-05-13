@@ -148,15 +148,14 @@ export class SessionUsageWidget implements Widget {
         const extraUsed = data.extraUsageUsed;
         const extraLimit = data.extraUsageLimit;
         if (
-            size !== 'mobile'
-            && data.extraUsageEnabled === true
+            data.extraUsageEnabled === true
             && extraUsed !== undefined
             && extraLimit !== undefined
             && data.sessionUsage >= 100
             && (data.weeklyUsage === undefined || data.weeklyUsage < 100)
         ) {
             const extraPercent = computeExtraPercent(extraUsed, extraLimit);
-            return formatSplitUsageBar('Session', 'S', extraPercent, size);
+            return formatSplitUsageBar('Session', 'S', extraPercent, size, extraUsed, extraLimit);
         }
 
         return formatUsageBar('Session', 'S', data.sessionUsage, size);
