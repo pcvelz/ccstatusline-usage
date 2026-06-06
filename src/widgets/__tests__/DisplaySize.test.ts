@@ -91,12 +91,12 @@ describe('ApiUsage SessionUsageWidget — display size tiers', () => {
         expect(result).toMatch(/\[[█░]{8}\]/);
     });
 
-    it('full (width=200): uses full label "Session:" and 15-wide bar (17 chars with brackets)', () => {
+    it('full (width=200): uses full label "Session:" and 16-wide bar (18 chars with brackets)', () => {
         const widget = new SessionUsageWidget();
         const result = widget.render(BASE_ITEM, ctx(200, SESSION_USAGE_DATA), DEFAULT_SETTINGS);
         expect(result).not.toBeNull();
         expect(result).toMatch(/^Session:/);
-        expect(result).toMatch(/\[[█░]{15}\]/);
+        expect(result).toMatch(/\[[█░]{16}\]/);
     });
 
     it('boundary: width=133 is still mobile', () => {
@@ -124,7 +124,7 @@ describe('ApiUsage SessionUsageWidget — display size tiers', () => {
         const widget = new SessionUsageWidget();
         const result = widget.render(BASE_ITEM, ctx(178, SESSION_USAGE_DATA), DEFAULT_SETTINGS);
         expect(result).toMatch(/^Session:/);
-        expect(result).toMatch(/\[[█░]{15}\]/);
+        expect(result).toMatch(/\[[█░]{16}\]/);
     });
 });
 
@@ -160,12 +160,12 @@ describe('ApiUsage WeeklyUsageWidget — display size tiers', () => {
         expect(result).toMatch(/\[[█░]{8}\]/);
     });
 
-    it('full (width=200): uses full label "Weekly:" and 15-wide bar', () => {
+    it('full (width=200): uses full label "Weekly:" and 16-wide bar', () => {
         const widget = new WeeklyUsageWidget();
         const result = widget.render(BASE_ITEM, ctx(200, WEEKLY_USAGE_DATA), DEFAULT_SETTINGS);
         expect(result).not.toBeNull();
         expect(result).toMatch(/^Weekly:/);
-        expect(result).toMatch(/\[[█░]{15}\]/);
+        expect(result).toMatch(/\[[█░]{16}\]/);
     });
 });
 
@@ -221,7 +221,7 @@ describe('ApiUsage ContextBarWidget — display size tiers', () => {
         expect(result).toMatch(/\(\d+%\)/);
     });
 
-    it('full (width=200): uses full label "Context:" and 15-wide bar with percentage suffix', () => {
+    it('full (width=200): uses full label "Context:" and 16-wide bar with percentage suffix', () => {
         const widget = new ContextBarWidget();
         const result = widget.render(
             BASE_ITEM,
@@ -230,7 +230,7 @@ describe('ApiUsage ContextBarWidget — display size tiers', () => {
         );
         expect(result).not.toBeNull();
         expect(result).toMatch(/^Context:/);
-        expect(result).toMatch(/\[[█░]{15}\]/);
+        expect(result).toMatch(/\[[█░]{16}\]/);
         expect(result).toMatch(/\(\d+%\)/);
     });
 

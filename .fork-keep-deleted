@@ -5,3 +5,8 @@
 docs/DEVELOPMENT.md
 docs/USAGE.md
 docs/WINDOWS.md
+
+# Upstream's tag-triggered npm-publish-with-provenance workflow. The fork
+# publishes manually via the /release skill, so this would double-publish and
+# create conflicting GitHub releases. Hardcodes upstream repo/package names too.
+.github/workflows/publish.yml

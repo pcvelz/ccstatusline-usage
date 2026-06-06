@@ -112,8 +112,8 @@ export function buildUninstallItems(
             label: `Remove Claude settings and ${packageManager} global package`,
             value: { packageManagers: [packageManager] },
             description: `Runs ${packageManager === 'npm'
-                ? 'npm uninstall -g ccstatusline'
-                : 'bun remove -g ccstatusline'} after removing Claude Code settings`
+                ? 'npm uninstall -g ccstatusline-usage'
+                : 'bun remove -g ccstatusline-usage'} after removing Claude Code settings`
         });
     }
 

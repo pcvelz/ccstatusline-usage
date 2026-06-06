@@ -2,7 +2,7 @@
   "entryPoints": ["src"],
   "entryPointStrategy": "expand",
   "out": "typedoc",
-  "name": "ccstatusline",
+  "name": "ccstatusline-usage",
   "readme": "README.md",
   "excludePrivate": true,
   "excludeProtected": false,
@@ -12,12 +12,12 @@
   "plugin": [],
   "theme": "default",
   "navigationLinks": {
-    "GitHub": "https://github.com/sirmalloc/ccstatusline"
+    "GitHub": "https://github.com/pcvelz/ccstatusline-usage"
   },
   "sidebarLinks": {
-    "NPM": "https://www.npmjs.com/package/ccstatusline"
+    "NPM": "https://www.npmjs.com/package/ccstatusline-usage"
   },
-  "titleLink": "https://github.com/sirmalloc/ccstatusline",
+  "titleLink": "https://github.com/pcvelz/ccstatusline-usage",
   "validation": {
     "notExported": true,
     "invalidLink": true,

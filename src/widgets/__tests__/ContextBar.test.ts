@@ -42,6 +42,35 @@ describe('ContextBarWidget', () => {
         expect(widget.render({ id: 'ctx', type: 'context-bar' }, context, DEFAULT_SETTINGS)).toBe('Context: [bar:15.0:16] 30k/200k (15%)');
     });
 
+    it('falls back to token metrics when current_usage is all zeros', () => {
+        const context: RenderContext = {
+            data: {
+                model: { id: 'qwen3.6-35b' },
+                context_window: {
+                    context_window_size: 131072,
+                    current_usage: {
+                        input_tokens: 0,
+                        output_tokens: 0,
+                        cache_creation_input_tokens: 0,
+                        cache_read_input_tokens: 0
+                    }
+                }
+            },
+            tokenMetrics: {
+                inputTokens: 0,
+                outputTokens: 0,
+                cachedTokens: 0,
+                totalTokens: 0,
+                contextLength: 45000
+            }
+        };
+        const widget = new ContextBarWidget();
+
+        // With zero current_usage during an active turn, should fall back to
+        // transcript metrics instead of showing "0k/131k".
+        expect(widget.render({ id: 'ctx', type: 'context-bar' }, context, DEFAULT_SETTINGS)).toBe('Context: [bar:34.3:16] 45k/131k (34%)');
+    });
+
     it('falls back to token metrics and model context size', () => {
         const context: RenderContext = {
             data: { model: { id: 'claude-3-5-sonnet-20241022' } },

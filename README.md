@@ -100,6 +100,12 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.5](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.5) - Upstream sync (both widget sets working) + context-bar zero fallback
+
+- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Upstream sync** — 18 commits merged through 2.2.19: Windows npm shim fix, Remote Control status widget, weekly-reset weekday display mode, `CCSTATUSLINE_WIDTH` override, git lock avoidance (`--no-optional-locks`) + persistent git cache, older-git compatibility, and npm provenance attestations.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Hybrid usage retrieval — both widget sets work** — Adopted upstream's declarative usage-prefetch pipeline (`getMissingFetchFields`/`mergeUsageData`) while keeping the fork's `resolveProvider()` fetch seam. Upstream's new Extra Usage Utilization / Extra Usage Remaining widgets now populate generically, and all existing fork widgets (Session, Weekly, Reset Timer, Context Bar, Weekly Pace, per-model Sonnet/Opus) keep working. The fork's usage-prefetch shrank from a parallel implementation to a single provider seam.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Context bar zero-usage fallback** — When Claude Code reports all-zero token usage mid-turn (common with local models before token accounting flushes), the Context Bar now falls back to transcript-based metrics instead of flashing `0k/200k`. Applied in both `getContextWindowMetrics` and `ContextBarWidget`. Default bar width nudged 15 → 16.
+
 ### [v2.4.4](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.4) - Session extra usage dollar amount fix
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Session widget shows extra usage amounts** — When session hits 100% and extra usage is active (weekly still below 100%), the split bar now renders the actual dollar amount (`$0.97/$419.00`) instead of falling back to `100.0%`. The `SessionUsageWidget` was already drawing the split bar but wasn't passing `extraUsed`/`extraLimit` to `formatSplitUsageBar`; this fix completes the conditional chain so the amount always appears alongside the overdraft indicator.

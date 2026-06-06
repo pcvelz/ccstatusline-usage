@@ -63,6 +63,16 @@ export function getContextWindowMetrics(data?: StatusJSON): ContextWindowMetrics
         currentUsageTotalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
         contextLengthTokens = inputTokens + cacheCreationTokens + cacheReadTokens;
         cachedTokens = cacheCreationTokens + cacheReadTokens;
+
+        // When all usage fields are zero (e.g. during an active turn with a local
+        // model where Claude Code hasn't flushed token accounting yet), treat the
+        // current_usage as absent so that callers can fall back to transcript-based
+        // metrics instead of showing "0k/131k".
+        if (currentUsageTotalTokens === 0) {
+            currentUsageTotalTokens = null;
+            contextLengthTokens = null;
+            cachedTokens = null;
+        }
     }
 
     const rawUsedPercentage = toFiniteNonNegativeNumber(contextWindow.used_percentage);

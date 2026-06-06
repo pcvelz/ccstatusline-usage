@@ -97,7 +97,7 @@ import {
     type ListEntry
 } from './components/List';
 
-const GITHUB_REPO_URL = 'https://github.com/sirmalloc/ccstatusline';
+const GITHUB_REPO_URL = 'https://github.com/pcvelz/ccstatusline-usage';
 
 interface FlashMessage {
     text: string;
@@ -274,8 +274,8 @@ const PinnedVersionMismatchScreen: React.FC<PinnedVersionMismatchScreenProps> = 
 
 function getGlobalUninstallCommand(packageManager: GlobalPackageManager): string {
     return packageManager === 'npm'
-        ? 'npm uninstall -g ccstatusline'
-        : 'bun remove -g ccstatusline';
+        ? 'npm uninstall -g ccstatusline-usage'
+        : 'bun remove -g ccstatusline-usage';
 }
 
 function buildUninstallConfirmMessage(selection: UninstallSelection): string {

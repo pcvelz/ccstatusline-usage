@@ -233,6 +233,33 @@ describe('calculateContextPercentage', () => {
             expect(percentage).toBe(21.0);
         });
 
+        it('should fall back to token metrics when current_usage is all zeros', () => {
+            const context: RenderContext = {
+                data: {
+                    context_window: {
+                        context_window_size: 131072,
+                        current_usage: {
+                            input_tokens: 0,
+                            output_tokens: 0,
+                            cache_creation_input_tokens: 0,
+                            cache_read_input_tokens: 0
+                        }
+                    }
+                },
+                tokenMetrics: {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    cachedTokens: 0,
+                    totalTokens: 0,
+                    contextLength: 45000
+                }
+            };
+
+            const percentage = calculateContextPercentage(context);
+            // With all-zero current_usage, should fall back to transcript metrics
+            expect(percentage).toBe(Math.min(100, (45000 / 131072) * 100));
+        });
+
         it('should return 0 when no token metrics', () => {
             const context: RenderContext = { data: { model: { id: 'claude-3-5-sonnet-20241022' } } };
 

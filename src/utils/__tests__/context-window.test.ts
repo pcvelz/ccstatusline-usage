@@ -49,6 +49,29 @@ describe('getContextWindowMetrics', () => {
         });
     });
 
+    it('returns null metrics when current_usage fields are all zero, allowing transcript fallback', () => {
+        const metrics = getContextWindowMetrics({
+            context_window: {
+                context_window_size: 131072,
+                current_usage: {
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    cache_creation_input_tokens: 0,
+                    cache_read_input_tokens: 0
+                }
+            }
+        });
+
+        // When all usage fields are zero (e.g. active turn with local model),
+        // treat current_usage as absent so widgets can fall back to transcript
+        // metrics instead of showing "0k/131k".
+        expect(metrics.contextLengthTokens).toBeNull();
+        expect(metrics.usedTokens).toBeNull();
+        expect(metrics.usedPercentage).toBeNull();
+        expect(metrics.totalTokens).toBeNull();
+        expect(metrics.windowSize).toBe(131072);
+    });
+
     it('derives token usage from used_percentage when current_usage is missing', () => {
         const metrics = getContextWindowMetrics({
             context_window: {

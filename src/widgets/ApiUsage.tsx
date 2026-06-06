@@ -41,7 +41,7 @@ const MOBILE_THRESHOLD = 134;
 const MEDIUM_THRESHOLD = 178;
 const MOBILE_BAR_WIDTH = 4;
 const MEDIUM_BAR_WIDTH = 8;
-const DEFAULT_BAR_WIDTH = 15;
+const DEFAULT_BAR_WIDTH = 16;
 
 type DisplaySize = 'mobile' | 'medium' | 'full';
 
@@ -345,6 +345,13 @@ export class ContextBarWidget implements Widget {
                 + (Number(u.output_tokens) || 0)
                 + (Number(u.cache_creation_input_tokens) || 0)
                 + (Number(u.cache_read_input_tokens) || 0);
+        }
+
+        // When all usage fields are zero (e.g. during an active turn with a local
+        // model where Claude Code hasn't flushed token accounting yet), fall back
+        // to transcript-based metrics instead of showing "0k/200k".
+        if (used === 0 && context.tokenMetrics && context.tokenMetrics.contextLength > 0) {
+            used = context.tokenMetrics.contextLength;
         }
 
         if (isNaN(total) || isNaN(used))

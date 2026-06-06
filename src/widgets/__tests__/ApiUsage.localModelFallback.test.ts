@@ -87,7 +87,7 @@ describe('ApiUsage widgets with provider resolution', () => {
                 },
                 terminalWidth: 200
             };
-            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [███░░░░░░░░░░░░] 50k/262k (19%)');
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [███░░░░░░░░░░░░░] 50k/262k (19%)');
         });
 
         it('ContextBarWidget renders for qwen models in mobile mode', () => {
@@ -119,7 +119,7 @@ describe('ApiUsage widgets with provider resolution', () => {
             };
             // Non-Anthropic, non-opencode model — null provider
             // Context Bar still renders because it only checks for context_window presence
-            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [████░░░░░░░░░░░] 50k/200k (25%)');
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [████░░░░░░░░░░░░] 50k/200k (25%)');
         });
 
         it('SessionUsageWidget returns null for qwen models (opencode provider, no API data)', () => {
@@ -134,7 +134,64 @@ describe('ApiUsage widgets with provider resolution', () => {
             // But wait — the widget only gates on null provider before checking data.
             // For opencode models, resolveProvider returns 'opencode' (not 'null'),
             // so the widget proceeds past the gate and renders normally if usageData is present.
-            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Session: [██░░░░░░░░░░░░░] 14.0%');
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Session: [██░░░░░░░░░░░░░░] 14.0%');
+        });
+    });
+
+    describe('ContextBarWidget zero-usage fallback', () => {
+        it('falls back to tokenMetrics when current_usage is all zeros', () => {
+            const widget = new ContextBarWidget();
+            const context: RenderContext = {
+                data: {
+                    model: { id: 'qwen3.6-35b' },
+                    context_window: {
+                        context_window_size: 131072,
+                        current_usage: {
+                            input_tokens: 0,
+                            output_tokens: 0,
+                            cache_creation_input_tokens: 0,
+                            cache_read_input_tokens: 0
+                        }
+                    }
+                },
+                tokenMetrics: {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    cachedTokens: 0,
+                    totalTokens: 0,
+                    contextLength: 45000
+                },
+                terminalWidth: 200
+            };
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [█████░░░░░░░░░░░] 45k/131k (34%)');
+        });
+
+        it('prefers payload usage over tokenMetrics when non-zero', () => {
+            const widget = new ContextBarWidget();
+            const context: RenderContext = {
+                data: {
+                    model: { id: 'claude-3-5-sonnet-20241022' },
+                    context_window: {
+                        context_window_size: 200000,
+                        current_usage: {
+                            input_tokens: 50000,
+                            output_tokens: 10000,
+                            cache_creation_input_tokens: 5000,
+                            cache_read_input_tokens: 3000
+                        }
+                    }
+                },
+                tokenMetrics: {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    cachedTokens: 0,
+                    totalTokens: 0,
+                    contextLength: 99999
+                },
+                terminalWidth: 200
+            };
+            // Should use payload values (68000) not tokenMetrics (99999)
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [█████░░░░░░░░░░░] 68k/200k (34%)');
         });
     });
 
@@ -146,7 +203,7 @@ describe('ApiUsage widgets with provider resolution', () => {
                 { sessionUsage: 14.0 },
                 { data: { model: { id: 'claude-sonnet-4-5[1m]' } } }
             );
-            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Session: [██░░░░░░░░░░░░░] 14.0%');
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Session: [██░░░░░░░░░░░░░░] 14.0%');
         });
 
         it('SessionUsageWidget renders normally for Opus', () => {
@@ -155,7 +212,7 @@ describe('ApiUsage widgets with provider resolution', () => {
                 { sessionUsage: 14.0 },
                 { data: { model: { id: 'claude-opus-4-7[1m]' } } }
             );
-            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Session: [██░░░░░░░░░░░░░] 14.0%');
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Session: [██░░░░░░░░░░░░░░] 14.0%');
         });
     });
 });

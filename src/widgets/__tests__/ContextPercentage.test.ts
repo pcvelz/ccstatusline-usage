@@ -53,6 +53,39 @@ describe('ContextPercentageWidget', () => {
         }).modifierText).toBe('(remaining)');
     });
 
+    it('falls back to token metrics when current_usage is all zeros', () => {
+        const widget = new ContextPercentageWidget();
+        const item: WidgetItem = {
+            id: 'context-percentage',
+            type: 'context-percentage'
+        };
+        const context: RenderContext = {
+            data: {
+                model: { id: 'qwen3.6-35b' },
+                context_window: {
+                    context_window_size: 131072,
+                    current_usage: {
+                        input_tokens: 0,
+                        output_tokens: 0,
+                        cache_creation_input_tokens: 0,
+                        cache_read_input_tokens: 0
+                    }
+                }
+            },
+            tokenMetrics: {
+                inputTokens: 0,
+                outputTokens: 0,
+                cachedTokens: 0,
+                totalTokens: 0,
+                contextLength: 45000
+            }
+        };
+
+        // With zero current_usage during an active turn, should fall back to
+        // transcript metrics instead of showing "0.0%".
+        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Ctx Used: 34.3%');
+    });
+
     it('prefers context_window percentage over token metrics when both exist', () => {
         const widget = new ContextPercentageWidget();
         const item: WidgetItem = {
