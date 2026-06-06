@@ -1202,6 +1202,7 @@ export const App: React.FC = () => {
                     <RefreshIntervalMenu
                         currentInterval={currentRefreshInterval}
                         supportsRefreshInterval={supportsRefreshInterval}
+                        gitCacheTtlSeconds={settings.gitCacheTtlSeconds}
                         onUpdate={(interval) => {
                             const previous = currentRefreshInterval;
                             setCurrentRefreshInterval(interval);
@@ -1219,6 +1220,17 @@ export const App: React.FC = () => {
                                         color: 'red'
                                     });
                                 });
+                            setScreen('main');
+                        }}
+                        onGitCacheTtlUpdate={(ttlSeconds) => {
+                            setSettings({
+                                ...settings,
+                                gitCacheTtlSeconds: ttlSeconds
+                            });
+                            setFlashMessage({
+                                text: '✓ Git cache TTL updated',
+                                color: 'green'
+                            });
                             setScreen('main');
                         }}
                         onBack={() => {

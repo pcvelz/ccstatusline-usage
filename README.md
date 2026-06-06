@@ -411,7 +411,7 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## ✨ Features
 
-- **📊 Real-time Metrics** - Display model name, git branch, token usage, per-model weekly usage, voice input state, session duration, compaction count, block timer, and more
+- **📊 Real-time Metrics** - Display model name, git branch, token usage, per-model weekly usage, extra usage limits, voice input state, session duration, compaction count, block timer, and more
 - **📈 API Usage Tracking** - Real-time 5-hour session and weekly utilization from Anthropic API with progress bars
 - **⏱️ Reset Timer** - Countdown to when your 5-hour session window resets
 - **🎨 Fully Customizable** - Choose what to display and customize colors for each element
