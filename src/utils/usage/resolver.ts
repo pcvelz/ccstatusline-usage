@@ -6,7 +6,7 @@ import { opencodeProvider } from './providers/opencode';
 import type { UsageProvider } from './types';
 
 const OPENCODE_PATTERN = /(?:^|[^a-z])(glm|kimi|minimax|mm-|qwen|owen|mimo)/i;
-const ANTHROPIC_KEYWORDS = ['opus', 'sonnet', 'haiku'];
+const ANTHROPIC_KEYWORDS = ['opus', 'sonnet', 'haiku', 'fable'];
 
 export function resolveProvider(modelId: string | undefined | null): UsageProvider {
     if (!modelId)

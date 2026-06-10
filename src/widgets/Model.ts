@@ -8,15 +8,15 @@ import type {
 
 const MEDIUM_THRESHOLD = 178;
 
-// Parse model ID into compact form: claude-opus-4-7 → o4.7, claude-sonnet-4-5-20250929 → s4.5
+// Parse model ID into compact form: claude-opus-4-7 → o4.7, claude-fable-5 → f5
 function compactModelName(name: string): string {
-    // Strip claude- prefix
-    const stripped = name.replace(/^claude-/, '');
-    // Match: {model-name}-{major}-{minor}[-optional-date-suffix]
-    const match = /^([a-z]+)-(\d+)-(\d+)/.exec(stripped);
+    // Strip claude- prefix and [1m] suffix (caller re-appends the suffix)
+    const stripped = name.replace(/^claude-/, '').replace(/\[1m\]/gi, '');
+    // Match: {model-name}-{major}[-minor][-optional-date-suffix]
+    const match = /^([a-z]+)-(\d+)(?:-(\d+))?/.exec(stripped);
     if (match) {
         const letter = match[1]?.charAt(0) ?? '';
-        return `${letter}${match[2]}.${match[3]}`;
+        return match[3] ? `${letter}${match[2]}.${match[3]}` : `${letter}${match[2]}`;
     }
     return stripped;
 }

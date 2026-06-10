@@ -13,6 +13,9 @@ describe('resolveProvider', () => {
     it('routes sonnet to anthropic', () => {
         expect(resolveProvider('claude-sonnet-4-6[1m]').name).toBe('anthropic');
     });
+    it('routes fable to anthropic', () => {
+        expect(resolveProvider('claude-fable-5[1m]').name).toBe('anthropic');
+    });
     it('routes haiku to anthropic', () => {
         expect(resolveProvider('claude-haiku-4-5-20251001').name).toBe('anthropic');
     });

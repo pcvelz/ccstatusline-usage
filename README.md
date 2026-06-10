@@ -40,7 +40,7 @@ This fork adds API-based usage widgets beyond the upstream:
 
 Claude Code can route individual prompts to non-Anthropic backends via opencode or a local Ollama runtime. The status line reads the `model.id` that Claude Code sends on stdin each render and dispatches through a per-provider resolver (`src/utils/usage/resolver.ts`):
 
-- **Anthropic** (`opus`, `sonnet`, `haiku` in the id) — fetches Session/Weekly/Reset from the usage API.
+- **Anthropic** (`opus`, `sonnet`, `haiku`, `fable` in the id) — fetches Session/Weekly/Reset from the usage API.
 - **Opencode** (`glm`, `kimi`, `minimax`, `mm-`, `qwen`, `owen`, `mimo`) — no usage API call; Session/Weekly/Reset widgets hide themselves. Context Bar still renders when `context_window` is in the payload.
 - **Unknown model id** — same behavior as opencode (hides usage widgets).
 
@@ -62,8 +62,8 @@ Example — configure Claude Code to route a model through opencode (edit `~/.cl
 What the status line renders per model:
 
 ```
-# Anthropic (opus / sonnet / haiku)
-Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | 2:03 hr | Model: Opus 4.7
+# Anthropic (opus / sonnet / haiku / fable)
+Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | 2:03 hr | Model: Fable 5
   Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8% | Off-peak (4:03 hr)
 
 # Opencode / local (glm-5.1, kimi, qwen, …)
@@ -74,7 +74,7 @@ Model: glm-5.1 | Off-peak (4:03 hr)
 ### Enhanced Status Line Preview
 
 ```
-Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | 2:03 hr | Model: Opus 4.7 | Session ID: 0109b99d...
+Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | 2:03 hr | Model: Fable 5 | Session ID: 0109b99d...
   Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8% | Off-peak (4:03 hr)
 ```
 
@@ -99,6 +99,11 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 <br />
 
 ## 🆕 Recent Updates
+
+### [v2.4.6](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.6) - Fable 5 model support
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fable 5 usage provider routing** — `fable` model ids now route to the Anthropic usage provider, so the Session, Weekly, and Reset Timer widgets render real usage data instead of hiding when a Fable model is active. The `[1m]` suffix already maps the Context Bar to a 1M window.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Compact names for single-version model ids** — mobile/compact mode now renders `claude-fable-5[1m]` as `M: f5[1m]`; previously the id failed to compact and the `[1m]` suffix was duplicated.
 
 ### [v2.4.5](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.5) - Upstream sync (both widget sets working) + context-bar zero fallback
 
