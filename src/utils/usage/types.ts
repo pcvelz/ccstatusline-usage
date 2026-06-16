@@ -1,7 +1,9 @@
-import type { FetchUsageDataOptions } from '../usage-fetch';
-import type { UsageData } from '../usage-types';
+import type {
+    FetchUsageDataOptions,
+    UsageData
+} from '../usage-types';
 
-export type ProviderName = 'anthropic' | 'opencode' | 'null';
+export type ProviderName = 'anthropic' | 'opencode' | 'kimi' | 'null';
 
 export interface UsageProvider {
     readonly name: ProviderName;

@@ -8,7 +8,9 @@ import { z } from 'zod';
 
 import { getClaudeConfigDir } from './claude-settings';
 import type {
+    FetchUsageDataOptions,
     UsageData,
+    UsageDataField,
     UsageError
 } from './usage-types';
 import { UsageErrorSchema } from './usage-types';
@@ -22,10 +24,6 @@ const LOCK_MAX_AGE = 30;   // rate limit: only try API once per 30 seconds
 const DEFAULT_RATE_LIMIT_BACKOFF = 300; // seconds
 const MACOS_USAGE_CREDENTIALS_SERVICE = 'Claude Code-credentials';
 const MACOS_SECURITY_DUMP_MAX_BUFFER = 8 * 1024 * 1024;
-
-type UsageDataField = Exclude<keyof UsageData, 'error'>;
-
-export interface FetchUsageDataOptions { requiredFields?: readonly UsageDataField[] }
 
 const EXTRA_USAGE_DETAIL_FIELDS = new Set<UsageDataField>([
     'extraUsageLimit',
@@ -49,12 +47,16 @@ const CachedUsageDataSchema = z.object({
     weeklySonnetResetAt: z.string().nullable().optional(),
     weeklyOpusUsage: z.number().nullable().optional(),
     weeklyOpusResetAt: z.string().nullable().optional(),
+    kimiWeeklyUsage: z.number().nullable().optional(),
+    kimiWeeklyResetAt: z.string().nullable().optional(),
+    kimiMonthlyUsage: z.number().nullable().optional(),
+    kimiMonthlyResetAt: z.string().nullable().optional(),
     extraUsageEnabled: z.boolean().nullable().optional(),
     extraUsageLimit: z.number().nullable().optional(),
     extraUsageUsed: z.number().nullable().optional(),
     extraUsageUtilization: z.number().nullable().optional(),
     error: z.string().nullable().optional(),
-    provider: z.enum(['anthropic', 'opencode']).nullable().optional()
+    provider: z.enum(['anthropic', 'opencode', 'kimi']).nullable().optional()
 });
 
 const UsageApiBucketSchema = z.looseObject({
@@ -112,6 +114,10 @@ function parseCachedUsageData(rawJson: string): UsageData | null {
         weeklySonnetResetAt: parsed.weeklySonnetResetAt ?? undefined,
         weeklyOpusUsage: parsed.weeklyOpusUsage ?? undefined,
         weeklyOpusResetAt: parsed.weeklyOpusResetAt ?? undefined,
+        kimiWeeklyUsage: parsed.kimiWeeklyUsage ?? undefined,
+        kimiWeeklyResetAt: parsed.kimiWeeklyResetAt ?? undefined,
+        kimiMonthlyUsage: parsed.kimiMonthlyUsage ?? undefined,
+        kimiMonthlyResetAt: parsed.kimiMonthlyResetAt ?? undefined,
         extraUsageEnabled: parsed.extraUsageEnabled ?? undefined,
         extraUsageLimit: parsed.extraUsageLimit ?? undefined,
         extraUsageUsed: parsed.extraUsageUsed ?? undefined,

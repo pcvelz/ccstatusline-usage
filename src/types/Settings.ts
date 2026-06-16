@@ -79,6 +79,10 @@ export const SettingsSchema = z.object({
             ],
             [
                 { id: 'context-bar', type: 'context-bar', color: 'blue' },
+                { id: 'sep-kimi-weekly', type: 'separator' },
+                { id: 'kimi-weekly-usage', type: 'kimi-weekly-usage', color: 'brightBlue' },
+                { id: 'sep-kimi-monthly', type: 'separator' },
+                { id: 'kimi-monthly-usage', type: 'kimi-monthly-usage', color: 'brightBlue' },
                 { id: 'sep-weekly-pace', type: 'separator' },
                 { id: 'weekly-pace', type: 'weekly-pace', color: 'brightBlue', metadata: { display: 'pendulum' } },
                 { id: 'sep-off-peak', type: 'separator' },

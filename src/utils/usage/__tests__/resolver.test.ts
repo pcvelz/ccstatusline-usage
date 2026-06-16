@@ -22,8 +22,8 @@ describe('resolveProvider', () => {
     it('routes glm-5.1 to opencode', () => {
         expect(resolveProvider('glm-5.1').name).toBe('opencode');
     });
-    it('routes kimi-k2.6 to opencode', () => {
-        expect(resolveProvider('kimi-k2.6').name).toBe('opencode');
+    it('routes kimi-k2.6 to kimi', () => {
+        expect(resolveProvider('kimi-k2.6').name).toBe('kimi');
     });
     it('routes minimax-m2.7 to opencode', () => {
         expect(resolveProvider('minimax-m2.7').name).toBe('opencode');

@@ -1,8 +1,8 @@
-import {
-    fetchUsageData as fetchAnthropicUsage,
-    type FetchUsageDataOptions
-} from '../../usage-fetch';
-import type { UsageData } from '../../usage-types';
+import { fetchUsageData as fetchAnthropicUsage } from '../../usage-fetch';
+import type {
+    FetchUsageDataOptions,
+    UsageData
+} from '../../usage-types';
 import type { UsageProvider } from '../types';
 
 export const anthropicProvider: UsageProvider = {

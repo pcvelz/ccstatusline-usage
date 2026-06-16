@@ -58,6 +58,7 @@ export { TotalSpeedWidget } from './TotalSpeed';
 export { FreeMemoryWidget } from './FreeMemory';
 export { SessionNameWidget } from './SessionName';
 export { ContextBarWidget, ResetTimerWidget, SessionUsageWidget, WeeklyUsageWidget } from './ApiUsage';
+export { KimiMonthlyUsageWidget, KimiWeeklyUsageWidget } from './KimiUsage';
 export { ExtraUsageUtilizationWidget } from './ExtraUsageUtilization';
 export { ExtraUsageRemainingWidget } from './ExtraUsageRemaining';
 export { WeeklySonnetUsageWidget } from './WeeklySonnetUsage';

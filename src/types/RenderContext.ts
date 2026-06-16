@@ -16,6 +16,10 @@ export interface RenderUsageData {
     weeklySonnetResetAt?: string;
     weeklyOpusUsage?: number;
     weeklyOpusResetAt?: string;
+    kimiWeeklyUsage?: number;
+    kimiWeeklyResetAt?: string;
+    kimiMonthlyUsage?: number;
+    kimiMonthlyResetAt?: string;
     extraUsageEnabled?: boolean;
     extraUsageLimit?: number;
     extraUsageUsed?: number;

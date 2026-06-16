@@ -15,13 +15,21 @@ export interface UsageData {
     weeklySonnetResetAt?: string; // seven_day_sonnet.resets_at
     weeklyOpusUsage?: number;     // seven_day_opus.utilization (percentage)
     weeklyOpusResetAt?: string;   // seven_day_opus.resets_at
+    kimiWeeklyUsage?: number;     // Kimi weekly sliding window utilization
+    kimiWeeklyResetAt?: string;   // Kimi weekly sliding window reset time
+    kimiMonthlyUsage?: number;    // Kimi monthly quota utilization
+    kimiMonthlyResetAt?: string;  // Kimi monthly quota reset time
     extraUsageEnabled?: boolean;
     extraUsageLimit?: number;      // in cents (divide by 100 for dollars)
     extraUsageUsed?: number;       // in cents (divide by 100 for dollars)
     extraUsageUtilization?: number; // percentage 0-100
     error?: UsageError;
-    provider?: 'anthropic' | 'opencode' | null;
+    provider?: 'anthropic' | 'opencode' | 'kimi' | null;
 }
+
+export type UsageDataField = Exclude<keyof UsageData, 'error'>;
+
+export interface FetchUsageDataOptions { requiredFields?: readonly UsageDataField[] }
 
 export interface UsageWindowMetrics {
     sessionDurationMs: number;
