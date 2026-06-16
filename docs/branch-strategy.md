@@ -13,7 +13,7 @@ If you need to run shell commands on `future`, do so manually outside of Claude 
 ### Adding Code to `future`
 
 - Use Write/Edit/Agent tools for source changes.
-- Keep Kimi-specific code in dedicated files (`src/widgets/ApiUsage.tsx` for the Kimi widgets, `src/utils/usage/providers/kimi.ts`, `scripts/kimi-usage.sh`) so pulling `main` into `future` produces minimal conflicts.
+- Keep Kimi-specific code in dedicated files (`src/widgets/KimiUsage.tsx` for the Kimi widgets, `src/utils/usage/providers/kimi.ts`, `scripts/kimi-usage.sh`) so pulling `main` into `future` produces minimal conflicts.
 - Do not change `main`-branch behavior; `future` should only add files or extend types in backward-compatible ways.
 
 ### Release Flow
