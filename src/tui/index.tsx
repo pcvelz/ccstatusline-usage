@@ -1,1 +1,0 @@
-export { runTUI } from './App';
