@@ -72,7 +72,7 @@ merge_results() {
     local api_json="$1"
     local cdp_json="$2"
 
-    echo "$api_json" "$cdp_json" | jq -s '
+    printf '%s\n%s\n' "$api_json" "$cdp_json" | jq -s '
         .[0] as $api | .[1] as $cdp |
         {
             provider: "kimi",
@@ -82,8 +82,8 @@ merge_results() {
         + (if $api.weeklyResetAt != null then {weeklyResetAt: $api.weeklyResetAt} else if $cdp.weeklyResetAt != null then {weeklyResetAt: $cdp.weeklyResetAt} else {} end end)
         + (if $api.monthlyUsage != null then {monthlyUsage: $api.monthlyUsage} else {} end)
         + (if $api.monthlyResetAt != null then {monthlyResetAt: $api.monthlyResetAt} else {} end)
-        + (if $api.sessionUsage == null and $cdp.sessionUsage != null then {sessionUsage: $cdp.sessionUsage} else {} end)
-        + (if $api.sessionResetAt == null and $cdp.sessionResetAt != null then {sessionResetAt: $cdp.sessionResetAt} else {} end)
+        + (if $api.sessionUsage != null then {sessionUsage: $api.sessionUsage} else if $cdp.sessionUsage != null then {sessionUsage: $cdp.sessionUsage} else {} end end)
+        + (if $api.sessionResetAt != null then {sessionResetAt: $api.sessionResetAt} else if $cdp.sessionResetAt != null then {sessionResetAt: $cdp.sessionResetAt} else {} end end)
     '
 }
 
