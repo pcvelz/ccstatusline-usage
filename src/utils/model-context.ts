@@ -1,3 +1,4 @@
+import { getLocalModelContext } from './local-model-context';
 import modelContextData from './model-context.json';
 
 interface ModelContextConfig {
@@ -94,7 +95,21 @@ export function getContextConfig(modelIdentifier?: string, contextWindowSize?: n
         return defaultConfig;
     }
 
-    // Check against JSON mappings (matched via .includes())
+    // LOCAL models (llama.cpp / llama-swap) are single-sourced from llama-cm's
+    // models.json by gguf_basename — never from a hardcoded duplicate. This is
+    // checked BEFORE the JSON mappings so models.json is authoritative for them
+    // (and so a generic mappings pattern like "qwen3.6-35b" can't shadow a local
+    // basename with a stale value). Live context_window_size already won above.
+    const localContextSize = getLocalModelContext(modelIdentifier);
+    if (localContextSize !== null) {
+        return {
+            maxTokens: localContextSize,
+            usableTokens: Math.floor(localContextSize * USABLE_CONTEXT_RATIO)
+        };
+    }
+
+    // Check against JSON mappings (matched via .includes()) — third-party /
+    // remote / Ollama models only; local llamacpp basenames are resolved above.
     const normalizedModel = modelIdentifier.toLowerCase().trim();
     for (const entry of modelContextData.mappings) {
         if (normalizedModel.includes(entry.pattern)) {
