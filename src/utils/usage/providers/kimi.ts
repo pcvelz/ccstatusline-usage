@@ -33,11 +33,25 @@ export const kimiProvider: UsageProvider = {
             return Promise.resolve({ provider: 'kimi' });
         }
 
+        const weeklyUsage = typeof result.weeklyUsage === 'number' ? result.weeklyUsage : undefined;
+        const weeklyResetAt = typeof result.weeklyResetAt === 'string' ? result.weeklyResetAt : undefined;
+        const monthlyUsage = typeof result.monthlyUsage === 'number' ? result.monthlyUsage : undefined;
+        const monthlyResetAt = typeof result.monthlyResetAt === 'string' ? result.monthlyResetAt : undefined;
+        // CDP fallback returns the shorter "Rate limit details" window as sessionUsage.
+        const sessionUsage = typeof result.sessionUsage === 'number' ? result.sessionUsage : monthlyUsage;
+        const sessionResetAt = typeof result.sessionResetAt === 'string' ? result.sessionResetAt : monthlyResetAt;
+
         return Promise.resolve({
-            kimiWeeklyUsage: typeof result.weeklyUsage === 'number' ? result.weeklyUsage : undefined,
-            kimiWeeklyResetAt: typeof result.weeklyResetAt === 'string' ? result.weeklyResetAt : undefined,
-            kimiMonthlyUsage: typeof result.monthlyUsage === 'number' ? result.monthlyUsage : undefined,
-            kimiMonthlyResetAt: typeof result.monthlyResetAt === 'string' ? result.monthlyResetAt : undefined,
+            // Kimi-native fields (used by kimi-* widgets)
+            kimiWeeklyUsage: weeklyUsage,
+            kimiWeeklyResetAt: weeklyResetAt,
+            kimiMonthlyUsage: monthlyUsage,
+            kimiMonthlyResetAt: monthlyResetAt,
+            // Generic aliases so the standard Session/Weekly/WeeklyPace widgets render
+            sessionUsage,
+            sessionResetAt,
+            weeklyUsage,
+            weeklyResetAt,
             provider: 'kimi'
         });
     }
