@@ -232,18 +232,12 @@ export class ResetTimerWidget implements Widget {
         if (resolveProvider(getModelId(context)).name === 'null')
             return null;
 
-        // Determine if the current model charges extra usage (Sonnet [1m] does, Opus [1m] does not)
-        const modelId = getModelId(context);
-        const is1mModel = modelId.includes('[1m]');
-        const isOpus = modelId.includes('opus');
-        const isChargedModel = is1mModel && !isOpus;
-
-        // When extra usage is active (weekly limit reached, or charged [1m] model like Sonnet [1m]),
-        // show the WEEKLY reset time. Session hitting 100% alone doesn't count — session resets
-        // on its own 5-hour cycle, so keep showing the session timer until weekly is also exhausted.
+        // When extra usage is active (weekly limit reached), show the WEEKLY reset time.
+        // Session hitting 100% alone doesn't count — session resets on its own 5-hour cycle,
+        // so keep showing the session timer until weekly is also exhausted.
+        // No [1m] model charges extra usage anymore (all context-window betas are included in-plan).
         const extraActive = data.extraUsageEnabled && data.extraUsageUsed !== undefined && data.extraUsageLimit !== undefined
-            && ((data.weeklyUsage !== undefined && data.weeklyUsage >= 100)
-                || isChargedModel);
+            && data.weeklyUsage !== undefined && data.weeklyUsage >= 100;
 
         if (extraActive) {
             const weeklyWindow = resolveWeeklyUsageWindow(data);

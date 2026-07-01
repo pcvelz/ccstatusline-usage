@@ -243,10 +243,9 @@ describe('ResetTimerWidget — reads from context.usageData', () => {
         expect(result).toMatch(/^2:(29|30) hr$/);
     });
 
-    it('shows weekly reset time for a charged [1m] (Sonnet) model even when weekly is below 100%', () => {
+    it('does NOT render extra-usage for a Sonnet [1m] model when weekly is below 100% (no model charges extra anymore)', () => {
         installLegacyCacheMock({ extraUsageEnabled: false });
 
-        // Weekly reset is 3h45m in the future.
         const weeklyResetAt = new Date(Date.now() + (3 * 60 + 45) * 60 * 1000).toISOString();
         const widget = new ResetTimerWidget();
         const result = widget.render(
@@ -265,9 +264,10 @@ describe('ResetTimerWidget — reads from context.usageData', () => {
             DEFAULT_SETTINGS
         );
 
+        // Should fall through to session time display — no [1m] model is charged extra anymore.
         expect(result).not.toBeNull();
         expect(result).not.toContain('Extra');
-        expect(result).toMatch(/^3:(44|45) hr$/);
+        expect(result).toMatch(/^(0:59|1:00) hr$/);
     });
 
     it('falls back to session reset time when extra conditions are met but weeklyResetAt is absent', () => {

@@ -100,6 +100,11 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.7](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.7) - Fix stale context windows for local models
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Local model context windows** — the live `context_window_size` from Claude Code is the primary source for local / llama-swap models, with cleaned-up `model-context.json` family-pattern fallbacks used when no live size is present.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Removed stale `[1m]` extra-usage charging** — the Reset Timer widget no longer treats Sonnet `[1m]` as a charged model; no `[1m]` model is billed as extra usage anymore. Extra-usage display now triggers purely on weekly usage reaching 100%.
+
 ### [v2.4.6](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.6) - Fable 5 model support
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fable 5 usage provider routing** — `fable` model ids now route to the Anthropic usage provider, so the Session, Weekly, and Reset Timer widgets render real usage data instead of hiding when a Fable model is active. The `[1m]` suffix already maps the Context Bar to a 1M window.

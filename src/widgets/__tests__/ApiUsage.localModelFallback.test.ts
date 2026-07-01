@@ -163,7 +163,7 @@ describe('ApiUsage widgets with provider resolution', () => {
                 },
                 terminalWidth: 200
             };
-            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [█████░░░░░░░░░░░] 45k/131k (34%)');
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [███░░░░░░░░░░░░░] 45k/262k (17%)');
         });
 
         it('prefers payload usage over tokenMetrics when non-zero', () => {

@@ -94,7 +94,9 @@ export function getContextConfig(modelIdentifier?: string, contextWindowSize?: n
         return defaultConfig;
     }
 
-    // Check against JSON mappings (matched via .includes())
+    // Check against JSON family/pattern mappings (matched via .includes()).
+    // A live context_window_size from the payload already won above; this is the
+    // fresh-session fallback when no size is present.
     const normalizedModel = modelIdentifier.toLowerCase().trim();
     for (const entry of modelContextData.mappings) {
         if (normalizedModel.includes(entry.pattern)) {
