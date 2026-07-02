@@ -33,6 +33,16 @@ const EXTRA_USAGE_DETAIL_FIELDS = new Set<UsageDataField>([
     'extraUsageUtilization'
 ]);
 
+// Per-model weekly limits (e.g. Fable) are only present in the API response once
+// that model has actually been used, so their absence is a valid, expected state.
+// They must never gate cache validity or reject stale data — otherwise adding a
+// per-model usage widget poisons the whole usage pipeline into an error state
+// (e.g. every widget rendering "[No credentials]") for accounts that have never
+// touched that model.
+const OPTIONAL_USAGE_FIELDS = new Set<UsageDataField>([
+    'weeklyFableUsage'
+]);
+
 const UsageCredentialsSchema = z.object({ claudeAiOauth: z.object({ accessToken: z.string().nullable().optional() }).optional() });
 const UsageLockErrorSchema = z.enum(['timeout', 'rate-limited', 'parse-error']);
 const UsageLockSchema = z.object({
@@ -157,7 +167,10 @@ function parseUsageApiResponse(rawJson: string): UsageData | null {
         weeklySonnetResetAt: parsed.seven_day_sonnet?.resets_at ?? undefined,
         weeklyOpusUsage: getUsageApiBucketUtilization(parsed.seven_day_opus),
         weeklyOpusResetAt: parsed.seven_day_opus?.resets_at ?? undefined,
-        weeklyFableUsage: findWeeklyModelLimit(parsed.limits, 'Fable')?.percent ?? undefined,
+        // A limits array without a Fable entry means no Fable usage this week
+        // (the API omits per-model entries at zero), so treat it as 0 rather
+        // than "unknown" — otherwise the widget disappears for light users.
+        weeklyFableUsage: findWeeklyModelLimit(parsed.limits, 'Fable')?.percent ?? (parsed.limits ? 0 : undefined),
         extraUsageEnabled: parsed.extra_usage?.is_enabled ?? undefined,
         extraUsageLimit: parsed.extra_usage?.monthly_limit ?? undefined,
         extraUsageUsed: parsed.extra_usage?.used_credits ?? undefined,
@@ -202,6 +215,10 @@ function cacheUsageData(data: UsageData, now: number): UsageData {
 
 function hasRequiredUsageField(data: UsageData, field: UsageDataField): boolean {
     if (data[field] !== undefined) {
+        return true;
+    }
+
+    if (OPTIONAL_USAGE_FIELDS.has(field)) {
         return true;
     }
 
