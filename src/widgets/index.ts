@@ -62,6 +62,7 @@ export { ExtraUsageUtilizationWidget } from './ExtraUsageUtilization';
 export { ExtraUsageRemainingWidget } from './ExtraUsageRemaining';
 export { WeeklySonnetUsageWidget } from './WeeklySonnetUsage';
 export { WeeklyOpusUsageWidget } from './WeeklyOpusUsage';
+export { WeeklyFableUsageWidget } from './WeeklyFableUsage';
 export { WeeklyResetTimerWidget } from './WeeklyResetTimer';
 export { LinkWidget } from './Link';
 export { SkillsWidget } from './Skills';

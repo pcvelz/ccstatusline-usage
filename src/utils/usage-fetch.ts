@@ -49,6 +49,7 @@ const CachedUsageDataSchema = z.object({
     weeklySonnetResetAt: z.string().nullable().optional(),
     weeklyOpusUsage: z.number().nullable().optional(),
     weeklyOpusResetAt: z.string().nullable().optional(),
+    weeklyFableUsage: z.number().nullable().optional(),
     extraUsageEnabled: z.boolean().nullable().optional(),
     extraUsageLimit: z.number().nullable().optional(),
     extraUsageUsed: z.number().nullable().optional(),
@@ -64,11 +65,27 @@ const UsageApiBucketSchema = z.looseObject({
 
 type UsageApiBucket = z.infer<typeof UsageApiBucketSchema>;
 
+const UsageApiLimitSchema = z.looseObject({
+    kind: z.string().nullable().optional(),
+    group: z.string().nullable().optional(),
+    percent: z.number().nullable().optional(),
+    resets_at: z.string().nullable().optional(),
+    scope: z.looseObject({
+        model: z.looseObject({
+            id: z.string().nullable().optional(),
+            display_name: z.string().nullable().optional()
+        }).nullable().optional()
+    }).nullable().optional()
+});
+
+type UsageApiLimit = z.infer<typeof UsageApiLimitSchema>;
+
 const UsageApiResponseSchema = z.looseObject({
     five_hour: UsageApiBucketSchema,
     seven_day: UsageApiBucketSchema,
     seven_day_sonnet: UsageApiBucketSchema,
     seven_day_opus: UsageApiBucketSchema,
+    limits: z.array(UsageApiLimitSchema).nullable().optional(),
     extra_usage: z.looseObject({
         is_enabled: z.boolean().nullable().optional(),
         monthly_limit: z.number().nullable().optional(),
@@ -79,6 +96,10 @@ const UsageApiResponseSchema = z.looseObject({
 
 function getUsageApiBucketUtilization(bucket: UsageApiBucket): number | undefined {
     return bucket === null ? 0 : bucket?.utilization ?? undefined;
+}
+
+function findWeeklyModelLimit(limits: UsageApiLimit[] | null | undefined, modelDisplayName: string): UsageApiLimit | undefined {
+    return limits?.find(limit => limit.group === 'weekly' && limit.scope?.model?.display_name?.toLowerCase() === modelDisplayName.toLowerCase());
 }
 
 function parseJsonWithSchema<T>(rawJson: string, schema: z.ZodType<T>): T | null {
@@ -112,6 +133,7 @@ function parseCachedUsageData(rawJson: string): UsageData | null {
         weeklySonnetResetAt: parsed.weeklySonnetResetAt ?? undefined,
         weeklyOpusUsage: parsed.weeklyOpusUsage ?? undefined,
         weeklyOpusResetAt: parsed.weeklyOpusResetAt ?? undefined,
+        weeklyFableUsage: parsed.weeklyFableUsage ?? undefined,
         extraUsageEnabled: parsed.extraUsageEnabled ?? undefined,
         extraUsageLimit: parsed.extraUsageLimit ?? undefined,
         extraUsageUsed: parsed.extraUsageUsed ?? undefined,
@@ -135,6 +157,7 @@ function parseUsageApiResponse(rawJson: string): UsageData | null {
         weeklySonnetResetAt: parsed.seven_day_sonnet?.resets_at ?? undefined,
         weeklyOpusUsage: getUsageApiBucketUtilization(parsed.seven_day_opus),
         weeklyOpusResetAt: parsed.seven_day_opus?.resets_at ?? undefined,
+        weeklyFableUsage: findWeeklyModelLimit(parsed.limits, 'Fable')?.percent ?? undefined,
         extraUsageEnabled: parsed.extra_usage?.is_enabled ?? undefined,
         extraUsageLimit: parsed.extra_usage?.monthly_limit ?? undefined,
         extraUsageUsed: parsed.extra_usage?.used_credits ?? undefined,

@@ -84,6 +84,7 @@ export const WIDGET_MANIFEST: WidgetManifestEntry[] = [
     { type: 'extra-usage-remaining', create: () => new widgets.ExtraUsageRemainingWidget() },
     { type: 'weekly-sonnet-usage', create: () => new widgets.WeeklySonnetUsageWidget() },
     { type: 'weekly-opus-usage', create: () => new widgets.WeeklyOpusUsageWidget() },
+    { type: 'weekly-fable-usage', create: () => new widgets.WeeklyFableUsageWidget() },
     { type: 'weekly-reset-timer', create: () => new widgets.WeeklyResetTimerWidget() },
     { type: 'context-bar', create: () => new widgets.ContextBarWidget() },
     { type: 'skills', create: () => new widgets.SkillsWidget() },

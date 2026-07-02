@@ -33,7 +33,7 @@ interface UsagePercentWidgetSuiteConfig<TWidget extends UsageWidgetLike> {
     rawProgressItem: WidgetItem;
     rawTimeItem: WidgetItem;
     render: (widget: TWidget, item: WidgetItem, context?: RenderContext) => string | null;
-    usageField: 'sessionUsage' | 'weeklyUsage' | 'weeklySonnetUsage' | 'weeklyOpusUsage';
+    usageField: 'sessionUsage' | 'weeklyUsage' | 'weeklySonnetUsage' | 'weeklyOpusUsage' | 'weeklyFableUsage';
     usageValue: number;
 }
 
@@ -69,7 +69,7 @@ const EXPECTED_TIMER_PROGRESS_KEYBINDS: CustomKeybind[] = [
     { key: 'v', label: 'in(v)ert fill', action: 'toggle-invert' }
 ];
 
-function getUsageContext(field: 'sessionUsage' | 'weeklyUsage' | 'weeklySonnetUsage' | 'weeklyOpusUsage', value: number): RenderContext {
+function getUsageContext(field: 'sessionUsage' | 'weeklyUsage' | 'weeklySonnetUsage' | 'weeklyOpusUsage' | 'weeklyFableUsage', value: number): RenderContext {
     return { usageData: { [field]: value } };
 }
 
@@ -165,12 +165,14 @@ export function runUsagePercentWidgetSuite<TWidget extends UsageWidgetLike>(conf
         const third = widget.handleEditorAction('toggle-progress', second ?? config.baseItem);
         const fourth = widget.handleEditorAction('toggle-progress', third ?? config.baseItem);
         const fifth = widget.handleEditorAction('toggle-progress', fourth ?? config.baseItem);
+        const sixth = widget.handleEditorAction('toggle-progress', fifth ?? config.baseItem);
 
         expect(first?.metadata?.display).toBe('progress');
         expect(second?.metadata?.display).toBe('progress-short');
-        expect(third?.metadata?.display).toBe('slider');
-        expect(fourth?.metadata?.display).toBe('slider-only');
-        expect(fifth?.metadata?.display).toBe('time');
+        expect(third?.metadata?.display).toBe('progress-mini');
+        expect(fourth?.metadata?.display).toBe('slider');
+        expect(fifth?.metadata?.display).toBe('slider-only');
+        expect(sixth?.metadata?.display).toBe('time');
     });
 
     it('toggles invert metadata and shows editor modifiers', () => {
@@ -264,12 +266,14 @@ export function runUsageTimerEditorSuite<TWidget extends UsageWidgetLike & { get
         if (config.supportsSliderMode) {
             const fourth = widget.handleEditorAction('toggle-progress', third ?? config.baseItem);
             const fifth = widget.handleEditorAction('toggle-progress', fourth ?? config.baseItem);
+            const sixth = widget.handleEditorAction('toggle-progress', fifth ?? config.baseItem);
 
-            expect(third?.metadata?.display).toBe('slider');
-            expect(fourth?.metadata?.display).toBe('slider-only');
-            expect(fifth?.metadata?.display).toBe('time');
+            expect(third?.metadata?.display).toBe('progress-mini');
+            expect(fourth?.metadata?.display).toBe('slider');
+            expect(fifth?.metadata?.display).toBe('slider-only');
+            expect(sixth?.metadata?.display).toBe('time');
         } else {
-            expect(third?.metadata?.display).toBe('time');
+            expect(third?.metadata?.display).toBe('progress-mini');
         }
     });
 

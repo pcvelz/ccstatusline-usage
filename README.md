@@ -32,7 +32,8 @@ This fork adds API-based usage widgets beyond the upstream:
 - **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace (optional Off Hours window subtracts sleep time from the expected % calc)
 - **Reset Timer** - Time until weekly reset (when at 100% / on a charged model); otherwise time until 5-hour session window resets
 - **Context Window Display** - Visual bar showing context usage
-- **Off Peak** - Shows peak/off-peak status with countdown timer (peak hours drain sessions faster)
+- **Weekly Fable Usage** - Compact progress bar for weekly Fable API usage
+- **Off Peak** - Optional widget showing peak/off-peak status with countdown timer
 - **Two-line Layout** - Session info on line 1, context on line 2
 - **Multi-provider routing** - Usage widgets dispatch per model: Anthropic models hit the usage API; opencode/local models (GLM, Kimi, MiniMax, Qwen, Ollama) skip the fetch and gracefully hide usage bars while keeping the real-time context bar.
 
@@ -63,19 +64,19 @@ What the status line renders per model:
 
 ```
 # Anthropic (opus / sonnet / haiku / fable)
-Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | 2:03 hr | Model: Fable 5
-  Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8% | Off-peak (4:03 hr)
+Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | Fable: [█░░░░░░░] 12.0% | 2:03 hr | Model: Fable 5
+  Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8%
 
 # Opencode / local (glm-5.1, kimi, qwen, …)
-Model: glm-5.1 | Off-peak (4:03 hr)
+Model: glm-5.1
   Context: [██░░░░░░░░░░░░░] 50k/200k (25%)
 ```
 
 ### Enhanced Status Line Preview
 
 ```
-Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | 2:03 hr | Model: Fable 5 | Session ID: 0109b99d...
-  Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8% | Off-peak (4:03 hr)
+Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | Fable: [█░░░░░░░] 12.0% | 2:03 hr | Model: Fable 5 | Session ID: 0109b99d...
+  Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8%
 ```
 
 ![Demo](https://raw.githubusercontent.com/sirmalloc/ccstatusline/main/screenshots/demo.gif)
@@ -99,6 +100,11 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 <br />
 
 ## 🆕 Recent Updates
+
+### [v2.4.8](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.8) - Fable usage bar replaces Off-peak default
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fable usage bar** — new `progress-mini` display mode renders a compact 10-character bar (`Fable: [█░░░░░░░] 12.0%`) for weekly Fable usage.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Default layout swap** — the default Off-peak widget is replaced by `weekly-fable-usage` on the second line, so new installs show Fable usage out of the box.
 
 ### [v2.4.7](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.7) - Fix stale context windows for local models
 

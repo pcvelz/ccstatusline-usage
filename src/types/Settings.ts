@@ -81,8 +81,8 @@ export const SettingsSchema = z.object({
                 { id: 'context-bar', type: 'context-bar', color: 'blue' },
                 { id: 'sep-weekly-pace', type: 'separator' },
                 { id: 'weekly-pace', type: 'weekly-pace', color: 'brightBlue', metadata: { display: 'pendulum' } },
-                { id: 'sep-off-peak', type: 'separator' },
-                { id: 'off-peak', type: 'off-peak', color: 'green' }
+                { id: 'sep-fable', type: 'separator' },
+                { id: 'weekly-fable-usage', type: 'weekly-fable-usage', color: 'magenta', metadata: { display: 'progress-mini' } }
             ],
             []
         ]),

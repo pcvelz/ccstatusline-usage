@@ -16,6 +16,7 @@ export interface RenderUsageData {
     weeklySonnetResetAt?: string;
     weeklyOpusUsage?: number;
     weeklyOpusResetAt?: string;
+    weeklyFableUsage?: number;
     extraUsageEnabled?: boolean;
     extraUsageLimit?: number;
     extraUsageUsed?: number;

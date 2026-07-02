@@ -10,6 +10,7 @@ export {
     makeSplitUsageBar,
     makeUsageProgressBar,
     resolveUsageWindowWithFallback,
+    resolveWeeklyFableUsageWindow,
     resolveWeeklyOpusUsageWindow,
     resolveWeeklySonnetUsageWindow,
     resolveWeeklyUsageWindow

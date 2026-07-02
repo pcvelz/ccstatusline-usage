@@ -14,7 +14,7 @@ import {
     toggleMetadataFlag
 } from './metadata';
 
-export type UsageDisplayMode = 'time' | 'progress' | 'progress-short' | 'slider' | 'slider-only';
+export type UsageDisplayMode = 'time' | 'progress' | 'progress-short' | 'progress-mini' | 'slider' | 'slider-only';
 
 const SLIDER_WIDTH = 10;
 
@@ -30,14 +30,14 @@ const LOCALE_KEYBIND: CustomKeybind = { key: 'l', label: '(l)ocale', action: 'ed
 
 export function getUsageDisplayMode(item: WidgetItem): UsageDisplayMode {
     const mode = item.metadata?.display;
-    if (mode === 'progress' || mode === 'progress-short' || mode === 'slider' || mode === 'slider-only') {
+    if (mode === 'progress' || mode === 'progress-short' || mode === 'progress-mini' || mode === 'slider' || mode === 'slider-only') {
         return mode;
     }
     return 'time';
 }
 
 export function isUsageProgressMode(mode: UsageDisplayMode): boolean {
-    return mode === 'progress' || mode === 'progress-short';
+    return mode === 'progress' || mode === 'progress-short' || mode === 'progress-mini';
 }
 
 export function isUsageSliderMode(mode: UsageDisplayMode): boolean {
@@ -68,7 +68,7 @@ export function makeSliderBar(percent: number, width: number = SLIDER_WIDTH, opt
 }
 
 export function getUsageProgressBarWidth(mode: UsageDisplayMode): number {
-    return mode === 'progress' ? 32 : 16;
+    return mode === 'progress' ? 32 : mode === 'progress-short' ? 16 : 10;
 }
 
 export function isUsageInverted(item: WidgetItem): boolean {
@@ -180,6 +180,8 @@ export function getUsageDisplayModifierText(
         modifiers.push('long bar');
     } else if (mode === 'progress-short') {
         modifiers.push('medium bar');
+    } else if (mode === 'progress-mini') {
+        modifiers.push('mini bar');
     } else if (mode === 'slider') {
         modifiers.push('short bar');
     } else if (mode === 'slider-only') {
@@ -228,16 +230,20 @@ export function cycleUsageDisplayMode(item: WidgetItem, disabledInProgressKeys: 
             : currentMode === 'progress'
                 ? 'progress-short'
                 : currentMode === 'progress-short'
-                    ? 'slider'
-                    : currentMode === 'slider'
-                        ? 'slider-only'
-                        : 'time';
+                    ? 'progress-mini'
+                    : currentMode === 'progress-mini'
+                        ? 'slider'
+                        : currentMode === 'slider'
+                            ? 'slider-only'
+                            : 'time';
     } else {
         nextMode = currentMode === 'time'
             ? 'progress'
             : currentMode === 'progress'
                 ? 'progress-short'
-                : 'time';
+                : currentMode === 'progress-short'
+                    ? 'progress-mini'
+                    : 'time';
     }
 
     const keysToRemove = nextMode === 'time' ? ['invert', 'cursor'] : disabledInProgressKeys;

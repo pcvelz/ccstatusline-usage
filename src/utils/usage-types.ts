@@ -15,6 +15,7 @@ export interface UsageData {
     weeklySonnetResetAt?: string; // seven_day_sonnet.resets_at
     weeklyOpusUsage?: number;     // seven_day_opus.utilization (percentage)
     weeklyOpusResetAt?: string;   // seven_day_opus.resets_at
+    weeklyFableUsage?: number;    // limits[] weekly_scoped entry where scope.model.display_name === 'Fable'
     extraUsageEnabled?: boolean;
     extraUsageLimit?: number;      // in cents (divide by 100 for dollars)
     extraUsageUsed?: number;       // in cents (divide by 100 for dollars)
