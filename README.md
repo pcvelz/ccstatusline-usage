@@ -101,6 +101,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.9](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.9) - Fix Fable widget error state
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fable context window detection** — fixed the Weekly Fable widget forcing all usage widgets into an error state by improving 1M-context inference from model display names and ids, including labels like `Fable 5`, `(1M context)`, `(1M)`, and `[1M]`.
+
 ### [v2.4.8](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.8) - Fable usage bar replaces Off-peak default
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fable usage bar** — new `progress-mini` display mode renders a compact 10-character bar (`Fable: [█░░░░░░░] 12.0%`) for weekly Fable usage.

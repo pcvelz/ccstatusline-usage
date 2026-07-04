@@ -87,6 +87,13 @@ describe('getContextConfig', () => {
     });
 
     describe('Models without [1m] suffix', () => {
+        it('should return 1M context window for claude-fable-5 without [1m] suffix', () => {
+            const config = getContextConfig('claude-fable-5');
+
+            expect(config.maxTokens).toBe(1000000);
+            expect(config.usableTokens).toBe(800000);
+        });
+
         it('should return 200k context window for claude-sonnet-4-5 without [1m] suffix', () => {
             const config = getContextConfig('claude-sonnet-4-5-20250929');
 
