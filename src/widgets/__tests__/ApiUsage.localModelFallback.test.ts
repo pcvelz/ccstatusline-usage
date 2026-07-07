@@ -163,7 +163,9 @@ describe('ApiUsage widgets with provider resolution', () => {
                 },
                 terminalWidth: 200
             };
-            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [███░░░░░░░░░░░░░] 45k/262k (17%)');
+            // Live 131072 is authoritative (differs from the CLI's 200000
+            // default), so it beats the qwen3 262144 family mapping.
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [█████░░░░░░░░░░░] 45k/131k (34%)');
         });
 
         it('prefers payload usage over tokenMetrics when non-zero', () => {

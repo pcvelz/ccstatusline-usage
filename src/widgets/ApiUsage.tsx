@@ -320,14 +320,12 @@ export class ContextBarWidget implements Widget {
         if (!cw)
             return null;
 
-        const payloadSize = Number(cw.context_window_size) || 200000;
-
-        // Use model-specific context size when known (Ollama configs often differ from native model capability)
+        // Window-size precedence lives in getContextConfig: an authoritative
+        // live context_window_size wins; the model-context.json mapping only
+        // backfills the CLI's 200000 default (Ollama-style configs) and fresh
+        // sessions with no live size.
         const modelId = getModelContextIdentifier(context.data?.model);
-        const modelConfig = modelId ? getContextConfig(modelId) : null;
-        const total = (modelConfig && modelConfig.maxTokens !== payloadSize)
-            ? modelConfig.maxTokens
-            : payloadSize;
+        const total = getContextConfig(modelId, Number(cw.context_window_size) || null).maxTokens;
 
         // current_usage can be a number or an object with token breakdown
         let used = 0;

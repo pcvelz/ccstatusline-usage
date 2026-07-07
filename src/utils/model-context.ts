@@ -75,36 +75,51 @@ export function getModelContextIdentifier(model?: string | ModelIdentifier): str
     return id ?? displayName;
 }
 
+function toContextConfig(maxTokens: number): ModelContextConfig {
+    return {
+        maxTokens,
+        usableTokens: Math.floor(maxTokens * USABLE_CONTEXT_RATIO)
+    };
+}
+
 export function getContextConfig(modelIdentifier?: string, contextWindowSize?: number | null): ModelContextConfig {
     const statusWindowSize = toValidWindowSize(contextWindowSize);
-    if (statusWindowSize !== null) {
-        return {
-            maxTokens: statusWindowSize,
-            usableTokens: Math.floor(statusWindowSize * USABLE_CONTEXT_RATIO)
-        };
+    const normalizedModel = modelIdentifier?.toLowerCase().trim() ?? '';
+
+    // A live context_window_size wins whenever the CLI actually knows the
+    // window: always for first-party claude-* ids (catalog-backed), and for
+    // custom ids whenever it differs from the CLI's built-in 200000 default.
+    // At exactly 200000 on a custom id the CLI is echoing its fallback (it has
+    // no knowledge of the served model, e.g. Ollama), so the JSON mapping below
+    // gets to correct it.
+    const liveSizeIsAuthoritative = statusWindowSize !== null
+        && (normalizedModel.startsWith('claude-')
+            || statusWindowSize !== DEFAULT_CONTEXT_WINDOW_SIZE);
+    if (statusWindowSize !== null && liveSizeIsAuthoritative) {
+        return toContextConfig(statusWindowSize);
     }
 
     // Default to 200k for older models
-    const defaultConfig = {
-        maxTokens: DEFAULT_CONTEXT_WINDOW_SIZE,
-        usableTokens: Math.floor(DEFAULT_CONTEXT_WINDOW_SIZE * USABLE_CONTEXT_RATIO)
-    };
+    const defaultConfig = toContextConfig(DEFAULT_CONTEXT_WINDOW_SIZE);
 
     if (!modelIdentifier) {
         return defaultConfig;
     }
 
     // Check against JSON family/pattern mappings (matched via .includes()).
-    // A live context_window_size from the payload already won above; this is the
-    // fresh-session fallback when no size is present.
-    const normalizedModel = modelIdentifier.toLowerCase().trim();
+    // An authoritative live context_window_size already won above; this is the
+    // fresh-session fallback, and the correction for the CLI's 200000 default.
     for (const entry of modelContextData.mappings) {
         if (normalizedModel.includes(entry.pattern)) {
-            return {
-                maxTokens: entry.contextSize,
-                usableTokens: Math.floor(entry.contextSize * USABLE_CONTEXT_RATIO)
-            };
+            return toContextConfig(entry.contextSize);
         }
+    }
+
+    // Live 200000 sentinel with no mapping match: keep the live value rather
+    // than guessing from the model name (a [1m]-suffixed id at a gated 200k
+    // window must not be inflated back to 1M by the name parser).
+    if (statusWindowSize !== null) {
+        return toContextConfig(statusWindowSize);
     }
 
     const inferredWindowSize = parseContextWindowSize(modelIdentifier);

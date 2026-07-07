@@ -24,6 +24,18 @@ describe('getContextConfig', () => {
             expect(config.maxTokens).toBe(200000);
             expect(config.usableTokens).toBe(160000);
         });
+
+        it('should prefer a non-default live size over the family mapping (384K local Qwen)', () => {
+            const config = getContextConfig('Qwen3.6-35B-A3B-APEX-I-Balanced-384K', 393216);
+
+            expect(config.maxTokens).toBe(393216);
+        });
+
+        it('should fall back to the mapping when the live size is the 200000 CLI default', () => {
+            const config = getContextConfig('qwen3-coder:30b', 200000);
+
+            expect(config.maxTokens).toBe(262144);
+        });
     });
 
     describe('Models with [1m] suffix', () => {

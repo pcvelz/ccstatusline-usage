@@ -101,6 +101,11 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.10](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.10) - Live payload context window precedence
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Live `context_window_size` precedence** — the context bar now uses the real-time `context_window_size` value from Claude Code's status payload as its primary source, falling back to the static model-context mapping only when the payload omits it. This keeps context percentages accurate for all model backends, including local and opencode-routed models.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Pre-commit test gate** — added `.githooks/pre-commit` so the full test suite runs automatically before each commit (repository `core.hooksPath` is already configured to `.githooks`).
+
 ### [v2.4.9](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.9) - Fix Fable widget error state
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fable context window detection** — fixed the Weekly Fable widget forcing all usage widgets into an error state by improving 1M-context inference from model display names and ids, including labels like `Fable 5`, `(1M context)`, `(1M)`, and `[1M]`.
