@@ -13,7 +13,8 @@ function compactModelName(name: string): string {
     // Strip claude- prefix and [1m] suffix (caller re-appends the suffix)
     const stripped = name.replace(/^claude-/, '').replace(/\[1m\]/gi, '');
     // Minimal override for vendor-prefixed model ids that the claude-style regex misses.
-    if (stripped === 'kimi-k2.7') return 'k2.7';
+    // Handle both the base id and the "-thinking" variant reported by Claude Code.
+    if (stripped === 'kimi-k2.7' || stripped === 'kimi-k2.7-thinking') return 'k2.7';
     // Match: {model-name}-{major}[-minor][-optional-date-suffix]
     const match = /^([a-z]+)-(\d+)(?:-(\d+))?/.exec(stripped);
     if (match) {
