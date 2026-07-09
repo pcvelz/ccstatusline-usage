@@ -280,6 +280,8 @@ export function getUsagePercentCustomKeybinds(item?: WidgetItem): CustomKeybind[
 }
 
 interface UsageTimerCustomKeybindOptions {
+    includeProgress?: boolean;
+    includeCompact?: boolean;
     includeDate?: boolean;
     includeHourFormat?: boolean;
     includeLocale?: boolean;
@@ -291,15 +293,24 @@ export function getUsageTimerCustomKeybinds(
     item?: WidgetItem,
     options: UsageTimerCustomKeybindOptions = {}
 ): CustomKeybind[] {
-    const keybinds = [PROGRESS_TOGGLE_KEYBIND];
+    // Some timer widgets render a fixed value (e.g. the session Reset Timer's
+    // "H:MM hr") and never honour a progress/bar or compact display mode. They opt out
+    // via includeProgress / includeCompact so they don't advertise a (p)rogress or
+    // (s)hort toggle whose action they don't handle — an advertised-but-unhandled action
+    // soft-locks the items editor (a blank screen that swallows every key, including ESC).
+    const includeProgress = options.includeProgress ?? true;
+    const includeCompact = options.includeCompact ?? true;
+    const keybinds: CustomKeybind[] = includeProgress ? [PROGRESS_TOGGLE_KEYBIND] : [];
 
     const mode = item ? getUsageDisplayMode(item) : 'time';
-    const isBarMode = isUsageProgressMode(mode) || isUsageSliderMode(mode);
+    const isBarMode = includeProgress && (isUsageProgressMode(mode) || isUsageSliderMode(mode));
 
     if (item && isBarMode) {
         keybinds.push(INVERT_TOGGLE_KEYBIND);
     } else {
-        keybinds.push(COMPACT_TOGGLE_KEYBIND);
+        if (includeCompact) {
+            keybinds.push(COMPACT_TOGGLE_KEYBIND);
+        }
 
         if (options.includeDate) {
             keybinds.push(DATE_TOGGLE_KEYBIND);
