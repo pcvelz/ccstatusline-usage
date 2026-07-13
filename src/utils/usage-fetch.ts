@@ -474,7 +474,11 @@ function getUsageApiProxyUrl(): string | null {
     return proxyUrl ?? null;
 }
 
-function getUsageApiRequestOptions(token: string): https.RequestOptions | null {
+// autoSelectFamily is a supported net.connect option (Node >= 18.13) passed through by
+// https.request, but this @types/node version doesn't declare it on RequestOptions yet.
+type UsageApiRequestOptions = https.RequestOptions & { autoSelectFamily?: boolean };
+
+function getUsageApiRequestOptions(token: string): UsageApiRequestOptions | null {
     const proxyUrl = getUsageApiProxyUrl();
 
     try {
@@ -487,6 +491,11 @@ function getUsageApiRequestOptions(token: string): https.RequestOptions | null {
                 'anthropic-beta': 'oauth-2025-04-20'
             },
             timeout: USAGE_API_TIMEOUT_MS,
+            // Node's Happy Eyeballs family autoselection (default since v20) can fail with
+            // ETIMEDOUT well under the request timeout on hosts with broken IPv6 paths,
+            // silently freezing usage data on the stale cache. Disable it; curl-style
+            // single-family connect is reliable here.
+            autoSelectFamily: false,
             ...(proxyUrl ? { agent: new HttpsProxyAgent(proxyUrl) } : {})
         };
     } catch {
