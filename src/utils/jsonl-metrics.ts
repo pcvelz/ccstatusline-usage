@@ -8,6 +8,10 @@ import type {
 } from '../types';
 
 import {
+    getCompactBoundaryPostTokens,
+    isCompactBoundary
+} from './compaction';
+import {
     parseJsonlLine,
     readJsonlLines
 } from './jsonl-lines';
@@ -152,14 +156,15 @@ export async function getTokenMetrics(transcriptPath: string): Promise<TokenMetr
     try {
         // Use Node.js-compatible file reading
         if (!fs.existsSync(transcriptPath)) {
-            return { inputTokens: 0, outputTokens: 0, cachedTokens: 0, totalTokens: 0, contextLength: 0 };
+            return { inputTokens: 0, outputTokens: 0, cachedTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, totalTokens: 0, contextLength: 0 };
         }
 
         const lines = await readJsonlLines(transcriptPath);
 
         let inputTokens = 0;
         let outputTokens = 0;
-        let cachedTokens = 0;
+        let cacheReadTokens = 0;
+        let cacheCreationTokens = 0;
         let contextLength = 0;
 
         // Parse each line and sum up token usage for totals.
@@ -169,16 +174,30 @@ export async function getTokenMetrics(transcriptPath: string): Promise<TokenMetr
         // transcripts, count finalized entries plus the latest unfinished entry so
         // live updates do not overcount duplicate partial rows. If the transcript
         // format has no stop_reason field at all, fall back to counting all entries.
+        //
+        // Claude Code also writes a { type:'system', subtype:'compact_boundary' }
+        // record on every compaction. Usage entries before the most recent boundary
+        // describe a context that no longer exists, so they must not drive context
+        // length - otherwise it stays stuck at the pre-compaction size until the
+        // next turn repopulates Claude Code's live status data.
         let mostRecentMainChainEntry: TranscriptLine | null = null;
         let mostRecentTimestamp: Date | null = null;
+        let mostRecentPostCompactionEntry: TranscriptLine | null = null;
+        let mostRecentPostCompactionTimestamp: Date | null = null;
+        let lastCompactBoundaryLineIndex = -1;
+        let lastCompactBoundaryPostTokens: number | null = null;
 
-        const parsedEntries: TranscriptLine[] = [];
+        const parsedEntries: { data: TranscriptLine; lineIndex: number }[] = [];
         let hasStopReasonField = false;
 
-        for (const line of lines) {
+        for (const [lineIndex, line] of lines.entries()) {
             const data = parseJsonlLine(line) as TranscriptLine | null;
+            if (isCompactBoundary(data)) {
+                lastCompactBoundaryLineIndex = lineIndex;
+                lastCompactBoundaryPostTokens = getCompactBoundaryPostTokens(data);
+            }
             if (data?.message?.usage) {
-                parsedEntries.push(data);
+                parsedEntries.push({ data, lineIndex });
                 if (Object.hasOwn(data.message, 'stop_reason')) {
                     hasStopReasonField = true;
                 }
@@ -186,13 +205,13 @@ export async function getTokenMetrics(transcriptPath: string): Promise<TokenMetr
         }
 
         const entriesToCount = hasStopReasonField
-            ? parsedEntries.filter((data, index) => {
-                const stopReason = data.message?.stop_reason;
+            ? parsedEntries.filter((entry, index) => {
+                const stopReason = entry.data.message?.stop_reason;
                 return Boolean(stopReason) || (stopReason === null && index === parsedEntries.length - 1);
             })
             : parsedEntries;
 
-        for (const data of entriesToCount) {
+        for (const { data, lineIndex } of entriesToCount) {
             const usage = data.message?.usage;
             if (!usage) {
                 continue;
@@ -200,8 +219,8 @@ export async function getTokenMetrics(transcriptPath: string): Promise<TokenMetr
 
             inputTokens += usage.input_tokens || 0;
             outputTokens += usage.output_tokens || 0;
-            cachedTokens += usage.cache_read_input_tokens ?? 0;
-            cachedTokens += usage.cache_creation_input_tokens ?? 0;
+            cacheReadTokens += usage.cache_read_input_tokens ?? 0;
+            cacheCreationTokens += usage.cache_creation_input_tokens ?? 0;
 
             // Track the most recent entry with isSidechain: false (or undefined, which defaults to main chain)
             // Also skip API error messages (synthetic messages with 0 tokens)
@@ -211,22 +230,39 @@ export async function getTokenMetrics(transcriptPath: string): Promise<TokenMetr
                     mostRecentTimestamp = entryTime;
                     mostRecentMainChainEntry = data;
                 }
+                if (lineIndex > lastCompactBoundaryLineIndex
+                    && (!mostRecentPostCompactionTimestamp || entryTime > mostRecentPostCompactionTimestamp)) {
+                    mostRecentPostCompactionTimestamp = entryTime;
+                    mostRecentPostCompactionEntry = data;
+                }
             }
         }
 
-        // Calculate context length from the most recent main chain message
-        if (mostRecentMainChainEntry?.message?.usage) {
-            const usage = mostRecentMainChainEntry.message.usage;
-            contextLength = (usage.input_tokens || 0)
+        // Context length is the live occupancy of the current context window.
+        // Without a compaction it is the most recent main-chain turn. After a
+        // compaction, prefer the first turn following the boundary, then the
+        // boundary's reported post-compaction size, and otherwise 0 - the stale
+        // pre-compaction turn must never leak through.
+        const contextLengthFromEntry = (entry: TranscriptLine | null): number | null => {
+            const usage = entry?.message?.usage;
+            if (!usage) {
+                return null;
+            }
+            return (usage.input_tokens || 0)
                 + (usage.cache_read_input_tokens ?? 0)
                 + (usage.cache_creation_input_tokens ?? 0);
-        }
+        };
 
+        contextLength = lastCompactBoundaryLineIndex >= 0
+            ? (contextLengthFromEntry(mostRecentPostCompactionEntry) ?? lastCompactBoundaryPostTokens ?? 0)
+            : (contextLengthFromEntry(mostRecentMainChainEntry) ?? 0);
+
+        const cachedTokens = cacheReadTokens + cacheCreationTokens;
         const totalTokens = inputTokens + outputTokens + cachedTokens;
 
-        return { inputTokens, outputTokens, cachedTokens, totalTokens, contextLength };
+        return { inputTokens, outputTokens, cachedTokens, cacheReadTokens, cacheCreationTokens, totalTokens, contextLength };
     } catch {
-        return { inputTokens: 0, outputTokens: 0, cachedTokens: 0, totalTokens: 0, contextLength: 0 };
+        return { inputTokens: 0, outputTokens: 0, cachedTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, totalTokens: 0, contextLength: 0 };
     }
 }
 

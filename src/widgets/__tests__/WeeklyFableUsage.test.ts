@@ -72,9 +72,12 @@ describe('WeeklyFableUsageWidget', () => {
         baseItem: { id: 'weekly-fable', type: 'weekly-fable-usage' },
         createWidget: () => new WeeklyFableUsageWidget(),
         errorMessageMock: usageErrorMessageMock,
-        expectedModifierText: '(long bar, inverted)',
+        expectedInvertedTime: 'Fable: 57.9%',
+        expectedModifierText: '(long bar, remaining)',
+        expectedPreviewInvertedTime: 'Fable: 87.0%',
         expectedProgress: 'Fable: [███████████████████░░░░░░░░░░░░░] 57.9%',
         expectedRawProgress: '[███████░░░░░░░░░] 42.1%',
+        expectedRawInvertedTime: '57.9%',
         expectedRawTime: '42.1%',
         expectedTime: 'Fable: 42.1%',
         modifierItem: {

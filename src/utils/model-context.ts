@@ -12,6 +12,22 @@ interface ModelIdentifier {
 
 const DEFAULT_CONTEXT_WINDOW_SIZE = 200000;
 const USABLE_CONTEXT_RATIO = 0.8;
+const CONTEXT_SIZE_FALLBACK_ENV_VAR = 'CCSTATUSLINE_CONTEXT_SIZE_FALLBACK';
+
+// User-configurable last-resort fallback window size. Mirrors CCSTATUSLINE_WIDTH:
+// a positive integer read from the environment, ignored when unset or invalid.
+// Defaults to 200k so behavior is unchanged unless the user opts in.
+function getFallbackContextWindowSize(): number {
+    const raw = process.env[CONTEXT_SIZE_FALLBACK_ENV_VAR];
+    if (raw) {
+        const parsed = Number.parseInt(raw, 10);
+        if (Number.isFinite(parsed) && parsed > 0) {
+            return parsed;
+        }
+    }
+
+    return DEFAULT_CONTEXT_WINDOW_SIZE;
+}
 
 function toValidWindowSize(value: number | null | undefined): number | null {
     if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
@@ -99,8 +115,14 @@ export function getContextConfig(modelIdentifier?: string, contextWindowSize?: n
         return toContextConfig(statusWindowSize);
     }
 
-    // Default to 200k for older models
-    const defaultConfig = toContextConfig(DEFAULT_CONTEXT_WINDOW_SIZE);
+    // Last-resort fallback when neither the live status window size nor a
+    // model-name hint is available. Defaults to 200k, overridable via
+    // CCSTATUSLINE_CONTEXT_SIZE_FALLBACK.
+    const fallbackWindowSize = getFallbackContextWindowSize();
+    const defaultConfig = {
+        maxTokens: fallbackWindowSize,
+        usableTokens: Math.floor(fallbackWindowSize * USABLE_CONTEXT_RATIO)
+    };
 
     if (!modelIdentifier) {
         return defaultConfig;

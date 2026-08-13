@@ -12,6 +12,9 @@ const MEDIUM_THRESHOLD = 178;
 function compactModelName(name: string): string {
     // Strip claude- prefix and [1m] suffix (caller re-appends the suffix)
     const stripped = name.replace(/^claude-/, '').replace(/\[1m\]/gi, '');
+    // Minimal override for vendor-prefixed model ids that the claude-style regex misses.
+    if (stripped === 'k3')
+        return 'k3';
     // Match: {model-name}-{major}[-minor][-optional-date-suffix]
     const match = /^([a-z]+)-(\d+)(?:-(\d+))?/.exec(stripped);
     if (match) {

@@ -22,6 +22,7 @@ import {
     getClaudeSettingsPath,
     getExistingStatusLine,
     getRefreshInterval,
+    getSandboxConfig,
     getVoiceConfig,
     installStatusLine,
     isClaudeCodeVersionAtLeast,
@@ -32,7 +33,7 @@ import {
     setRefreshInterval,
     uninstallStatusLine
 } from '../claude-settings';
-import { initConfigPath } from '../config';
+import * as config from '../config';
 
 const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 let testClaudeConfigDir = '';
@@ -60,11 +61,12 @@ function writeRawClaudeSettings(content: string): void {
 beforeEach(() => {
     testClaudeConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-claude-settings-'));
     process.env.CLAUDE_CONFIG_DIR = testClaudeConfigDir;
-    initConfigPath(path.join(testClaudeConfigDir, 'ccstatusline-settings.json'));
+    config.initConfigPath(path.join(testClaudeConfigDir, 'ccstatusline-settings.json'));
 });
 
 afterEach(() => {
-    initConfigPath();
+    vi.restoreAllMocks();
+    config.initConfigPath();
     if (testClaudeConfigDir) {
         fs.rmSync(testClaudeConfigDir, { recursive: true, force: true });
     }
@@ -198,49 +200,55 @@ describe('Claude config paths', () => {
 
 describe('buildCommand via installStatusLine', () => {
     it('should use base command when no custom config path', async () => {
-        initConfigPath();
+        config.initConfigPath();
         await installStatusLine({ commandMode: 'auto-npx' });
         expect(readInstalledCommand()).toBe(CCSTATUSLINE_COMMANDS.NPM);
     });
 
     it('should append --config with simple path (no quoting needed)', async () => {
-        initConfigPath('/tmp/settings.json');
+        vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin');
+        vi.spyOn(config, 'getConfigPath').mockReturnValue('/tmp/settings.json');
         await installStatusLine({ commandMode: 'auto-npx' });
         expect(readInstalledCommand()).toBe(`${CCSTATUSLINE_COMMANDS.NPM} --config /tmp/settings.json`);
     });
 
     it('should quote path with spaces', async () => {
-        initConfigPath('/my path/settings.json');
+        vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin');
+        vi.spyOn(config, 'getConfigPath').mockReturnValue('/my path/settings.json');
         await installStatusLine({ commandMode: 'auto-npx' });
         expect(readInstalledCommand()).toBe(`${CCSTATUSLINE_COMMANDS.NPM} --config '/my path/settings.json'`);
     });
 
     it('should quote path with parentheses', async () => {
-        initConfigPath('/my(path)/settings.json');
+        vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin');
+        vi.spyOn(config, 'getConfigPath').mockReturnValue('/my(path)/settings.json');
         await installStatusLine({ commandMode: 'auto-npx' });
         expect(readInstalledCommand()).toBe(`${CCSTATUSLINE_COMMANDS.NPM} --config '/my(path)/settings.json'`);
     });
 
     it('should escape embedded single quotes in path', async () => {
-        initConfigPath('/my\'path/settings.json');
+        vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin');
+        vi.spyOn(config, 'getConfigPath').mockReturnValue('/my\'path/settings.json');
         await installStatusLine({ commandMode: 'auto-npx' });
         expect(readInstalledCommand()).toBe(`${CCSTATUSLINE_COMMANDS.NPM} --config '/my'\\''path/settings.json'`);
     });
 
     it('should use bunx command when commandMode is auto-bunx', async () => {
-        initConfigPath('/my path/settings.json');
+        vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin');
+        vi.spyOn(config, 'getConfigPath').mockReturnValue('/my path/settings.json');
         await installStatusLine({ commandMode: 'auto-bunx' });
         expect(readInstalledCommand()).toBe(`${CCSTATUSLINE_COMMANDS.BUNX} --config '/my path/settings.json'`);
     });
 
     it('should generate global command with custom config path', () => {
-        initConfigPath('/my path/settings.json');
+        vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin');
+        vi.spyOn(config, 'getConfigPath').mockReturnValue('/my path/settings.json');
         expect(buildStatusLineCommand('global')).toBe(`${CCSTATUSLINE_COMMANDS.GLOBAL} --config '/my path/settings.json'`);
     });
 
     it('should install global command for pinned installs and save metadata', async () => {
         const configPath = path.join(testClaudeConfigDir, 'pinned-settings.json');
-        initConfigPath(configPath);
+        config.initConfigPath(configPath);
 
         await installStatusLine({
             commandMode: 'global',
@@ -260,7 +268,7 @@ describe('buildCommand via installStatusLine', () => {
 
     it('should sync hooks on install when settings include hook-enabled widgets', async () => {
         const configPath = path.join(testClaudeConfigDir, 'ccstatusline-settings.json');
-        initConfigPath(configPath);
+        config.initConfigPath(configPath);
         const settingsWithSkills = {
             ...DEFAULT_SETTINGS,
             lines: [[{ id: 'skills-1', type: 'skills' }], [], []]
@@ -290,7 +298,7 @@ describe('buildCommand via installStatusLine', () => {
 
     it('should sync hooks from the final global statusline command', async () => {
         const configPath = path.join(testClaudeConfigDir, 'global-settings.json');
-        initConfigPath(configPath);
+        config.initConfigPath(configPath);
         fs.writeFileSync(configPath, JSON.stringify({
             ...DEFAULT_SETTINGS,
             lines: [[{ id: 'skills-1', type: 'skills' }], [], []]
@@ -320,13 +328,13 @@ describe('buildCommand via installStatusLine', () => {
 
 describe('installStatusLine refreshInterval', () => {
     it('should set refreshInterval to 10 when version is supported', async () => {
-        initConfigPath();
+        config.initConfigPath();
         await installStatusLine({ commandMode: 'auto-npx', supportsRefreshInterval: true });
         expect(readInstalledRefreshInterval()).toBe(10);
     });
 
     it('should not set refreshInterval when version is unsupported', async () => {
-        initConfigPath();
+        config.initConfigPath();
         await installStatusLine({ commandMode: 'auto-npx', supportsRefreshInterval: false });
         expect(readInstalledRefreshInterval()).toBeUndefined();
     });
@@ -803,5 +811,115 @@ describe('getVoiceConfig', () => {
             writeRawProjectLocalSettings(JSON.stringify({ effortLevel: 'low' }));
             expect(getVoiceConfig(testProjectDir)).toEqual({ enabled: true });
         });
+    });
+});
+
+describe('getSandboxConfig', () => {
+    let testSandboxProjectDir = '';
+
+    function writeRawUserLocalSettings(content: string): void {
+        const settingsPath = path.join(testClaudeConfigDir, 'settings.local.json');
+        fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+        fs.writeFileSync(settingsPath, content, 'utf-8');
+    }
+
+    function writeRawProjectSettings(content: string): void {
+        const settingsPath = path.join(testSandboxProjectDir, '.claude', 'settings.json');
+        fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+        fs.writeFileSync(settingsPath, content, 'utf-8');
+    }
+
+    function writeRawProjectLocalSettings(content: string): void {
+        const settingsPath = path.join(testSandboxProjectDir, '.claude', 'settings.local.json');
+        fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+        fs.writeFileSync(settingsPath, content, 'utf-8');
+    }
+
+    beforeEach(() => {
+        testSandboxProjectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-sandbox-project-'));
+    });
+
+    afterEach(() => {
+        if (testSandboxProjectDir) {
+            fs.rmSync(testSandboxProjectDir, { recursive: true, force: true });
+        }
+    });
+
+    it('returns null when no candidate file exists', () => {
+        expect(getSandboxConfig(testSandboxProjectDir)).toBeNull();
+    });
+
+    it('returns { enabled: false } when settings.json has no sandbox field', () => {
+        writeRawClaudeSettings(JSON.stringify({ effortLevel: 'high' }));
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: false });
+    });
+
+    it('returns { enabled: true } when sandbox.enabled is true', () => {
+        writeRawClaudeSettings(JSON.stringify({ sandbox: { enabled: true } }));
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: true });
+    });
+
+    it('returns { enabled: false } when sandbox.enabled is false', () => {
+        writeRawClaudeSettings(JSON.stringify({ sandbox: { enabled: false } }));
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: false });
+    });
+
+    it('returns { enabled: false } when sandbox exists but enabled is missing', () => {
+        writeRawClaudeSettings(JSON.stringify({ sandbox: { network: { allowAll: true } } }));
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: false });
+    });
+
+    it('treats malformed JSON as "no override"', () => {
+        writeRawClaudeSettings('{ not json');
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: false });
+    });
+
+    it('treats an unexpected sandbox shape as "no override"', () => {
+        writeRawClaudeSettings(JSON.stringify({ sandbox: 'on' }));
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: false });
+    });
+
+    it('respects CLAUDE_CONFIG_DIR env var', () => {
+        writeRawClaudeSettings(JSON.stringify({ sandbox: { enabled: true } }));
+        expect(getClaudeSettingsPath().startsWith(testClaudeConfigDir)).toBe(true);
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: true });
+    });
+
+    it('project-local overrides project (where /sandbox writes)', () => {
+        writeRawProjectSettings(JSON.stringify({ sandbox: { enabled: false } }));
+        writeRawProjectLocalSettings(JSON.stringify({ sandbox: { enabled: true } }));
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: true });
+    });
+
+    it('project overrides user-global', () => {
+        writeRawClaudeSettings(JSON.stringify({ sandbox: { enabled: false } }));
+        writeRawProjectSettings(JSON.stringify({ sandbox: { enabled: true } }));
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: true });
+    });
+
+    it('user-local overrides user-global', () => {
+        writeRawClaudeSettings(JSON.stringify({ sandbox: { enabled: true } }));
+        writeRawUserLocalSettings(JSON.stringify({ sandbox: { enabled: false } }));
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: false });
+    });
+
+    it('a layer without sandbox.enabled does not clobber a lower layer', () => {
+        writeRawClaudeSettings(JSON.stringify({ sandbox: { enabled: true } }));
+        writeRawProjectSettings(JSON.stringify({ sandbox: { network: {} } }));
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: true });
+    });
+
+    it('a malformed higher-priority layer does not clobber a defined lower layer', () => {
+        writeRawClaudeSettings(JSON.stringify({ sandbox: { enabled: true } }));
+        writeRawProjectLocalSettings('{ corrupt');
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: true });
+    });
+
+    it('falls through layers without sandbox.enabled until it finds a defined value', () => {
+        writeRawClaudeSettings(JSON.stringify({ sandbox: { enabled: true } }));
+        writeRawUserLocalSettings(JSON.stringify({ effortLevel: 'high' }));
+        writeRawProjectSettings(JSON.stringify({ sandbox: { network: {} } }));
+        writeRawProjectLocalSettings(JSON.stringify({ effortLevel: 'low' }));
+        expect(getSandboxConfig(testSandboxProjectDir)).toEqual({ enabled: true });
     });
 });

@@ -98,7 +98,7 @@ export function resolveWeeklyOpusUsageWindow(usageData: UsageData, nowMs = Date.
 }
 
 export function resolveWeeklyFableUsageWindow(usageData: UsageData, nowMs = Date.now()): UsageWindowMetrics | null {
-    return getWeeklyUsageWindowFromResetAt(usageData.weeklyResetAt, nowMs);
+    return getWeeklyUsageWindowFromResetAt(usageData.weeklyFableResetAt ?? usageData.weeklyResetAt, nowMs);
 }
 
 export function formatUsageDuration(durationMs: number, compact = false, useDays = true): string {

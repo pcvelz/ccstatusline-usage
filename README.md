@@ -324,7 +324,7 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 - **🧮 Git file status widgets** - Added `Git Staged Files`, `Git Unstaged Files`, `Git Untracked Files`, and `Git Clean Status` for file counts and clean/dirty state.
 - **🏷️ Clear context percentage labels** - `Context %` and `Context % (usable)` now label rendered values as used or left when toggling used/remaining mode.
 - **⚡ More Powerline caps** - The Powerline separator editor now supports more than three start/end caps.
-- **🧠 Thinking Effort updates** - Added `xhigh`, show `default` when no effort is set, mark unknown future effort levels with `?`, and track live status JSON plus `/effort` command changes.
+- **🧠 Thinking Effort updates** - Added `xhigh`, show `default` when no effort is set, mark unknown future effort levels with `?`, and track live status JSON plus `/effort` command changes. Claude Code reports Ultracode as `xhigh` in status line data.
 - **🧮 More accurate token counts** - Streaming duplicate JSONL entries are deduped so token widgets do not overcount live Claude Code output.
 - **🏷️ Cleaner model display** - The Model widget strips trailing context suffixes like `(1M context)`; use `Context Window` when you want the total window size shown.
 - **🧹 Cleaner empty-widget separators** - Manual separators now collapse around widgets that render empty, avoiding dangling separators when hide-when-empty widgets disappear.
@@ -332,13 +332,31 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ### v2.2.8 - Git widgets, smarter picker search, and minimalist mode
 
-- **🌿 Git widgets** - Added `Git Branch`, `Git Insertions`, `Git Deletions`, `Git Changes`, `Git PR/MR`, and `Git Worktree` widgets for repository status.
-- **🔎 Smarter widget picker** - Category-based browsing, ranked fuzzy search, and recent/frequent shortcuts make finding and adding widgets faster.
-- **🎨 Minimalist mode** - Global option to strip icons, labels, and extra formatting for a cleaner status line.
+- **🔀 New Git PR widget** - Added a `Git PR` widget with clickable PR links plus optional status and title display for the current branch.
+- **🧰 Major Git widget expansion** - Added `Git Status`, `Git Staged`, `Git Unstaged`, `Git Untracked`, `Git Ahead/Behind`, `Git Conflicts`, `Git SHA`, `Git Origin Owner`, `Git Origin Repo`, `Git Origin Owner/Repo`, `Git Upstream Owner`, `Git Upstream Repo`, `Git Upstream Owner/Repo`, `Git Is Fork`, `Git Worktree Mode`, `Git Worktree Name`, `Git Worktree Branch`, `Git Worktree Original Branch`, and `Custom Symbol`.
+- **👤 Claude Account Email widget** - Added a session widget that reads the signed-in Claude account email from `~/.claude.json` while respecting `CLAUDE_CONFIG_DIR`.
+- **🧼 Global Minimalist Mode** - Added a global toggle in `Global Overrides` that forces widgets into raw-value mode for a cleaner, label-free status line.
+- **🔎 Smarter widget picker search** - The add/change widget picker now supports substring, initialism, and fuzzy matching, with ranked results and live match highlighting.
+- **📏 Better terminal width detection** - Flex separators and right-alignment now work more reliably when ccstatusline is launched through wrapper processes or nested PTYs.
+- **🎨 Powerline theme continuity** - Built-in Powerline themes can now continue colors cleanly across multiple status lines instead of restarting each line.
 
 <br />
 <details>
-<summary><b>Older updates (v2.1.10 and earlier)</b></summary>
+<summary><b>Older updates (v2.2.6 and earlier)</b></summary>
+
+### v2.2.0 - v2.2.6 - Speed, widgets, links, and reliability updates
+
+- **🚀 New Token Speed widgets** - Added three widgets: **Input Speed**, **Output Speed**, and **Total Speed**.
+  - Each speed widget supports a configurable window of `0-120` seconds in the widget editor (`w` key).
+  - `0` disables window mode and uses a full-session average speed.
+  - `1-120` calculates recent speed over the selected rolling window.
+- **🧩 New Skills widget controls (v2.2.1)** - Added configurable Skills modes (last/count/list), optional hide-when-empty behavior, and list-size limiting with most-recent-first ordering.
+- **🌐 Usage API proxy support (v2.2.2)** - Usage widgets honor the uppercase `HTTPS_PROXY` environment variable for their direct API call to Anthropic.
+- **🧠 New Thinking Effort widget (v2.2.4)** - Added a widget that shows the current Claude Code thinking effort level.
+- **🍎 Better macOS usage lookup reliability (v2.2.5)** - Improved reliability when loading usage API tokens on macOS.
+- **⌨️ New Vim Mode widget (v2.2.5)** - Added a widget that shows the current vim mode, with ASCII and optional Nerd Font icon display.
+- **🔗 Git widget link modes (v2.2.6)** - `Git Branch` can render clickable GitHub branch links, and `Git Root Dir` can render clickable IDE links for VS Code and Cursor.
+- **🤝 Better subagent-aware speed reporting** - Token speed calculations continue to include referenced subagent activity so displayed speeds better reflect actual concurrent work.
 
 ### v2.1.0 - v2.1.10 - Usage widgets, links, new git insertions / deletions widgets, and reliability fixes
 
@@ -430,7 +448,7 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 ### v2.0.0 - Powerline Support & Enhanced Themes
 - **⚡ Powerline Mode** - Beautiful Powerline-style status lines with arrow separators and customizable caps
 - **🎨 Built-in Themes** - Multiple pre-configured themes that you can copy and customize
-- **🌈 Advanced Color Support** - Basic (16), 256-color (with custom ANSI codes), and truecolor (with hex codes) modes
+- **🌈 Advanced Color Support** - Basic (16), 256-color (with custom ANSI codes), and truecolor (with hex codes) modes, plus multi-stop **gradients** (per-widget or spanning the whole line)
 - **🔗 Widget Merging** - Merge multiple widgets together with or without padding for seamless designs
 - **📦 Easy Installation** - Install directly with `npx` or `bunx` - no global package needed
 - **🔤 Custom Separators** - Add multiple Powerline separators with custom hex codes for font support
@@ -451,6 +469,7 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 - **🖥️ Interactive TUI** - Built-in configuration interface using React/Ink
 - **🔎 Fast Widget Picker** - Add/change widgets by category with search and ranked matching
 - **⚙️ Global Options** - Apply consistent formatting across all widgets (padding, separators, bold, minimalist mode, and color overrides)
+- **📦 Portable Configurations** - Export settings to JSON and preview replace-or-merge imports for backups and sharing
 - **🚀 Cross-platform** - Works seamlessly with both Bun and Node.js
 - **🔧 Flexible Configuration** - Supports custom Claude Code config directory via `CLAUDE_CONFIG_DIR` environment variable
 - **📏 Smart Width Detection** - Automatically adapts to terminal width with flex separators
@@ -491,6 +510,7 @@ The interactive configuration tool provides a terminal UI where you can:
 - Configure flex separator behavior
 - Configure Claude Code status line refresh interval when supported
 - Edit custom text widgets
+- Export JSON backups and preview imported configs before replacing or merging settings
 - Install/uninstall to Claude Code settings
 - Preview your status line in real-time
 
@@ -1093,11 +1113,16 @@ jq 'del(.statusLine)' ~/.claude/settings.json > /tmp/cs.json && cat /tmp/cs.json
 
 ## 🔗 Related Projects
 
+- [ccstatusline-editor](https://github.com/refinist/ccstatusline-editor) - A visual editor for building ccstatusline configurations — drag, drop, preview, ship.
 - [tweakcc](https://github.com/Piebald-AI/tweakcc) - Customize Claude Code themes, thinking verbs, and more.
 - [ccusage](https://github.com/ryoppippi/ccusage) - Track and display Claude Code usage metrics.
+- [ccsidekick](https://ccsidekick.krayong.com/) - A Claude Code status-line with a reactive character plus cost, git, and usage widgets.
 - [codachi](https://github.com/vincent-k2026/codachi) - A tamagotchi-style statusline pet that grows with your context window.
 - [AIWatch](https://ai-watch.dev) - Live status monitor for 30+ AI APIs and apps; pairs with a Custom Command widget to surface provider outages in your status line.
-
+- [ccsessions](https://github.com/treebird7/ccsessions) - CLI session manager for Claude Code; includes `cc-session-num`, a Custom Command widget that shows the current session's rank (`#1`, `#2`, …).
+- [crispy-recall](https://github.com/TheSylvester/crispy-recall) - Searchable memory for your Claude Code and Codex sessions. Local, fast, no daemon.
+- [statuslin.es](https://statuslin.es) - Community gallery of Claude Code status lines with live, sandbox-rendered previews.
+- [claude-carbon](https://github.com/gwittebolle/claude-carbon) - Live CO2 estimate for your Claude Code sessions, next to the cost. Ships a `--segment` mode built to embed as a Custom Command widget.
 
 ## 🙏 Acknowledgments
 
