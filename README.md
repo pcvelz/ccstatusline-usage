@@ -101,6 +101,14 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.11](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.11) - Upstream sync + community fixes
+
+- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Upstream sync** — 71 commits merged through 2.2.27: config import/export, migrated `limits[]` usage API support, transcript-based compaction stats, symlink-safe atomic settings writes, Powerline start caps, `CCSTATUSLINE_CONTEXT_SIZE_FALLBACK`, and more.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Network fix** — disabled Node family autoselection on usage API requests, preventing a silent stale-cache freeze on hosts with broken IPv6. Thanks to @zzyyfff ([#9](https://github.com/pcvelz/ccstatusline-usage/pull/9)).
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **TUI fix** — Reset Timer `(p)`/`(s)` keys no longer soft-lock the items editor. Thanks to @zzyyfff ([#8](https://github.com/pcvelz/ccstatusline-usage/pull/8)).
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fable widget fix** — accounts that never used Fable now show `0.0%` instead of forcing all usage widgets into an error state. Thanks to @BenIsLegit ([#7](https://github.com/pcvelz/ccstatusline-usage/pull/7)).
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Model widget** — compact-mode shorthand for the `k3` model id.
+
 ### [v2.4.10](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.10) - Live payload context window precedence
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Live `context_window_size` precedence** — the context bar now uses the real-time `context_window_size` value from Claude Code's status payload as its primary source, falling back to the static model-context mapping only when the payload omits it. This keeps context percentages accurate for all model backends, including local and opencode-routed models.

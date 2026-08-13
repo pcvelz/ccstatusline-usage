@@ -279,7 +279,14 @@ export class ResetTimerWidget implements Widget {
     }
 
     getCustomKeybinds(item?: WidgetItem): CustomKeybind[] {
+        // Reset Timer always renders a plain "H:MM hr" duration — it honours neither a
+        // progress/bar mode nor a compact mode. Opt out of the (p)rogress and (s)hort
+        // toggles: their actions are unhandled here, and advertising an action the widget
+        // can't service soft-locks the items editor (blank screen that swallows all input,
+        // including ESC). The remaining keys (t/h/z/l) are handled or open real editors.
         return getUsageTimerCustomKeybinds(item, {
+            includeProgress: false,
+            includeCompact: false,
             includeDate: true,
             includeHourFormat: true,
             includeLocale: true,

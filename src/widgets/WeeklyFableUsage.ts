@@ -85,13 +85,18 @@ export class WeeklyFableUsageWidget implements Widget {
         }
 
         const data = context.usageData ?? {};
-        if (data.weeklyFableUsage === undefined) {
+        // Accounts that never used Fable get no Fable limit from the API. When
+        // the core usage windows did arrive, that absence means "no usage yet",
+        // so show 0.0% instead of hiding the widget for light users (#7).
+        const fableUsage = data.weeklyFableUsage
+            ?? (data.sessionUsage !== undefined || data.weeklyUsage !== undefined ? 0 : undefined);
+        if (fableUsage === undefined) {
             if (data.error)
                 return getUsageErrorMessage(data.error);
             return null;
         }
 
-        const percent = Math.max(0, Math.min(100, data.weeklyFableUsage));
+        const percent = Math.max(0, Math.min(100, fableUsage));
         const renderedPercent = inverted ? 100 - percent : percent;
         const getCursorOptions = (): { cursorPercent: number } | undefined => {
             if (!showCursor) {

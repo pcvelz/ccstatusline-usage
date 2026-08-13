@@ -398,6 +398,25 @@ describe('fetchUsageData error handling', () => {
             disabled_reason: null
         }
     });
+    const limitsWithoutFableResponseBody = JSON.stringify({
+        five_hour: {
+            utilization: 42,
+            resets_at: '2030-01-01T00:00:00.000Z'
+        },
+        seven_day: {
+            utilization: 17,
+            resets_at: '2030-01-07T00:00:00.000Z'
+        },
+        limits: [
+            {
+                kind: 'usage_limit',
+                group: 'weekly',
+                percent: 8,
+                resets_at: '2030-01-07T00:00:00.000Z',
+                scope: { model: { id: 'claude-sonnet-5', display_name: 'Sonnet' } }
+            }
+        ]
+    });
     const rateLimitedResponseBody = JSON.stringify({
         error: {
             message: 'Rate limited. Please try again later.',
@@ -1094,6 +1113,82 @@ describe('fetchUsageData error handling', () => {
             expect(cachedResult.first).toEqual(result.first);
             expect(cachedResult.second).toEqual(result.first);
             expect(cachedResult.requestCount).toBe(0);
+        } finally {
+            harness.cleanup();
+        }
+    });
+
+    it('treats a missing per-model Fable limit as complete for the fable widget field', () => {
+        const harness = createProbeHarness();
+
+        try {
+            const home = harness.createTokenHome('missing-fable-limit');
+            const requiredFields = ['weeklyUsage', 'weeklyFableUsage'];
+            const result = harness.runProbe({
+                claudeConfigDir: home.claudeConfig,
+                home: home.home,
+                mode: 'success',
+                nowMs,
+                pathDir: home.bin,
+                requiredFields,
+                responseBody: successResponseBody
+            });
+
+            // A successful fetch that simply lacks a Fable limit must not become an error.
+            expect(result.first).toEqual({
+                sessionUsage: 42,
+                sessionResetAt: '2030-01-01T00:00:00.000Z',
+                weeklyUsage: 17,
+                weeklyResetAt: '2030-01-07T00:00:00.000Z'
+            });
+            expect(result.second).toEqual(result.first);
+            expect(result.requestCount).toBe(1);
+
+            // The cached data must be reused (not rejected and re-fetched into an
+            // error) on subsequent renders even though weeklyFableUsage is absent.
+            // The probe writes usage.json with a real-wall-clock mtime, so derive
+            // 'now' from it (not the mocked epoch) to stay within CACHE_MAX_AGE.
+            const cacheMtimeMs = fs.statSync(path.join(home.home, '.cache', 'ccstatusline', 'usage.json')).mtimeMs;
+            const cachedResult = harness.runProbe({
+                claudeConfigDir: home.claudeConfig,
+                home: home.home,
+                mode: 'unexpected',
+                nowMs: cacheMtimeMs + 10000,
+                pathDir: home.bin,
+                requiredFields
+            });
+
+            expect(cachedResult.first).toEqual(result.first);
+            expect(cachedResult.second).toEqual(result.first);
+            expect(cachedResult.requestCount).toBe(0);
+        } finally {
+            harness.cleanup();
+        }
+    });
+
+    it('treats a limits array without a Fable entry as complete (widget renders it as 0)', () => {
+        const harness = createProbeHarness();
+
+        try {
+            const home = harness.createTokenHome('limits-without-fable');
+            const result = harness.runProbe({
+                claudeConfigDir: home.claudeConfig,
+                home: home.home,
+                mode: 'success',
+                nowMs,
+                pathDir: home.bin,
+                requiredFields: ['weeklyFableUsage'],
+                responseBody: limitsWithoutFableResponseBody
+            });
+
+            expect(result.first).toEqual({
+                sessionUsage: 42,
+                sessionResetAt: '2030-01-01T00:00:00.000Z',
+                weeklyUsage: 17,
+                weeklyResetAt: '2030-01-07T00:00:00.000Z'
+            });
+            expect(result.second).toEqual(result.first);
+            expect(result.requestCount).toBe(1);
         } finally {
             harness.cleanup();
         }
