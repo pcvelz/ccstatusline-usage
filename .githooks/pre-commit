@@ -23,4 +23,13 @@ if ! bun tsc --noEmit; then
     exit 1
 fi
 
+# CI run 31730000565 (2026-08-13) failed on a stylistic ESLint error that
+# tests and tsc cannot catch; lint must gate locally too or lint-only
+# breakage passes pre-commit and fails the pipeline.
+echo "[pre-commit] running eslint..."
+if ! bunx eslint . --config eslint.config.js --max-warnings=0; then
+    echo "[pre-commit] BLOCKED: lint failed. Run 'bun run lint:fix' and re-stage." >&2
+    exit 1
+fi
+
 exit 0
