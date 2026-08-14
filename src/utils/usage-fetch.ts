@@ -30,8 +30,6 @@ const DEFAULT_RATE_LIMIT_BACKOFF = 300; // seconds
 const MACOS_USAGE_CREDENTIALS_SERVICE = 'Claude Code-credentials';
 const MACOS_SECURITY_DUMP_MAX_BUFFER = 8 * 1024 * 1024;
 
-export interface FetchUsageDataOptions { requiredFields?: readonly UsageDataField[] }
-
 const EXTRA_USAGE_DETAIL_FIELDS = new Set<UsageDataField>([
     'extraUsageLimit',
     'extraUsageUsed',

@@ -1,0 +1,37 @@
+#!/bin/sh
+# Pre-push gate: run the EXACT same checks as the CI pipeline (lint+types,
+# tests, build) on whatever is about to be pushed. Enabled via:
+#   git config core.hooksPath .githooks
+#
+# WHY THIS EXISTS IN ADDITION TO pre-commit: pre-commit only fires on `git
+# commit`. Merge commits built via plumbing (git commit-tree + update-ref, used
+# when a pathspec-less commit is blocked) skip it entirely - that is exactly how
+# f524d22 reached CI with type errors (run 31795712456). Push is the last local
+# boundary before the pipeline, so the full CI criteria are enforced here,
+# regardless of how the commits were created.
+#
+# The checks run against the CURRENT WORKING TREE of this checkout, which for
+# any normal push equals the pushed HEAD. Pushing refs that do not match the
+# working tree (e.g. pushing another branch by name) still gets a best-effort
+# gate rather than none.
+
+echo "[pre-push] running CI criteria: bun run lint (tsc + eslint)..."
+if ! bun run lint; then
+    echo "[pre-push] BLOCKED: lint/type check failed - the pipeline would fail identically." >&2
+    exit 1
+fi
+
+echo "[pre-push] running bun test..."
+if ! bun test; then
+    echo "[pre-push] BLOCKED: tests failed - the pipeline would fail identically." >&2
+    exit 1
+fi
+
+echo "[pre-push] running bun run build..."
+if ! bun run build || [ ! -f dist/ccstatusline.js ]; then
+    echo "[pre-push] BLOCKED: build failed - the pipeline would fail identically." >&2
+    exit 1
+fi
+
+echo "[pre-push] all CI criteria green - pushing."
+exit 0

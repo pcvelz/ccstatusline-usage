@@ -42,8 +42,6 @@ export interface UsageWindowMetrics {
     remainingPercent: number;
 }
 
-export type UsageDataField = Exclude<keyof UsageData, 'error'>;
-
 // TypeScript can't narrow `target[field] = value` when `field` is a plain
 // UsageDataField union at the call site (it can't prove `value`'s type
 // matches whichever union member `field` happens to be), but it can when both
