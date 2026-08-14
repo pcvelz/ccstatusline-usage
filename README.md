@@ -101,6 +101,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.12](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.12) - Fix 200k context echo on 1M models
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Context bar 200k echo fix** — when Claude Code reports `context_window_size: 200000` (its built-in default) for a model the mapping knows is 1M (Fable 5, Opus), the bar no longer shows impossible readings like `381k/200k (191%)`; the mapping corrects the echo to 1M. Gated `[1m]` models without a mapping entry keep the live 200k.
+
 ### [v2.4.11](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.11) - Upstream sync + community fixes
 
 - [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Upstream sync** — 71 commits merged through 2.2.27: config import/export, migrated `limits[]` usage API support, transcript-based compaction stats, symlink-safe atomic settings writes, Powerline start caps, `CCSTATUSLINE_CONTEXT_SIZE_FALLBACK`, and more.

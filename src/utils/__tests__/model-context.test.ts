@@ -99,6 +99,27 @@ describe('getContextConfig', () => {
         });
     });
 
+    describe('Live 200000 default echo (CLI fallback, not the real window)', () => {
+        it('lets the mapping correct a live 200000 echo for claude-fable-5 to 1M', () => {
+            const config = getContextConfig('claude-fable-5', 200000);
+
+            expect(config.maxTokens).toBe(1000000);
+            expect(config.usableTokens).toBe(800000);
+        });
+
+        it('lets the mapping correct a live 200000 echo for claude-opus ids to 1M', () => {
+            expect(getContextConfig('claude-opus-4-7', 200000).maxTokens).toBe(1000000);
+        });
+
+        it('keeps live 200000 for a gated [1m] model with no mapping entry', () => {
+            expect(getContextConfig('claude-sonnet-4-5-20250929[1m]', 200000).maxTokens).toBe(200000);
+        });
+
+        it('keeps a non-default live size authoritative over the mapping', () => {
+            expect(getContextConfig('claude-fable-5', 500000).maxTokens).toBe(500000);
+        });
+    });
+
     describe('Models without [1m] suffix', () => {
         it('should return 1M context window for claude-fable-5 without [1m] suffix', () => {
             const config = getContextConfig('claude-fable-5');

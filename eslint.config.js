@@ -140,6 +140,10 @@ export default ts.config([
         ignores: [
             '**/dist/',
             '**/node_modules/',
+            // Local git worktrees (created via /worktree-create for release
+            // comparisons) are separate checkouts outside tsconfig's project;
+            // linting them from the main tree only produces parser errors.
+            '.worktrees/',
             '**/*.js',
             '!eslint.config.js'
         ]

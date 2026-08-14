@@ -102,15 +102,17 @@ export function getContextConfig(modelIdentifier?: string, contextWindowSize?: n
     const statusWindowSize = toValidWindowSize(contextWindowSize);
     const normalizedModel = modelIdentifier?.toLowerCase().trim() ?? '';
 
-    // A live context_window_size wins whenever the CLI actually knows the
-    // window: always for first-party claude-* ids (catalog-backed), and for
-    // custom ids whenever it differs from the CLI's built-in 200000 default.
-    // At exactly 200000 on a custom id the CLI is echoing its fallback (it has
-    // no knowledge of the served model, e.g. Ollama), so the JSON mapping below
-    // gets to correct it.
+    // A live context_window_size wins whenever it differs from the CLI's
+    // built-in 200000 default. At exactly 200000 the CLI may be echoing its
+    // fallback rather than the session's real window - observed for custom ids
+    // (Ollama) AND for first-party 1M models (Fable 5 sessions reported
+    // 200000 while their real usage sat at 381k, rendering "381k/200k
+    // (191%)"), so the JSON mapping below gets to correct the echo for any
+    // model it knows. Models WITHOUT a mapping entry (e.g. a gated
+    // sonnet[1m] account genuinely capped at 200k) keep the live 200000 via
+    // the sentinel return further down.
     const liveSizeIsAuthoritative = statusWindowSize !== null
-        && (normalizedModel.startsWith('claude-')
-            || statusWindowSize !== DEFAULT_CONTEXT_WINDOW_SIZE);
+        && statusWindowSize !== DEFAULT_CONTEXT_WINDOW_SIZE;
     if (statusWindowSize !== null && liveSizeIsAuthoritative) {
         return toContextConfig(statusWindowSize);
     }
