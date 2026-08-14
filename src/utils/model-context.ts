@@ -13,6 +13,22 @@ interface ModelIdentifier {
 
 const DEFAULT_CONTEXT_WINDOW_SIZE = 200000;
 const USABLE_CONTEXT_RATIO = 0.8;
+const CONTEXT_SIZE_FALLBACK_ENV_VAR = 'CCSTATUSLINE_CONTEXT_SIZE_FALLBACK';
+
+// User-configurable last-resort fallback window size. Mirrors CCSTATUSLINE_WIDTH:
+// a positive integer read from the environment, ignored when unset or invalid.
+// Defaults to 200k so behavior is unchanged unless the user opts in.
+function getFallbackContextWindowSize(): number {
+    const raw = process.env[CONTEXT_SIZE_FALLBACK_ENV_VAR];
+    if (raw) {
+        const parsed = Number.parseInt(raw, 10);
+        if (Number.isFinite(parsed) && parsed > 0) {
+            return parsed;
+        }
+    }
+
+    return DEFAULT_CONTEXT_WINDOW_SIZE;
+}
 
 function toValidWindowSize(value: number | null | undefined): number | null {
     if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
@@ -76,19 +92,39 @@ export function getModelContextIdentifier(model?: string | ModelIdentifier): str
     return id ?? displayName;
 }
 
+function toContextConfig(maxTokens: number): ModelContextConfig {
+    return {
+        maxTokens,
+        usableTokens: Math.floor(maxTokens * USABLE_CONTEXT_RATIO)
+    };
+}
+
 export function getContextConfig(modelIdentifier?: string, contextWindowSize?: number | null): ModelContextConfig {
     const statusWindowSize = toValidWindowSize(contextWindowSize);
-    if (statusWindowSize !== null) {
-        return {
-            maxTokens: statusWindowSize,
-            usableTokens: Math.floor(statusWindowSize * USABLE_CONTEXT_RATIO)
-        };
+    const normalizedModel = modelIdentifier?.toLowerCase().trim() ?? '';
+
+    // A live context_window_size wins whenever it differs from the CLI's
+    // built-in 200000 default. At exactly 200000 the CLI may be echoing its
+    // fallback rather than the session's real window - observed for custom ids
+    // (Ollama) AND for first-party 1M models (Fable 5 sessions reported
+    // 200000 while their real usage sat at 381k, rendering "381k/200k
+    // (191%)"), so the JSON mapping below gets to correct the echo for any
+    // model it knows. Models WITHOUT a mapping entry (e.g. a gated
+    // sonnet[1m] account genuinely capped at 200k) keep the live 200000 via
+    // the sentinel return further down.
+    const liveSizeIsAuthoritative = statusWindowSize !== null
+        && statusWindowSize !== DEFAULT_CONTEXT_WINDOW_SIZE;
+    if (statusWindowSize !== null && liveSizeIsAuthoritative) {
+        return toContextConfig(statusWindowSize);
     }
 
-    // Default to 200k for older models
+    // Last-resort fallback when neither the live status window size nor a
+    // model-name hint is available. Defaults to 200k, overridable via
+    // CCSTATUSLINE_CONTEXT_SIZE_FALLBACK.
+    const fallbackWindowSize = getFallbackContextWindowSize();
     const defaultConfig = {
-        maxTokens: DEFAULT_CONTEXT_WINDOW_SIZE,
-        usableTokens: Math.floor(DEFAULT_CONTEXT_WINDOW_SIZE * USABLE_CONTEXT_RATIO)
+        maxTokens: fallbackWindowSize,
+        usableTokens: Math.floor(fallbackWindowSize * USABLE_CONTEXT_RATIO)
     };
 
     if (!modelIdentifier) {
@@ -108,16 +144,22 @@ export function getContextConfig(modelIdentifier?: string, contextWindowSize?: n
         };
     }
 
-    // Check against JSON mappings (matched via .includes()) — third-party /
-    // remote / Ollama models only; local llamacpp basenames are resolved above.
-    const normalizedModel = modelIdentifier.toLowerCase().trim();
+    // Check against JSON family/pattern mappings (matched via .includes()) —
+    // third-party / remote / Ollama models; local llamacpp basenames are
+    // resolved above. An authoritative live context_window_size already won;
+    // this is the fresh-session fallback, and the correction for the CLI's
+    // 200000 default.
     for (const entry of modelContextData.mappings) {
         if (normalizedModel.includes(entry.pattern)) {
-            return {
-                maxTokens: entry.contextSize,
-                usableTokens: Math.floor(entry.contextSize * USABLE_CONTEXT_RATIO)
-            };
+            return toContextConfig(entry.contextSize);
         }
+    }
+
+    // Live 200000 sentinel with no mapping match: keep the live value rather
+    // than guessing from the model name (a [1m]-suffixed id at a gated 200k
+    // window must not be inflated back to 1M by the name parser).
+    if (statusWindowSize !== null) {
+        return toContextConfig(statusWindowSize);
     }
 
     const inferredWindowSize = parseContextWindowSize(modelIdentifier);

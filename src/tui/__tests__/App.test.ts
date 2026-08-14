@@ -1,7 +1,9 @@
+import chalk from 'chalk';
 import {
     describe,
     expect,
-    it
+    it,
+    vi
 } from 'vitest';
 
 import {
@@ -9,6 +11,9 @@ import {
     type InstallationMetadata
 } from '../../types/Settings';
 import {
+    applyTuiImport,
+    buildConfigLoadWarning,
+    buildInvalidConfigSaveConfirm,
     clearInstallMenuSelection,
     getConfirmCancelScreen,
     getCurrentInstallation,
@@ -58,6 +63,26 @@ describe('App confirm navigation helpers', () => {
         const menuSelections = { main: 5 };
 
         expect(clearInstallMenuSelection(menuSelections)).toBe(menuSelections);
+    });
+});
+
+describe('TUI config imports', () => {
+    it('synchronizes Chalk with the imported color level', () => {
+        const originalLevel = chalk.level;
+
+        try {
+            const imported = applyTuiImport(
+                { ...DEFAULT_SETTINGS, colorLevel: 2 },
+                { ...DEFAULT_SETTINGS, colorLevel: 0 },
+                'merge',
+                ['colorLevel']
+            );
+
+            expect(imported.colorLevel).toBe(0);
+            expect(chalk.level).toBe(0);
+        } finally {
+            chalk.level = originalLevel;
+        }
     });
 });
 
@@ -170,6 +195,9 @@ describe('Main menu structure', () => {
             'offHours',
             'configureStatusLine',
             '-',
+            'exportConfig',
+            'importConfig',
+            '-',
             'install',
             '-',
             'exit',
@@ -188,6 +216,9 @@ describe('Main menu structure', () => {
             'globalOverrides',
             'offHours',
             'configureStatusLine',
+            '-',
+            'exportConfig',
+            'importConfig',
             '-',
             'install',
             '-',
@@ -212,6 +243,9 @@ describe('Main menu structure', () => {
             'globalOverrides',
             'offHours',
             'configureStatusLine',
+            '-',
+            'exportConfig',
+            'importConfig',
             '-',
             'manageInstallation',
             '-',
@@ -243,13 +277,48 @@ describe('Main menu structure', () => {
             sublabel: '(install first)'
         }));
         expect(buildManageInstallationItems()[0]).toEqual(expect.objectContaining({ label: '🔄 Check for Updates' }));
-        expect(getMainMenuInstallSelectionIndex(false)).toBe(6);
-        expect(getMainMenuInstallSelectionIndex(true, autoInstallation)).toBe(7);
-        expect(getMainMenuInstallSelectionIndex(true, pinnedInstallation)).toBe(7);
-        expect(getMainMenuSelectionIndex(buildMainMenuItems(true, false, autoInstallation), 'install')).toBe(7);
+        expect(getMainMenuInstallSelectionIndex(false)).toBe(8);
+        expect(getMainMenuInstallSelectionIndex(true, autoInstallation)).toBe(9);
+        expect(getMainMenuInstallSelectionIndex(true, pinnedInstallation)).toBe(9);
+        expect(getMainMenuSelectionIndex(buildMainMenuItems(true, false, autoInstallation), 'install')).toBe(9);
         expect(getMainMenuSelectionIndex(
             buildMainMenuItems(true, false, pinnedInstallation),
             'manageInstallation'
-        )).toBe(7);
+        )).toBe(9);
+    });
+});
+
+describe('Invalid-config TUI guards', () => {
+    it('returns null when there is no config load error', () => {
+        expect(buildConfigLoadWarning(null)).toBeNull();
+        expect(buildInvalidConfigSaveConfirm(null, vi.fn())).toBeNull();
+    });
+
+    it('builds a banner that names the reason and warns about overwriting', () => {
+        const warning = buildConfigLoadWarning('settings.json is not valid JSON');
+        expect(warning).toContain('settings.json is not valid JSON');
+        expect(warning).toContain('overwrites the file');
+    });
+
+    it('builds a save-guard confirm dialog that returns to main on cancel', () => {
+        const guard = buildInvalidConfigSaveConfirm('settings.json could not be read', vi.fn());
+        expect(guard).not.toBeNull();
+        expect(guard?.cancelScreen).toBe('main');
+        expect(guard?.message).toContain('preserved');
+        expect(guard?.message).toContain('could not be read');
+    });
+
+    it('invokes the provided onConfirm when the guard action runs', async () => {
+        const onConfirm = vi.fn();
+        const guard = buildInvalidConfigSaveConfirm('settings.json is not valid JSON', onConfirm);
+        await guard?.action();
+        expect(onConfirm).toHaveBeenCalledOnce();
+    });
+
+    it('reflects the specific load-error reason in the save-guard message', () => {
+        expect(buildInvalidConfigSaveConfirm('settings.json is not valid JSON', vi.fn())?.message)
+            .toContain('settings.json is not valid JSON');
+        expect(buildInvalidConfigSaveConfirm('settings.json is not in a valid format', vi.fn())?.message)
+            .toContain('not in a valid format');
     });
 });

@@ -29,6 +29,18 @@ describe('terminal utils', () => {
 
     let originalTmux: string | undefined;
 
+    // process.platform is read by the width probe. Pin it with defineProperty
+    // and restore after each test; vi.spyOn on the getter does not reliably
+    // re-apply across tests. Probing is disabled on win32, so the
+    // ancestor-walk/stty/tput tests pin POSIX and the win32 tests pin win32.
+    const ORIGINAL_PLATFORM = process.platform;
+    const setPlatform = (value: NodeJS.Platform): void => {
+        Object.defineProperty(process, 'platform', { value, configurable: true, writable: true, enumerable: true });
+    };
+    const pinPosixPlatform = (): void => {
+        setPlatform('darwin');
+    };
+
     beforeEach(() => {
         vi.clearAllMocks();
         vi.restoreAllMocks();
@@ -45,9 +57,11 @@ describe('terminal utils', () => {
             delete process.env.TMUX;
         }
         delete process.env.CCSTATUSLINE_WIDTH;
+        setPlatform(ORIGINAL_PLATFORM);
     });
 
     it('returns width from the immediate parent tty when available', () => {
+        pinPosixPlatform();
         mockExecSync.mockImplementation((command: string) => {
             if (command === `ps -o ppid= -p ${process.pid}`) {
                 return '1234\n';
@@ -73,6 +87,7 @@ describe('terminal utils', () => {
     });
 
     it('walks ancestor processes until it finds a valid tty', () => {
+        pinPosixPlatform();
         mockExecSync.mockImplementation((command: string) => {
             if (command === `ps -o ppid= -p ${process.pid}`) {
                 return '1234\n';
@@ -101,6 +116,7 @@ describe('terminal utils', () => {
     });
 
     it('falls back through stty variants when the first form returns no value', () => {
+        pinPosixPlatform();
         // Simulates BSD/macOS, where `stty -F` exits with an error and yields
         // empty output via the `2>/dev/null | awk` pipeline; `stty -f` succeeds.
         mockExecSync.mockImplementation((command: string) => {
@@ -127,6 +143,7 @@ describe('terminal utils', () => {
     });
 
     it('falls back to tput cols when ancestor probing fails', () => {
+        pinPosixPlatform();
         mockExecSync.mockImplementationOnce(() => { throw new Error('ps unavailable'); });
         mockExecSync.mockReturnValueOnce('90\n');
 
@@ -135,6 +152,7 @@ describe('terminal utils', () => {
     });
 
     it('returns null when ancestor and fallback probes fail', () => {
+        pinPosixPlatform();
         mockExecSync.mockImplementation((command: string) => {
             if (command === `ps -o ppid= -p ${process.pid}`) {
                 return '1234\n';
@@ -165,6 +183,7 @@ describe('terminal utils', () => {
     });
 
     it('detects availability when an ancestor tty probe succeeds', () => {
+        pinPosixPlatform();
         mockExecSync.mockImplementation((command: string) => {
             if (command === `ps -o ppid= -p ${process.pid}`) {
                 return '1234\n';
@@ -193,6 +212,7 @@ describe('terminal utils', () => {
     });
 
     it('returns false for availability when all probes fail', () => {
+        pinPosixPlatform();
         mockExecSync.mockImplementationOnce(() => { throw new Error('tty unavailable'); });
         mockExecSync.mockImplementationOnce(() => { throw new Error('tput unavailable'); });
 
@@ -207,6 +227,7 @@ describe('terminal utils', () => {
     });
 
     it('ignores a non-positive CCSTATUSLINE_WIDTH and falls back to probing', () => {
+        pinPosixPlatform();
         process.env.CCSTATUSLINE_WIDTH = '0';
 
         mockExecSync.mockImplementation((command: string) => {
@@ -229,6 +250,7 @@ describe('terminal utils', () => {
     });
 
     it('ignores a non-numeric CCSTATUSLINE_WIDTH and falls back to probing', () => {
+        pinPosixPlatform();
         process.env.CCSTATUSLINE_WIDTH = 'wide';
 
         mockExecSync.mockImplementation((command: string) => {
@@ -251,7 +273,7 @@ describe('terminal utils', () => {
     });
 
     it('CCSTATUSLINE_WIDTH override applies on Windows where probing is disabled', () => {
-        vi.spyOn(process, 'platform', 'get').mockReturnValue('win32');
+        setPlatform('win32');
         process.env.CCSTATUSLINE_WIDTH = '180';
 
         expect(getTerminalWidth()).toBe(180);
@@ -260,7 +282,7 @@ describe('terminal utils', () => {
     });
 
     it('disables width detection on Windows', () => {
-        vi.spyOn(process, 'platform', 'get').mockReturnValue('win32');
+        setPlatform('win32');
 
         expect(getTerminalWidth()).toBeNull();
         expect(canDetectTerminalWidth()).toBe(false);

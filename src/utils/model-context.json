@@ -17,6 +17,11 @@
       "note": "Claude Opus models (1M context)"
     },
     {
+      "pattern": "claude-fable",
+      "contextSize": 1000000,
+      "note": "Claude Fable models (1M context)"
+    },
+    {
       "pattern": "qwen3.6-plus",
       "contextSize": 1000000,
       "note": "Qwen 3.6 Plus (cc36)"

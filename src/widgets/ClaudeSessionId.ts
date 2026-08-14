@@ -25,7 +25,7 @@ export class ClaudeSessionIdWidget implements Widget {
             return null;
         }
 
-        const mobile = (context.terminalWidth ?? 0) > 0 && (context.terminalWidth ?? 0) < 178;
+        const mobile = (context.terminalWidth ?? 0) > 0 && (context.terminalWidth ?? 0) < 192;
         if (mobile) {
             return `S: ${sessionId.slice(0, 8)}`;
         }

@@ -1,0 +1,35 @@
+#!/bin/sh
+# Pre-commit gate: run the bun test suite whenever source or model-context
+# data is staged. Enabled via: git config core.hooksPath .githooks
+#
+# The context-window regression of 2026-07-07 (hardcoded model-context.json
+# mapping silently overriding the live context_window_size from the status
+# payload) shipped without a failing test; this hook makes the suite a hard
+# gate on the file patterns that can reintroduce that class of bug.
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+
+echo "$STAGED" | grep -Eq '^src/.*\.(ts|tsx|json)$' || exit 0
+
+echo "[pre-commit] src/ changes staged - running bun test..."
+if ! bun test; then
+    echo "[pre-commit] BLOCKED: bun test failed. Fix the suite before committing." >&2
+    exit 1
+fi
+
+echo "[pre-commit] running tsc --noEmit..."
+if ! bun tsc --noEmit; then
+    echo "[pre-commit] BLOCKED: type check failed." >&2
+    exit 1
+fi
+
+# CI run 31730000565 (2026-08-13) failed on a stylistic ESLint error that
+# tests and tsc cannot catch; lint must gate locally too or lint-only
+# breakage passes pre-commit and fails the pipeline.
+echo "[pre-commit] running eslint..."
+if ! bunx eslint . --config eslint.config.js --max-warnings=0; then
+    echo "[pre-commit] BLOCKED: lint failed. Run 'bun run lint:fix' and re-stage." >&2
+    exit 1
+fi
+
+exit 0

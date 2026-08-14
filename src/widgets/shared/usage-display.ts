@@ -14,7 +14,7 @@ import {
     toggleMetadataFlag
 } from './metadata';
 
-export type UsageDisplayMode = 'time' | 'progress' | 'progress-short' | 'slider' | 'slider-only';
+export type UsageDisplayMode = 'time' | 'progress' | 'progress-short' | 'progress-mini' | 'slider' | 'slider-only';
 
 const SLIDER_WIDTH = 10;
 
@@ -30,14 +30,14 @@ const LOCALE_KEYBIND: CustomKeybind = { key: 'l', label: '(l)ocale', action: 'ed
 
 export function getUsageDisplayMode(item: WidgetItem): UsageDisplayMode {
     const mode = item.metadata?.display;
-    if (mode === 'progress' || mode === 'progress-short' || mode === 'slider' || mode === 'slider-only') {
+    if (mode === 'progress' || mode === 'progress-short' || mode === 'progress-mini' || mode === 'slider' || mode === 'slider-only') {
         return mode;
     }
     return 'time';
 }
 
 export function isUsageProgressMode(mode: UsageDisplayMode): boolean {
-    return mode === 'progress' || mode === 'progress-short';
+    return mode === 'progress' || mode === 'progress-short' || mode === 'progress-mini';
 }
 
 export function isUsageSliderMode(mode: UsageDisplayMode): boolean {
@@ -68,7 +68,7 @@ export function makeSliderBar(percent: number, width: number = SLIDER_WIDTH, opt
 }
 
 export function getUsageProgressBarWidth(mode: UsageDisplayMode): number {
-    return mode === 'progress' ? 32 : 16;
+    return mode === 'progress' ? 32 : mode === 'progress-short' ? 16 : 10;
 }
 
 export function isUsageInverted(item: WidgetItem): boolean {
@@ -167,6 +167,7 @@ export function toggleUsageWeekday(item: WidgetItem): WidgetItem {
 interface UsageDisplayModifierOptions {
     includeCompact?: boolean;
     includeDate?: boolean;
+    showUsageDirection?: boolean;
 }
 
 export function getUsageDisplayModifierText(
@@ -180,13 +181,17 @@ export function getUsageDisplayModifierText(
         modifiers.push('long bar');
     } else if (mode === 'progress-short') {
         modifiers.push('medium bar');
+    } else if (mode === 'progress-mini') {
+        modifiers.push('mini bar');
     } else if (mode === 'slider') {
         modifiers.push('short bar');
     } else if (mode === 'slider-only') {
         modifiers.push('short bar only');
     }
 
-    if (isUsageInverted(item)) {
+    if (options.showUsageDirection) {
+        modifiers.push(isUsageInverted(item) ? 'remaining' : 'used');
+    } else if (isUsageInverted(item)) {
         modifiers.push('inverted');
     }
 
@@ -219,7 +224,7 @@ export function getUsageDisplayModifierText(
     return makeModifierText(modifiers);
 }
 
-export function cycleUsageDisplayMode(item: WidgetItem, disabledInProgressKeys: string[] = [], includeSlider = false): WidgetItem {
+export function cycleUsageDisplayMode(item: WidgetItem, disabledInProgressKeys: string[] = [], includeSlider = false, preserveInvertInTime = false): WidgetItem {
     const currentMode = getUsageDisplayMode(item);
     let nextMode: UsageDisplayMode;
     if (includeSlider) {
@@ -228,19 +233,23 @@ export function cycleUsageDisplayMode(item: WidgetItem, disabledInProgressKeys: 
             : currentMode === 'progress'
                 ? 'progress-short'
                 : currentMode === 'progress-short'
-                    ? 'slider'
-                    : currentMode === 'slider'
-                        ? 'slider-only'
-                        : 'time';
+                    ? 'progress-mini'
+                    : currentMode === 'progress-mini'
+                        ? 'slider'
+                        : currentMode === 'slider'
+                            ? 'slider-only'
+                            : 'time';
     } else {
         nextMode = currentMode === 'time'
             ? 'progress'
             : currentMode === 'progress'
                 ? 'progress-short'
-                : 'time';
+                : currentMode === 'progress-short'
+                    ? 'progress-mini'
+                    : 'time';
     }
 
-    const keysToRemove = nextMode === 'time' ? ['invert', 'cursor'] : disabledInProgressKeys;
+    const keysToRemove = nextMode === 'time' ? (preserveInvertInTime ? ['cursor'] : ['invert', 'cursor']) : disabledInProgressKeys;
     const nextItem = removeMetadataKeys(item, keysToRemove);
     const nextMetadata: Record<string, string> = {
         ...(nextItem.metadata ?? {}),
@@ -257,14 +266,15 @@ export function toggleUsageInverted(item: WidgetItem): WidgetItem {
     return toggleMetadataFlag(item, 'invert');
 }
 
-export function getUsagePercentCustomKeybinds(item?: WidgetItem): CustomKeybind[] {
-    const keybinds = [PROGRESS_TOGGLE_KEYBIND];
+export function getUsagePercentCustomKeybinds(item?: WidgetItem, includeCursor = true): CustomKeybind[] {
+    const nextDirection = item && isUsageInverted(item) ? 'used' : 'remaining';
+    const keybinds: CustomKeybind[] = [
+        PROGRESS_TOGGLE_KEYBIND,
+        { key: 'u', label: `(u) show ${nextDirection}`, action: 'toggle-invert' }
+    ];
 
-    if (item) {
+    if (item && includeCursor) {
         const mode = getUsageDisplayMode(item);
-        if (isUsageProgressMode(mode) || isUsageSliderMode(mode)) {
-            keybinds.push(INVERT_TOGGLE_KEYBIND);
-        }
         if (isUsageProgressMode(mode) || isUsageSliderMode(mode)) {
             keybinds.push(CURSOR_TOGGLE_KEYBIND);
         }
@@ -274,6 +284,8 @@ export function getUsagePercentCustomKeybinds(item?: WidgetItem): CustomKeybind[
 }
 
 interface UsageTimerCustomKeybindOptions {
+    includeProgress?: boolean;
+    includeCompact?: boolean;
     includeDate?: boolean;
     includeHourFormat?: boolean;
     includeLocale?: boolean;
@@ -285,15 +297,24 @@ export function getUsageTimerCustomKeybinds(
     item?: WidgetItem,
     options: UsageTimerCustomKeybindOptions = {}
 ): CustomKeybind[] {
-    const keybinds = [PROGRESS_TOGGLE_KEYBIND];
+    // Some timer widgets render a fixed value (e.g. the session Reset Timer's
+    // "H:MM hr") and never honour a progress/bar or compact display mode. They opt out
+    // via includeProgress / includeCompact so they don't advertise a (p)rogress or
+    // (s)hort toggle whose action they don't handle — an advertised-but-unhandled action
+    // soft-locks the items editor (a blank screen that swallows every key, including ESC).
+    const includeProgress = options.includeProgress ?? true;
+    const includeCompact = options.includeCompact ?? true;
+    const keybinds: CustomKeybind[] = includeProgress ? [PROGRESS_TOGGLE_KEYBIND] : [];
 
     const mode = item ? getUsageDisplayMode(item) : 'time';
-    const isBarMode = isUsageProgressMode(mode) || isUsageSliderMode(mode);
+    const isBarMode = includeProgress && (isUsageProgressMode(mode) || isUsageSliderMode(mode));
 
     if (item && isBarMode) {
         keybinds.push(INVERT_TOGGLE_KEYBIND);
     } else {
-        keybinds.push(COMPACT_TOGGLE_KEYBIND);
+        if (includeCompact) {
+            keybinds.push(COMPACT_TOGGLE_KEYBIND);
+        }
 
         if (options.includeDate) {
             keybinds.push(DATE_TOGGLE_KEYBIND);

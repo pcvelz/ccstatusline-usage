@@ -232,18 +232,12 @@ export class ResetTimerWidget implements Widget {
         if (resolveProvider(getModelId(context)).name === 'null')
             return null;
 
-        // Determine if the current model charges extra usage (Sonnet [1m] does, Opus [1m] does not)
-        const modelId = getModelId(context);
-        const is1mModel = modelId.includes('[1m]');
-        const isOpus = modelId.includes('opus');
-        const isChargedModel = is1mModel && !isOpus;
-
-        // When extra usage is active (weekly limit reached, or charged [1m] model like Sonnet [1m]),
-        // show the WEEKLY reset time. Session hitting 100% alone doesn't count — session resets
-        // on its own 5-hour cycle, so keep showing the session timer until weekly is also exhausted.
+        // When extra usage is active (weekly limit reached), show the WEEKLY reset time.
+        // Session hitting 100% alone doesn't count — session resets on its own 5-hour cycle,
+        // so keep showing the session timer until weekly is also exhausted.
+        // No [1m] model charges extra usage anymore (all context-window betas are included in-plan).
         const extraActive = data.extraUsageEnabled && data.extraUsageUsed !== undefined && data.extraUsageLimit !== undefined
-            && ((data.weeklyUsage !== undefined && data.weeklyUsage >= 100)
-                || isChargedModel);
+            && data.weeklyUsage !== undefined && data.weeklyUsage >= 100;
 
         if (extraActive) {
             const weeklyWindow = resolveWeeklyUsageWindow(data);
@@ -285,7 +279,14 @@ export class ResetTimerWidget implements Widget {
     }
 
     getCustomKeybinds(item?: WidgetItem): CustomKeybind[] {
+        // Reset Timer always renders a plain "H:MM hr" duration — it honours neither a
+        // progress/bar mode nor a compact mode. Opt out of the (p)rogress and (s)hort
+        // toggles: their actions are unhandled here, and advertising an action the widget
+        // can't service soft-locks the items editor (blank screen that swallows all input,
+        // including ESC). The remaining keys (t/h/z/l) are handled or open real editors.
         return getUsageTimerCustomKeybinds(item, {
+            includeProgress: false,
+            includeCompact: false,
             includeDate: true,
             includeHourFormat: true,
             includeLocale: true,
@@ -326,14 +327,12 @@ export class ContextBarWidget implements Widget {
         if (!cw)
             return null;
 
-        const payloadSize = Number(cw.context_window_size) || 200000;
-
-        // Use model-specific context size when known (Ollama configs often differ from native model capability)
+        // Window-size precedence lives in getContextConfig: an authoritative
+        // live context_window_size wins; the model-context.json mapping only
+        // backfills the CLI's 200000 default (Ollama-style configs) and fresh
+        // sessions with no live size.
         const modelId = getModelContextIdentifier(context.data?.model);
-        const modelConfig = modelId ? getContextConfig(modelId) : null;
-        const total = (modelConfig && modelConfig.maxTokens !== payloadSize)
-            ? modelConfig.maxTokens
-            : payloadSize;
+        const total = getContextConfig(modelId, Number(cw.context_window_size) || null).maxTokens;
 
         // current_usage can be a number or an object with token breakdown
         let used = 0;

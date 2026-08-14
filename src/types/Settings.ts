@@ -8,6 +8,10 @@ import { WidgetItemSchema } from './Widget';
 // Current version - bump this when making breaking changes to the schema
 export const CURRENT_VERSION = 3;
 
+// Which side(s) of a widget the default padding is applied to
+export const DefaultPaddingSideSchema = z.enum(['both', 'left', 'right']);
+export type DefaultPaddingSide = z.infer<typeof DefaultPaddingSideSchema>;
+
 export const InstallationMetadataSchema = z.discriminatedUnion('method', [
     z.object({
         method: z.literal('auto-update'),
@@ -85,8 +89,8 @@ export const SettingsSchema = z.object({
                 { id: 'kimi-monthly-usage', type: 'kimi-monthly-usage', color: 'brightBlue' },
                 { id: 'sep-weekly-pace', type: 'separator' },
                 { id: 'weekly-pace', type: 'weekly-pace', color: 'brightBlue', metadata: { display: 'pendulum' } },
-                { id: 'sep-off-peak', type: 'separator' },
-                { id: 'off-peak', type: 'off-peak', color: 'green' }
+                { id: 'sep-fable', type: 'separator' },
+                { id: 'weekly-fable-usage', type: 'weekly-fable-usage', color: 'magenta', metadata: { display: 'progress-mini' } }
             ],
             []
         ]),
@@ -95,6 +99,7 @@ export const SettingsSchema = z.object({
     colorLevel: ColorLevelSchema.default(2),
     defaultSeparator: z.string().optional(),
     defaultPadding: z.string().optional(),
+    defaultPaddingSide: DefaultPaddingSideSchema.default('both'),
     inheritSeparatorColors: z.boolean().default(false),
     overrideBackgroundColor: z.string().optional(),
     overrideForegroundColor: z.string().optional(),

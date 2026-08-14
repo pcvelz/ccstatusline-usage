@@ -409,15 +409,15 @@ describe('ClaudeSessionIdWidget — display size tiers', () => {
         expect(result).toBe(`Session ID: ${SESSION_ID}`);
     });
 
-    it('boundary: width=177 (medium) → compact', () => {
+    it('boundary: width=191 (medium) → compact', () => {
         const widget = new ClaudeSessionIdWidget();
-        const result = widget.render(BASE_ITEM, SESSION_CTX(177), DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, SESSION_CTX(191), DEFAULT_SETTINGS);
         expect(result).toMatch(/^S:/);
     });
 
-    it('boundary: width=178 (full) → full label', () => {
+    it('boundary: width=192 (full) → full label', () => {
         const widget = new ClaudeSessionIdWidget();
-        const result = widget.render(BASE_ITEM, SESSION_CTX(178), DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, SESSION_CTX(192), DEFAULT_SETTINGS);
         expect(result).toMatch(/^Session ID:/);
     });
 });

@@ -1,0 +1,133 @@
+import type { RenderContext } from '../types/RenderContext';
+import type { Settings } from '../types/Settings';
+import type {
+    CustomKeybind,
+    Widget,
+    WidgetEditorDisplay,
+    WidgetItem
+} from '../types/Widget';
+import {
+    getUsageErrorMessage,
+    resolveWeeklyFableUsageWindow
+} from '../utils/usage';
+
+import { makeTimerProgressBar } from './shared/progress-bar';
+import { formatRawOrLabeledValue } from './shared/raw-or-labeled';
+import {
+    cycleUsageDisplayMode,
+    getUsageDisplayMode,
+    getUsageDisplayModifierText,
+    getUsagePercentCustomKeybinds,
+    getUsageProgressBarWidth,
+    isUsageCursorEnabled,
+    isUsageInverted,
+    isUsageProgressMode,
+    isUsageSliderMode,
+    makeSliderBar,
+    toggleUsageCursor,
+    toggleUsageInverted
+} from './shared/usage-display';
+
+const LABEL = 'Fable: ';
+
+export class WeeklyFableUsageWidget implements Widget {
+    getDefaultColor(): string { return 'magenta'; }
+    getDescription(): string { return 'Shows weekly Fable API usage percentage'; }
+    getDisplayName(): string { return 'Weekly Fable Usage'; }
+    getCategory(): string { return 'Usage'; }
+
+    getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
+        return {
+            displayText: this.getDisplayName(),
+            modifierText: getUsageDisplayModifierText(item, { showUsageDirection: true })
+        };
+    }
+
+    handleEditorAction(action: string, item: WidgetItem): WidgetItem | null {
+        if (action === 'toggle-progress') {
+            return cycleUsageDisplayMode(item, [], true, true);
+        }
+
+        if (action === 'toggle-invert') {
+            return toggleUsageInverted(item);
+        }
+
+        if (action === 'toggle-cursor') {
+            return toggleUsageCursor(item);
+        }
+
+        return null;
+    }
+
+    render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
+        const displayMode = getUsageDisplayMode(item);
+        const inverted = isUsageInverted(item);
+        const showCursor = isUsageCursorEnabled(item);
+
+        if (context.isPreview) {
+            const previewPercent = 13;
+            const renderedPercent = inverted ? 100 - previewPercent : previewPercent;
+
+            if (isUsageProgressMode(displayMode)) {
+                const width = getUsageProgressBarWidth(displayMode);
+                const progressBar = makeTimerProgressBar(renderedPercent, width, showCursor ? { cursorPercent: 50 } : undefined);
+                const progressDisplay = `[${progressBar}] ${renderedPercent.toFixed(1)}%`;
+                return formatRawOrLabeledValue(item, LABEL, progressDisplay);
+            }
+
+            if (isUsageSliderMode(displayMode)) {
+                const slider = makeSliderBar(renderedPercent, undefined, showCursor ? { cursorPercent: 50 } : undefined);
+                const sliderDisplay = displayMode === 'slider' ? `${slider} ${renderedPercent.toFixed(1)}%` : slider;
+                return formatRawOrLabeledValue(item, LABEL, sliderDisplay);
+            }
+
+            return formatRawOrLabeledValue(item, LABEL, `${renderedPercent.toFixed(1)}%`);
+        }
+
+        const data = context.usageData ?? {};
+        // Accounts that never used Fable get no Fable limit from the API. When
+        // the core usage windows did arrive, that absence means "no usage yet",
+        // so show 0.0% instead of hiding the widget for light users (#7).
+        const fableUsage = data.weeklyFableUsage
+            ?? (data.sessionUsage !== undefined || data.weeklyUsage !== undefined ? 0 : undefined);
+        if (fableUsage === undefined) {
+            if (data.error)
+                return getUsageErrorMessage(data.error);
+            return null;
+        }
+
+        const percent = Math.max(0, Math.min(100, fableUsage));
+        const renderedPercent = inverted ? 100 - percent : percent;
+        const getCursorOptions = (): { cursorPercent: number } | undefined => {
+            if (!showCursor) {
+                return undefined;
+            }
+
+            const window = resolveWeeklyFableUsageWindow(data);
+            return window ? { cursorPercent: window.elapsedPercent } : undefined;
+        };
+
+        if (isUsageProgressMode(displayMode)) {
+            const width = getUsageProgressBarWidth(displayMode);
+
+            const progressBar = makeTimerProgressBar(renderedPercent, width, getCursorOptions());
+            const progressDisplay = `[${progressBar}] ${renderedPercent.toFixed(1)}%`;
+            return formatRawOrLabeledValue(item, LABEL, progressDisplay);
+        }
+
+        if (isUsageSliderMode(displayMode)) {
+            const slider = makeSliderBar(renderedPercent, undefined, getCursorOptions());
+            const sliderDisplay = displayMode === 'slider' ? `${slider} ${renderedPercent.toFixed(1)}%` : slider;
+            return formatRawOrLabeledValue(item, LABEL, sliderDisplay);
+        }
+
+        return formatRawOrLabeledValue(item, LABEL, `${renderedPercent.toFixed(1)}%`);
+    }
+
+    getCustomKeybinds(item?: WidgetItem): CustomKeybind[] {
+        return getUsagePercentCustomKeybinds(item);
+    }
+
+    supportsRawValue(): boolean { return true; }
+    supportsColors(item: WidgetItem): boolean { return true; }
+}
