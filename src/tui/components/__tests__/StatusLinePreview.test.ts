@@ -19,6 +19,8 @@ import {
     preparePreviewLineForTerminal
 } from '../StatusLinePreview';
 
+import { flushInk } from './ink-test-utils';
+
 class MockTtyStream extends PassThrough {
     isTTY = true;
     columns = 160;
@@ -55,12 +57,6 @@ function createMockStdout(): CapturedWriteStream {
         getOutput() {
             return chunks.join('');
         }
-    });
-}
-
-function flushInk() {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 25);
     });
 }
 

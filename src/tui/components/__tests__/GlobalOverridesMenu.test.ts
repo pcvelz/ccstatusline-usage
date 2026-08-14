@@ -12,6 +12,12 @@ import {
 import { DEFAULT_SETTINGS } from '../../../types/Settings';
 import { GlobalOverridesMenu } from '../GlobalOverridesMenu';
 
+import {
+    flushInk,
+    waitFor,
+    waitForOutput
+} from './ink-test-utils';
+
 class MockTtyStream extends PassThrough {
     isTTY = true;
     columns = 120;
@@ -54,12 +60,6 @@ function createMockStdout(): CapturedWriteStream {
         getOutput() {
             return chunks.join('');
         }
-    });
-}
-
-function flushInk() {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 25);
     });
 }
 
@@ -321,11 +321,13 @@ describe('GlobalOverridesMenu', () => {
         try {
             await flushInk();
             stdin.write('g');
+            await waitForOutput(() => stdout.getOutput(), 'Select Gradient - Override FG Color');
+            // The text is on screen before the selector has attached its input
+            // handler; settle once more so the Enter below is not dropped.
             await flushInk();
-            expect(stdout.getOutput()).toContain('Select Gradient - Override FG Color');
 
             stdin.write('\r');
-            await flushInk();
+            await waitFor(() => onUpdate.mock.calls.length > 0, { message: 'onUpdate was never called' });
 
             expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ overrideForegroundColor: 'gradient:atlas' }));
         } finally {

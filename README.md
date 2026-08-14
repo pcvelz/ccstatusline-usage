@@ -101,6 +101,13 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.13](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.13) - Upstream sync + CI gates
+
+- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Upstream sync** — merged the Nerd Font toggle refactor ([#544](https://github.com/sirmalloc/ccstatusline/pull/544)): VimMode, SandboxStatus, RemoteControlStatus, VoiceStatus and CompactionCounter now share `isNerdFontEnabled` / `setNerdFontFormat` / `toggleNerdFont` from `widgets/shared/metadata.ts` instead of each carrying its own copy. No behaviour change.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Pre-push gate** — `.githooks/pre-push` now runs the full CI criteria (lint, test, build) before a push lands.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Test inventory gate** — `scripts/test-inventory-gate.sh` blocks silent test loss; intentional removals are recorded in [docs/test-retirements.md](docs/test-retirements.md).
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Flaky Ink test fix** — the `flushInk()` helper was a fixed 25ms sleep duplicated across 12 test files, which raced Ink's render loop under parallel load and produced failures that moved between files. Replaced by a shared `src/tui/components/__tests__/ink-test-utils.ts` with condition-polling `waitFor` / `waitForOutput`. Full suite is now 2123/2123 across repeated runs.
+
 ### [v2.4.12](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.12) - Fix 200k context echo on 1M models
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Context bar 200k echo fix** — when Claude Code reports `context_window_size: 200000` (its built-in default) for a model the mapping knows is 1M (Fable 5, Opus), the bar no longer shows impossible readings like `381k/200k (191%)`; the mapping corrects the echo to 1M. Gated `[1m]` models without a mapping entry keep the live 200k.

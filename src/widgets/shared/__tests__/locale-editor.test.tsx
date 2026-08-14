@@ -9,6 +9,7 @@ import {
     vi
 } from 'vitest';
 
+import { flushInk } from '../../../tui/components/__tests__/ink-test-utils';
 import type { WidgetItem } from '../../../types/Widget';
 import { canonicalizeLocale } from '../../../utils/locales';
 import {
@@ -52,12 +53,6 @@ function createMockStdout(): CapturedWriteStream {
         getOutput() {
             return chunks.join('');
         }
-    });
-}
-
-function flushInk() {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 25);
     });
 }
 

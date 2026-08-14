@@ -18,6 +18,8 @@ import {
     type PowerlineThemeSelectorProps
 } from '../PowerlineThemeSelector';
 
+import { flushInk } from './ink-test-utils';
+
 class MockTtyStream extends PassThrough {
     isTTY = true;
     columns = 120;
@@ -42,12 +44,6 @@ function createMockStdin(): NodeJS.ReadStream {
 
 function createMockStdout(): NodeJS.WriteStream {
     return new MockTtyStream() as unknown as NodeJS.WriteStream;
-}
-
-function flushInk() {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 25);
-    });
 }
 
 async function waitForInkCondition(condition: () => boolean) {

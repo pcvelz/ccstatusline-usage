@@ -18,6 +18,8 @@ import {
     getImportPreviewSettings
 } from '../ImportPreviewDialog';
 
+import { flushInk } from './ink-test-utils';
+
 class MockTtyStream extends PassThrough {
     isTTY = true;
     columns = 120;
@@ -61,10 +63,6 @@ function createMockStdout(): CapturedWriteStream {
             return stripAnsi(chunks.join(''));
         }
     });
-}
-
-function flushInk() {
-    return new Promise(resolve => setTimeout(resolve, 25));
 }
 
 describe('ImportPreviewDialog helpers', () => {

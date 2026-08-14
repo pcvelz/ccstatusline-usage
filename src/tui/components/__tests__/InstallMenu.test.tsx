@@ -11,6 +11,11 @@ import {
 
 import { InstallMenu } from '../InstallMenu';
 
+import {
+    flushInk,
+    waitForOutput
+} from './ink-test-utils';
+
 const ALL_AVAILABLE = {
     npm: true,
     npx: true,
@@ -54,12 +59,6 @@ function createMockStdout(): CapturedWriteStream {
         getOutput() {
             return stripAnsi(chunks.join(''));
         }
-    });
-}
-
-function flushInk() {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 25);
     });
 }
 
@@ -251,11 +250,12 @@ describe('InstallMenu', () => {
         try {
             await flushInk();
             stdin.write('\r');
+            await waitForOutput(() => stdout.getOutput(), 'Select package manager');
+            // Rendered text precedes the child's input handler being attached.
             await flushInk();
-            expect(stdout.getOutput()).toContain('Select package manager');
 
             stdin.write('\u001B');
-            await flushInk();
+            await waitForOutput(() => stdout.getOutput(), 'Select update style');
 
             expect(onCancel).not.toHaveBeenCalled();
             expect(stdout.getOutput()).toContain('Select update style');

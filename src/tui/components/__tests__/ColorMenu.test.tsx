@@ -12,6 +12,8 @@ import { DEFAULT_SETTINGS } from '../../../types/Settings';
 import type { WidgetItem } from '../../../types/Widget';
 import { ColorMenu } from '../ColorMenu';
 
+import { flushInk } from './ink-test-utils';
+
 class MockTtyStream extends PassThrough {
     isTTY = true;
     columns = 160;
@@ -48,12 +50,6 @@ function createMockStdout(): CapturedWriteStream {
         getOutput() {
             return chunks.join('');
         }
-    });
-}
-
-function flushInk() {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 25);
     });
 }
 
