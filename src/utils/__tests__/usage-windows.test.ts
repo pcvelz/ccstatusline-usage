@@ -5,8 +5,14 @@ import {
 } from 'vitest';
 
 import {
+    SEVEN_DAY_WINDOW_MS,
+    getWeeklyPaceSource
+} from '../usage-types';
+import {
     getUsageErrorMessage,
-    makePendulumBar
+    makePendulumBar,
+    resolveWeeklyPaceResetAt,
+    resolveWeeklyPaceWindow
 } from '../usage-windows';
 
 describe('getUsageErrorMessage', () => {
@@ -49,5 +55,47 @@ describe('makePendulumBar', () => {
 
     it('supports custom halfWidth with negative delta', () => {
         expect(makePendulumBar(-50, 4)).toBe('[░░██|░░░░]');
+    });
+});
+
+describe('weekly pace windows', () => {
+    const OVERALL = getWeeklyPaceSource('weekly');
+    const FABLE = getWeeklyPaceSource('fable');
+    const WEEKLY_RESET = '2026-08-27T16:00:00.000Z';
+    const FABLE_RESET = '2026-08-25T16:00:00.000Z';
+
+    it('reads the overall reset for the overall source', () => {
+        expect(resolveWeeklyPaceResetAt({ weeklyResetAt: WEEKLY_RESET }, OVERALL)).toBe(WEEKLY_RESET);
+    });
+
+    it('prefers the model bucket reset for a per-model source', () => {
+        const data = { weeklyResetAt: WEEKLY_RESET, weeklyFableResetAt: FABLE_RESET };
+        expect(resolveWeeklyPaceResetAt(data, FABLE)).toBe(FABLE_RESET);
+    });
+
+    it('falls back to the overall reset when the model bucket has none', () => {
+        expect(resolveWeeklyPaceResetAt({ weeklyResetAt: WEEKLY_RESET }, FABLE)).toBe(WEEKLY_RESET);
+    });
+
+    it('returns undefined when neither reset is present', () => {
+        expect(resolveWeeklyPaceResetAt({}, FABLE)).toBeUndefined();
+    });
+
+    it('builds a window from the model bucket reset', () => {
+        const resetAtMs = Date.parse(FABLE_RESET);
+        const nowMs = resetAtMs - (SEVEN_DAY_WINDOW_MS / 2);
+        const window = resolveWeeklyPaceWindow({ weeklyFableResetAt: FABLE_RESET }, FABLE, nowMs);
+        expect(window?.elapsedPercent).toBe(50);
+    });
+
+    it('builds the window from the fallback reset when the bucket has none', () => {
+        const resetAtMs = Date.parse(WEEKLY_RESET);
+        const nowMs = resetAtMs - (SEVEN_DAY_WINDOW_MS / 4);
+        const window = resolveWeeklyPaceWindow({ weeklyResetAt: WEEKLY_RESET }, FABLE, nowMs);
+        expect(window?.elapsedPercent).toBe(75);
+    });
+
+    it('returns null when no reset is available', () => {
+        expect(resolveWeeklyPaceWindow({}, FABLE)).toBeNull();
     });
 });

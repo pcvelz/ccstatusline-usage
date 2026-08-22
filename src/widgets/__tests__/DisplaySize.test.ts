@@ -246,11 +246,11 @@ describe('ApiUsage ContextBarWidget — display size tiers', () => {
 // ---------------------------------------------------------------------------
 
 describe('WeeklyPaceWidget — pendulum bar display size tiers', () => {
-    let mockResolveWeeklyUsageWindow: { mockReturnValue: (value: UsageWindowMetrics | null) => void };
+    let mockResolveWeeklyPaceWindow: { mockReturnValue: (value: UsageWindowMetrics | null) => void };
 
     beforeEach(() => {
         vi.restoreAllMocks();
-        mockResolveWeeklyUsageWindow = vi.spyOn(usage, 'resolveWeeklyUsageWindow');
+        mockResolveWeeklyPaceWindow = vi.spyOn(usage, 'resolveWeeklyPaceWindow');
     });
 
     afterEach(() => {
@@ -258,7 +258,7 @@ describe('WeeklyPaceWidget — pendulum bar display size tiers', () => {
     });
 
     it('mobile (width=60): falls back to text mode even with pendulum item', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const widget = new WeeklyPaceWidget();
         const result = widget.render(
             PENDULUM_ITEM,
@@ -273,7 +273,7 @@ describe('WeeklyPaceWidget — pendulum bar display size tiers', () => {
     });
 
     it('medium (width=150): pendulum bar with halfWidth=4 → 9 chars inside brackets', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const widget = new WeeklyPaceWidget();
         const result = widget.render(
             PENDULUM_ITEM,
@@ -286,7 +286,7 @@ describe('WeeklyPaceWidget — pendulum bar display size tiers', () => {
     });
 
     it('full (width=200): pendulum bar with halfWidth=7 → 15 chars inside brackets', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const widget = new WeeklyPaceWidget();
         const result = widget.render(
             PENDULUM_ITEM,
@@ -299,7 +299,7 @@ describe('WeeklyPaceWidget — pendulum bar display size tiers', () => {
     });
 
     it('boundary: width=133 (mobile) → no pendulum bar', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const widget = new WeeklyPaceWidget();
         const result = widget.render(
             PENDULUM_ITEM,
@@ -310,7 +310,7 @@ describe('WeeklyPaceWidget — pendulum bar display size tiers', () => {
     });
 
     it('boundary: width=134 (medium) → pendulum bar with halfWidth=4', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const widget = new WeeklyPaceWidget();
         const result = widget.render(
             PENDULUM_ITEM,
@@ -321,7 +321,7 @@ describe('WeeklyPaceWidget — pendulum bar display size tiers', () => {
     });
 
     it('boundary: width=177 (medium) → pendulum bar with halfWidth=4', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const widget = new WeeklyPaceWidget();
         const result = widget.render(
             PENDULUM_ITEM,
@@ -332,7 +332,7 @@ describe('WeeklyPaceWidget — pendulum bar display size tiers', () => {
     });
 
     it('boundary: width=178 (full) → pendulum bar with halfWidth=7', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const widget = new WeeklyPaceWidget();
         const result = widget.render(
             PENDULUM_ITEM,

@@ -14,19 +14,24 @@ import {
     getUsageErrorMessage,
     makePendulumBar,
     resolveWeeklyPaceResetAt,
-    resolveWeeklyPaceWindow,
-    resolveWeeklyUsageWindow
+    resolveWeeklyPaceWindow
 } from '../utils/usage';
 import type { WeeklyPaceSource } from '../utils/usage-types';
 import {
     SEVEN_DAY_WINDOW_MS,
     getNextWeeklyPaceSourceId,
     getUsageNumberField,
-    getWeeklyPaceSource
+    getWeeklyPaceSource,
+    hasTrustworthyPaceUsage
 } from '../utils/usage-types';
 
 import { makeModifierText } from './shared/editor-display';
 import { formatRawOrLabeledValue } from './shared/raw-or-labeled';
+
+// Shown instead of a verdict when the selected bucket has no usable reading.
+// The widget stays visible so a mis-set source is obvious, matching the
+// bracketed style of the usage error messages.
+const NO_DATA = '[No data]';
 
 const MOBILE_THRESHOLD = 134;
 const MEDIUM_THRESHOLD = 178;
@@ -95,7 +100,7 @@ function computePace(
 
 export class WeeklyPaceWidget implements Widget {
     getDefaultColor(): string { return 'brightYellow'; }
-    getDescription(): string { return 'Shows if weekly usage pace is on track, overcooking, or underutilized'; }
+    getDescription(): string { return 'Shows if weekly usage pace is on track, overcooking, or underutilized, for the overall weekly bucket or one model'; }
     getDisplayName(): string { return 'Weekly Pace'; }
     getCategory(): string { return 'Usage'; }
 
@@ -192,15 +197,16 @@ export class WeeklyPaceWidget implements Widget {
             return null;
         if (data.error)
             return getUsageErrorMessage(data.error);
-        const sourceUsage = getUsageNumberField(data, source.usageField);
-        if (sourceUsage === undefined)
-            return null;
+        if (!hasTrustworthyPaceUsage(data, source)) {
+            // The overall bucket has always hidden itself when weekly usage is
+            // missing; only the per-model sources, which a user picks
+            // deliberately, say so instead of vanishing.
+            return source.modelName ? formatRawOrLabeledValue(item, getPendulumLabel(source), NO_DATA) : null;
+        }
 
-        // The overall weekly bucket keeps the original resolver so it stays on
-        // the exact path it had before pace sources existed.
-        const window = source.modelName
-            ? resolveWeeklyPaceWindow(data, source)
-            : resolveWeeklyUsageWindow(data);
+        const sourceUsage = getUsageNumberField(data, source.usageField) ?? 0;
+
+        const window = resolveWeeklyPaceWindow(data, source);
         if (!window)
             return null;
 

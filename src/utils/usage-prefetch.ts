@@ -59,11 +59,10 @@ const EMPTY_USAGE_REQUIREMENTS: UsageFieldRequirement[] = [];
 // which weekly bucket it measures, so it resolves its fields per item.
 type UsageWidgetRequirements = UsageFieldRequirement[] | ((item: WidgetItem) => UsageFieldRequirement[]);
 
+// One shape for every source. For the overall bucket the `alternatives` entry
+// names the field it already is, so it is a no-op rather than a second path.
 function getWeeklyPaceRequirements(item: WidgetItem): UsageFieldRequirement[] {
     const source = getWeeklyPaceSource(item.metadata?.source);
-    if (!source.modelName) {
-        return [{ field: 'weeklyUsage' }, { field: 'weeklyResetAt' }];
-    }
 
     return [
         { field: source.usageField },

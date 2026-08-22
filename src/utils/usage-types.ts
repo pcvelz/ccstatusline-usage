@@ -51,6 +51,11 @@ export function setUsageField<K extends UsageDataField>(target: Partial<UsageDat
 // model bucket can't desync one of those spots from the others.
 export interface WeeklyModelUsageBucket {
     widgetType: string;
+    // Stable id persisted in user configs as the Weekly Pace `source` value.
+    // Deliberately NOT derived from modelDisplayName: that string exists to
+    // match limits[].scope.model.display_name and may be retuned when the API
+    // changes, which would silently invalidate every saved config.
+    paceSourceId: string;
     // As of 2026-07, /api/oauth/usage reports per-model weekly usage as an
     // entry in its `limits` array (kind: "weekly_scoped", matched by
     // scope.model.display_name), not as a flat bucket -- the older
@@ -65,9 +70,9 @@ export interface WeeklyModelUsageBucket {
 }
 
 export const WEEKLY_MODEL_USAGE_BUCKETS: readonly WeeklyModelUsageBucket[] = [
-    { widgetType: 'weekly-sonnet-usage', modelDisplayName: 'Sonnet', apiBucketKey: 'seven_day_sonnet', usageField: 'weeklySonnetUsage', resetField: 'weeklySonnetResetAt' },
-    { widgetType: 'weekly-opus-usage', modelDisplayName: 'Opus', apiBucketKey: 'seven_day_opus', usageField: 'weeklyOpusUsage', resetField: 'weeklyOpusResetAt' },
-    { widgetType: 'weekly-fable-usage', modelDisplayName: 'Fable', usageField: 'weeklyFableUsage', resetField: 'weeklyFableResetAt' }
+    { widgetType: 'weekly-sonnet-usage', paceSourceId: 'sonnet', modelDisplayName: 'Sonnet', apiBucketKey: 'seven_day_sonnet', usageField: 'weeklySonnetUsage', resetField: 'weeklySonnetResetAt' },
+    { widgetType: 'weekly-opus-usage', paceSourceId: 'opus', modelDisplayName: 'Opus', apiBucketKey: 'seven_day_opus', usageField: 'weeklyOpusUsage', resetField: 'weeklyOpusResetAt' },
+    { widgetType: 'weekly-fable-usage', paceSourceId: 'fable', modelDisplayName: 'Fable', usageField: 'weeklyFableUsage', resetField: 'weeklyFableResetAt' }
 ];
 
 // Reading a UsageData field by a dynamic key gives a union of every field
@@ -98,7 +103,7 @@ const OVERALL_WEEKLY_PACE_SOURCE: WeeklyPaceSource = { id: 'weekly', usageField:
 export const WEEKLY_PACE_SOURCES: readonly WeeklyPaceSource[] = [
     OVERALL_WEEKLY_PACE_SOURCE,
     ...WEEKLY_MODEL_USAGE_BUCKETS.map(bucket => ({
-        id: bucket.modelDisplayName.toLowerCase(),
+        id: bucket.paceSourceId,
         modelName: bucket.modelDisplayName,
         usageField: bucket.usageField,
         resetField: bucket.resetField
@@ -113,9 +118,27 @@ export function getWeeklyPaceSource(id: string | undefined): WeeklyPaceSource {
 
 // Cycles from the *effective* source, so an unset or unknown id advances to
 // the entry after the overall bucket rather than landing back on it.
+// Mirrors isPlaceholderUsageApiLimit in usage-fetch: a per-model bucket
+// reading 0% with no reset of its own is the null-bucket placeholder (#343),
+// not a real usage window. The per-model usage widgets can render it as
+// "0.0%" because a bare number reads as "nothing recorded"; a pace verdict
+// ("Underusing -50%") reads as advice, so it must not be built on one.
+export function hasTrustworthyPaceUsage(data: UsageData, source: WeeklyPaceSource): boolean {
+    const usage = getUsageNumberField(data, source.usageField);
+    if (usage === undefined) {
+        return false;
+    }
+
+    if (!source.modelName) {
+        return true;
+    }
+
+    return usage !== 0 || getUsageStringField(data, source.resetField) !== undefined;
+}
+
 export function getNextWeeklyPaceSourceId(id: string | undefined): string {
     const current = getWeeklyPaceSource(id);
     const index = WEEKLY_PACE_SOURCES.findIndex(source => source.id === current.id);
     const next = WEEKLY_PACE_SOURCES[(index + 1) % WEEKLY_PACE_SOURCES.length];
-    return next ? next.id : OVERALL_WEEKLY_PACE_SOURCE.id;
+    return next?.id ?? OVERALL_WEEKLY_PACE_SOURCE.id;
 }

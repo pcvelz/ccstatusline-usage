@@ -42,13 +42,11 @@ function makeWindow(elapsedPercent: number): UsageWindowMetrics {
 }
 
 describe('WeeklyPaceWidget', () => {
-    let mockResolveWeeklyUsageWindow: { mockReturnValue: (value: UsageWindowMetrics | null) => void };
     let mockResolveWeeklyPaceWindow: { mockReturnValue: (value: UsageWindowMetrics | null) => void };
     let mockGetUsageErrorMessage: { mockReturnValue: (value: string) => void };
 
     beforeEach(() => {
         vi.restoreAllMocks();
-        mockResolveWeeklyUsageWindow = vi.spyOn(usage, 'resolveWeeklyUsageWindow');
         mockResolveWeeklyPaceWindow = vi.spyOn(usage, 'resolveWeeklyPaceWindow');
         mockGetUsageErrorMessage = vi.spyOn(usage, 'getUsageErrorMessage');
     });
@@ -104,29 +102,29 @@ describe('WeeklyPaceWidget', () => {
     });
 
     it('returns null when weekly window cannot be resolved', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(null);
+        mockResolveWeeklyPaceWindow.mockReturnValue(null);
         expect(render({ usageData: { weeklyUsage: 50 } })).toBeNull();
     });
 
     // --- Day calculation ---
 
     it('shows D1 at the start of the window', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(0));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(0));
         expect(render({ usageData: { weeklyUsage: 0 } })).toMatch(/^D1\/7:/);
     });
 
     it('shows D4 at ~50% elapsed', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         expect(render({ usageData: { weeklyUsage: 50 } })).toMatch(/^D4\/7:/);
     });
 
     it('shows D7 at 100% elapsed', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(100));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(100));
         expect(render({ usageData: { weeklyUsage: 100 } })).toMatch(/^D7\/7:/);
     });
 
     it('shows D7 at 99% elapsed', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(99));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(99));
         expect(render({ usageData: { weeklyUsage: 99 } })).toMatch(/^D7\/7:/);
     });
 
@@ -134,53 +132,53 @@ describe('WeeklyPaceWidget', () => {
 
     it('shows On Pace when delta is within ±5%', () => {
         // Day 4/7 ≈ 57.1% elapsed, usage at 60% → delta ≈ +2.9%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(57.14));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(57.14));
         expect(render({ usageData: { weeklyUsage: 60 } })).toBe('D4/7: On Pace');
     });
 
     it('shows Warm when delta is +6 to +15%', () => {
         // 30% elapsed, 40% usage → delta = +10%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(30));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(30));
         expect(render({ usageData: { weeklyUsage: 40 } })).toBe('D3/7: Warm +10%');
     });
 
     it('shows Overcooking when delta exceeds +15%', () => {
         // Day 2/7 ≈ 28.6% elapsed, usage at 50% → delta ≈ +21.4%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(28.57));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(28.57));
         expect(render({ usageData: { weeklyUsage: 50 } })).toBe('D2/7: Overcooking +21%');
     });
 
     it('shows Cool when delta is -6 to -15%', () => {
         // 50% elapsed, 40% usage → delta = -10%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         expect(render({ usageData: { weeklyUsage: 40 } })).toBe('D4/7: Cool -10%');
     });
 
     it('shows Underusing when delta is below -15%', () => {
         // 85.7% elapsed (day 6/7), usage at 40% → delta ≈ -45.7%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(85.71));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(85.71));
         expect(render({ usageData: { weeklyUsage: 40 } })).toBe('D6/7: Underusing -46%');
     });
 
     // --- Boundary thresholds ---
 
     it('shows On Pace at exactly +5% delta', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         expect(render({ usageData: { weeklyUsage: 55 } })).toBe('D4/7: On Pace');
     });
 
     it('shows Warm at just over +5% delta', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         expect(render({ usageData: { weeklyUsage: 55.1 } })).toMatch(/^D4\/7: Warm \+5%$/);
     });
 
     it('shows Warm at exactly +15% delta', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         expect(render({ usageData: { weeklyUsage: 65 } })).toBe('D4/7: Warm +15%');
     });
 
     it('shows Overcooking at just over +15% delta', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         expect(render({ usageData: { weeklyUsage: 65.1 } })).toMatch(/^D4\/7: Overcooking \+15%$/);
     });
 
@@ -188,70 +186,70 @@ describe('WeeklyPaceWidget', () => {
 
     it('shows On Pace with percentage when showPercent is true', () => {
         // 57.14% elapsed, 60% usage → delta ≈ +2.9%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(57.14));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(57.14));
         expect(render({ usageData: { weeklyUsage: 60 } }, SHOW_PERCENT_ITEM)).toBe('D4/7: On Pace +3%');
     });
 
     it('shows On Pace with negative percentage when showPercent is true', () => {
         // 50% elapsed, 47% usage → delta = -3%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         expect(render({ usageData: { weeklyUsage: 47 } }, SHOW_PERCENT_ITEM)).toBe('D4/7: On Pace -3%');
     });
 
     it('shows On Pace +0% when exactly on pace with showPercent', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         expect(render({ usageData: { weeklyUsage: 50 } }, SHOW_PERCENT_ITEM)).toBe('D4/7: On Pace +0%');
     });
 
     it('does not affect non-On Pace labels when showPercent is true', () => {
         // 30% elapsed, 40% usage → delta = +10% → Warm
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(30));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(30));
         expect(render({ usageData: { weeklyUsage: 40 } }, SHOW_PERCENT_ITEM)).toBe('D3/7: Warm +10%');
     });
 
     // --- Decimal precision ---
 
     it('shows 1 decimal place when decimals is 1', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(30));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(30));
         const item: WidgetItem = { ...BASE_ITEM, metadata: { decimals: '1' } };
         expect(render({ usageData: { weeklyUsage: 40 } }, item)).toBe('D3/7: Warm +10.0%');
     });
 
     it('shows 2 decimal places when decimals is 2', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(30));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(30));
         const item: WidgetItem = { ...BASE_ITEM, metadata: { decimals: '2' } };
         expect(render({ usageData: { weeklyUsage: 40 } }, item)).toBe('D3/7: Warm +10.00%');
     });
 
     it('shows 3 decimal places when decimals is 3', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(30));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(30));
         const item: WidgetItem = { ...BASE_ITEM, metadata: { decimals: '3' } };
         expect(render({ usageData: { weeklyUsage: 40 } }, item)).toBe('D3/7: Warm +10.000%');
     });
 
     it('applies decimal precision to Underusing band', () => {
         // 85.71% elapsed (day 6/7), usage at 40% → delta ≈ -45.71%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(85.71));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(85.71));
         const item: WidgetItem = { ...BASE_ITEM, metadata: { decimals: '1' } };
         expect(render({ usageData: { weeklyUsage: 40 } }, item)).toBe('D6/7: Underusing -45.7%');
     });
 
     it('does not show delta on On Pace when decimals set but showPercent absent', () => {
         // 57.14% elapsed, 60% usage → delta ≈ +2.86%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(57.14));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(57.14));
         const item: WidgetItem = { ...BASE_ITEM, metadata: { decimals: '2' } };
         expect(render({ usageData: { weeklyUsage: 60 } }, item)).toBe('D4/7: On Pace');
     });
 
     it('shows fractional delta with decimals and showPercent combined', () => {
         // 57.14% elapsed, 60% usage → delta ≈ +2.86%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(57.14));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(57.14));
         const item: WidgetItem = { ...BASE_ITEM, metadata: { showPercent: 'true', decimals: '2' } };
         expect(render({ usageData: { weeklyUsage: 60 } }, item)).toBe('D4/7: On Pace +2.86%');
     });
 
     it('applies decimal precision to pendulum bar display', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(30));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(30));
         const item: WidgetItem = { ...BASE_ITEM, metadata: { display: 'pendulum', decimals: '1' } };
         const result = render({ usageData: { weeklyUsage: 50 } }, item);
         expect(result).toContain('+20.0%');
@@ -260,25 +258,25 @@ describe('WeeklyPaceWidget', () => {
     // --- Clamping ---
 
     it('clamps weeklyUsage above 100 to 100', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         expect(render({ usageData: { weeklyUsage: 120 } })).toMatch(/Overcooking \+50%/);
     });
 
     it('clamps weeklyUsage below 0 to 0', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         expect(render({ usageData: { weeklyUsage: -10 } })).toMatch(/Underusing -50%/);
     });
 
     // --- rawValue support ---
 
     it('omits label prefix in text mode when rawValue is true', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const rawItem: WidgetItem = { ...BASE_ITEM, rawValue: true };
         expect(render({ usageData: { weeklyUsage: 50 } }, rawItem)).toBe('D4/7: On Pace');
     });
 
     it('omits Pace: prefix in pendulum mode when rawValue is true', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const rawItem: WidgetItem = { ...PENDULUM_ITEM, rawValue: true };
         const result = render({ usageData: { weeklyUsage: 60 } }, rawItem);
         expect(result).not.toMatch(/^Pace:/);
@@ -286,7 +284,7 @@ describe('WeeklyPaceWidget', () => {
     });
 
     it('includes Pace: prefix in pendulum mode when rawValue is false', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const result = render({ usageData: { weeklyUsage: 60 } }, PENDULUM_ITEM);
         expect(result).toMatch(/^Pace: \[/);
     });
@@ -295,7 +293,7 @@ describe('WeeklyPaceWidget', () => {
 
     it('renders pendulum bar with positive delta (ahead of pace)', () => {
         // 30% elapsed, 50% usage → delta = +20%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(30));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(30));
         const result = render({ usageData: { weeklyUsage: 50 } }, PENDULUM_ITEM);
         expect(result).toMatch(/\[░+\|█+░*\]/);
         expect(result).toContain('D3/7 +20%');
@@ -303,14 +301,14 @@ describe('WeeklyPaceWidget', () => {
 
     it('renders pendulum bar with negative delta (behind pace)', () => {
         // 50% elapsed, 30% usage → delta = -20%
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const result = render({ usageData: { weeklyUsage: 30 } }, PENDULUM_ITEM);
         expect(result).toMatch(/\[░*█+\|░+\]/);
         expect(result).toContain('D4/7 -20%');
     });
 
     it('renders pendulum bar on pace (delta near zero)', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const result = render({ usageData: { weeklyUsage: 50 } }, PENDULUM_ITEM);
         expect(result).toContain('[░░░░░░░|░░░░░░░]');
         expect(result).toContain('D4/7 +0%');
@@ -420,13 +418,47 @@ describe('WeeklyPaceWidget', () => {
         expect(result).toContain('D4/7 -20%');
     });
 
-    it('returns null when the Fable bucket has no usage', () => {
+    it('says no data rather than vanishing when the Fable bucket is absent', () => {
         mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
-        expect(render({ usageData: { weeklyUsage: 90 } }, FABLE_ITEM)).toBeNull();
+        expect(render({ usageData: { weeklyUsage: 90 } }, FABLE_ITEM)).toBe('Fable Pace: [No data]');
+    });
+
+    it('says no data for a placeholder zero with no reset of its own', () => {
+        // A present-but-null legacy bucket parses to utilization 0 with no
+        // resets_at. Rendering "Underusing -50%" off that would be advice
+        // about a bucket the user may be actively burning.
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
+        const item: WidgetItem = { ...BASE_ITEM, metadata: { source: 'opus' } };
+        expect(render({ usageData: { weeklyUsage: 50, weeklyOpusUsage: 0 } }, item)).toBe('Opus Pace: [No data]');
+    });
+
+    it('renders a genuine zero when the bucket has a reset of its own', () => {
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
+        const item: WidgetItem = { ...BASE_ITEM, metadata: { source: 'opus' } };
+        const usageData = { weeklyOpusUsage: 0, weeklyOpusResetAt: '2026-08-27T16:00:00Z' };
+        expect(render({ usageData }, item)).toBe('Opus D4/7: Underusing -50%');
+    });
+
+    it('measures the Sonnet bucket when source is sonnet', () => {
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(20));
+        const item: WidgetItem = { ...BASE_ITEM, metadata: { source: 'sonnet' } };
+        const usageData = { weeklyUsage: 90, weeklySonnetUsage: 40, weeklySonnetResetAt: '2026-08-27T16:00:00Z' };
+        expect(render({ usageData }, item)).toBe('Sonnet D2/7: Overcooking +20%');
+    });
+
+    it('keeps hiding the overall bucket when weekly usage is missing', () => {
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
+        expect(render({ usageData: { weeklyFableUsage: 30 } }, BASE_ITEM)).toBeNull();
+    });
+
+    it('drops the model name in raw value mode', () => {
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
+        const item: WidgetItem = { ...FABLE_ITEM, rawValue: true };
+        expect(render({ usageData: { weeklyFableUsage: 30 } }, item)).toBe('D4/7: Underusing -20%');
     });
 
     it('falls back to the weekly bucket for an unknown source', () => {
-        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
         const item: WidgetItem = { ...BASE_ITEM, metadata: { source: 'nope' } };
         expect(render({ usageData: { weeklyUsage: 50 } }, item)).toBe('D4/7: On Pace');
     });
@@ -520,7 +552,7 @@ describe('WeeklyPaceWidget', () => {
         const elapsedMs = opts.nowLocal.getTime() - opts.windowStartLocal.getTime();
         const elapsedPercent = (elapsedMs / SEVEN_DAY_WINDOW_MS) * 100;
 
-        mockResolveWeeklyUsageWindow.mockReturnValue({
+        mockResolveWeeklyPaceWindow.mockReturnValue({
             sessionDurationMs: SEVEN_DAY_WINDOW_MS,
             elapsedMs,
             remainingMs: SEVEN_DAY_WINDOW_MS - elapsedMs,
@@ -545,6 +577,39 @@ describe('WeeklyPaceWidget', () => {
     function settingsWithOffHours(offHours: OffHoursConfig): Settings {
         return { ...DEFAULT_SETTINGS, offHours };
     }
+
+    it('applies off-hours to a per-model source using that bucket\'s reset', () => {
+        // Same shape as the overall-bucket off-hours test below, but the
+        // reset the adjustment reconstructs from belongs to the Fable bucket.
+        const windowStart = new Date(2026, 2, 1, 7, 0);
+        const now = new Date(2026, 2, 4, 22, 0);
+        const resetAtMs = windowStart.getTime() + SEVEN_DAY_WINDOW_MS;
+        const elapsedMs = now.getTime() - windowStart.getTime();
+        const elapsedPercent = (elapsedMs / SEVEN_DAY_WINDOW_MS) * 100;
+
+        mockResolveWeeklyPaceWindow.mockReturnValue({
+            sessionDurationMs: SEVEN_DAY_WINDOW_MS,
+            elapsedMs,
+            remainingMs: SEVEN_DAY_WINDOW_MS - elapsedMs,
+            elapsedPercent,
+            remainingPercent: 100 - elapsedPercent
+        });
+
+        const ctx: RenderContext = {
+            usageData: {
+                weeklyFableUsage: 50,
+                weeklyFableResetAt: new Date(resetAtMs).toISOString()
+            }
+        };
+
+        const withOffHours = new WeeklyPaceWidget().render(FABLE_ITEM, ctx, settingsWithOffHours(NIGHT_OFF_HOURS));
+        const withoutOffHours = new WeeklyPaceWidget().render(FABLE_ITEM, ctx, DEFAULT_SETTINGS);
+
+        // Off-hours removes elapsed sleep time, so the expected% drops and the
+        // delta moves up relative to the unadjusted reading.
+        expect(withOffHours).toMatch(/^Fable D4\/7: /);
+        expect(withOffHours).not.toBe(withoutOffHours);
+    });
 
     it('uses raw elapsed for delta when off-hours is disabled (default)', () => {
         // 3 days into the week: raw elapsed = 3/7 ≈ 42.86%, usage = 50%
@@ -638,7 +703,7 @@ describe('WeeklyPaceWidget', () => {
     it('does not adjust expected% when weeklyResetAt is missing', () => {
         // Gracefully falls back to raw elapsed if we can't parse the window.
         const elapsedPercent = (3 / 7) * 100;
-        mockResolveWeeklyUsageWindow.mockReturnValue({
+        mockResolveWeeklyPaceWindow.mockReturnValue({
             sessionDurationMs: SEVEN_DAY_WINDOW_MS,
             elapsedMs: 3 * 24 * 60 * 60 * 1000,
             remainingMs: 4 * 24 * 60 * 60 * 1000,
