@@ -13,9 +13,17 @@ import {
 import {
     getUsageErrorMessage,
     makePendulumBar,
+    resolveWeeklyPaceResetAt,
+    resolveWeeklyPaceWindow,
     resolveWeeklyUsageWindow
 } from '../utils/usage';
-import { SEVEN_DAY_WINDOW_MS } from '../utils/usage-types';
+import type { WeeklyPaceSource } from '../utils/usage-types';
+import {
+    SEVEN_DAY_WINDOW_MS,
+    getNextWeeklyPaceSourceId,
+    getUsageNumberField,
+    getWeeklyPaceSource
+} from '../utils/usage-types';
 
 import { makeModifierText } from './shared/editor-display';
 import { formatRawOrLabeledValue } from './shared/raw-or-labeled';
@@ -27,6 +35,20 @@ type PaceDisplayMode = 'text' | 'pendulum';
 
 function getPaceDisplayMode(item: WidgetItem): PaceDisplayMode {
     return item.metadata?.display === 'pendulum' ? 'pendulum' : 'text';
+}
+
+function getPaceSource(item: WidgetItem): WeeklyPaceSource {
+    return getWeeklyPaceSource(item.metadata?.source);
+}
+
+// The overall weekly bucket keeps the original unprefixed labels so existing
+// configs render exactly as before; per-model sources name the model.
+function getPendulumLabel(source: WeeklyPaceSource): string {
+    return source.modelName ? `${source.modelName} Pace: ` : 'Pace: ';
+}
+
+function getTextLabel(source: WeeklyPaceSource): string {
+    return source.modelName ? `${source.modelName} ` : '';
 }
 
 type DecimalPrecision = 0 | 1 | 2 | 3;
@@ -79,8 +101,12 @@ export class WeeklyPaceWidget implements Widget {
 
     getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
         const mode = getPaceDisplayMode(item);
+        const source = getPaceSource(item);
         const modifiers: string[] = [];
 
+        if (source.modelName) {
+            modifiers.push(source.modelName);
+        }
         if (mode === 'pendulum') {
             modifiers.push('pendulum bar');
         }
@@ -123,6 +149,16 @@ export class WeeklyPaceWidget implements Widget {
             };
         }
 
+        if (action === 'cycle-source') {
+            return {
+                ...item,
+                metadata: {
+                    ...(item.metadata ?? {}),
+                    source: getNextWeeklyPaceSourceId(item.metadata?.source)
+                }
+            };
+        }
+
         if (action === 'cycle-decimals') {
             const current = getDecimalPrecision(item);
             const next = current >= 3 ? 0 : current + 1;
@@ -140,14 +176,15 @@ export class WeeklyPaceWidget implements Widget {
 
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
         const displayMode = getPaceDisplayMode(item);
+        const source = getPaceSource(item);
 
         if (context.isPreview) {
             if (displayMode === 'pendulum') {
                 // Preview: delta +10, day 4/7
                 const barDisplay = `${makePendulumBar(10)} D4/7 +10%`;
-                return formatRawOrLabeledValue(item, 'Pace: ', barDisplay);
+                return formatRawOrLabeledValue(item, getPendulumLabel(source), barDisplay);
             }
-            return formatRawOrLabeledValue(item, '', 'D4/7: On Pace');
+            return formatRawOrLabeledValue(item, getTextLabel(source), 'D4/7: On Pace');
         }
 
         const data = context.usageData;
@@ -155,14 +192,19 @@ export class WeeklyPaceWidget implements Widget {
             return null;
         if (data.error)
             return getUsageErrorMessage(data.error);
-        if (data.weeklyUsage === undefined)
+        const sourceUsage = getUsageNumberField(data, source.usageField);
+        if (sourceUsage === undefined)
             return null;
 
-        const window = resolveWeeklyUsageWindow(data);
+        // The overall weekly bucket keeps the original resolver so it stays on
+        // the exact path it had before pace sources existed.
+        const window = source.modelName
+            ? resolveWeeklyPaceWindow(data, source)
+            : resolveWeeklyUsageWindow(data);
         if (!window)
             return null;
 
-        const actualPercent = Math.max(0, Math.min(100, data.weeklyUsage));
+        const actualPercent = Math.max(0, Math.min(100, sourceUsage));
         const showPercent = item.metadata?.showPercent === 'true';
         const decimals = getDecimalPrecision(item);
 
@@ -172,8 +214,10 @@ export class WeeklyPaceWidget implements Widget {
         const rawExpectedPercent = window.elapsedPercent;
         let expectedPercent = rawExpectedPercent;
 
-        if (isOffHoursActive(settings.offHours) && data.weeklyResetAt) {
-            const resetAtMs = Date.parse(data.weeklyResetAt);
+        const sourceResetAt = resolveWeeklyPaceResetAt(data, source);
+
+        if (isOffHoursActive(settings.offHours) && sourceResetAt) {
+            const resetAtMs = Date.parse(sourceResetAt);
             if (!Number.isNaN(resetAtMs)) {
                 const windowStartMs = resetAtMs - SEVEN_DAY_WINDOW_MS;
                 const windowEndMs = resetAtMs;
@@ -212,15 +256,16 @@ export class WeeklyPaceWidget implements Widget {
             const halfWidth = medium ? 4 : 7;
             const sign = delta >= 0 ? '+' : '';
             const barDisplay = `${makePendulumBar(delta, halfWidth)} D${dayOfWeek}/7 ${sign}${formatDelta(delta, decimals)}%`;
-            return formatRawOrLabeledValue(item, 'Pace: ', barDisplay);
+            return formatRawOrLabeledValue(item, getPendulumLabel(source), barDisplay);
         }
 
-        return formatRawOrLabeledValue(item, '', `D${dayOfWeek}/7: ${status}`);
+        return formatRawOrLabeledValue(item, getTextLabel(source), `D${dayOfWeek}/7: ${status}`);
     }
 
     getCustomKeybinds(): CustomKeybind[] {
         return [
             { key: 'p', label: '(p)endulum toggle', action: 'toggle-pendulum' },
+            { key: 's', label: '(s)ource bucket', action: 'cycle-source' },
             { key: '%', label: '(%) always show percent', action: 'toggle-show-percent' },
             { key: '.', label: '(.) decimal precision', action: 'cycle-decimals' }
         ];

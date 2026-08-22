@@ -69,3 +69,53 @@ export const WEEKLY_MODEL_USAGE_BUCKETS: readonly WeeklyModelUsageBucket[] = [
     { widgetType: 'weekly-opus-usage', modelDisplayName: 'Opus', apiBucketKey: 'seven_day_opus', usageField: 'weeklyOpusUsage', resetField: 'weeklyOpusResetAt' },
     { widgetType: 'weekly-fable-usage', modelDisplayName: 'Fable', usageField: 'weeklyFableUsage', resetField: 'weeklyFableResetAt' }
 ];
+
+// Reading a UsageData field by a dynamic key gives a union of every field
+// type, so callers that know which shape they want narrow it here instead of
+// casting at each call site.
+export function getUsageNumberField(data: UsageData, field: UsageDataField): number | undefined {
+    const value = data[field];
+    return typeof value === 'number' ? value : undefined;
+}
+
+export function getUsageStringField(data: UsageData, field: UsageDataField): string | undefined {
+    const value = data[field];
+    return typeof value === 'string' ? value : undefined;
+}
+
+// Which weekly bucket the Weekly Pace widget measures. The overall seven-day
+// bucket is the default; the per-model entries are derived from
+// WEEKLY_MODEL_USAGE_BUCKETS so a new model bucket gets a pace source for free.
+export interface WeeklyPaceSource {
+    id: string;
+    modelName?: string; // absent for the overall weekly bucket
+    usageField: UsageDataField;
+    resetField: UsageDataField;
+}
+
+const OVERALL_WEEKLY_PACE_SOURCE: WeeklyPaceSource = { id: 'weekly', usageField: 'weeklyUsage', resetField: 'weeklyResetAt' };
+
+export const WEEKLY_PACE_SOURCES: readonly WeeklyPaceSource[] = [
+    OVERALL_WEEKLY_PACE_SOURCE,
+    ...WEEKLY_MODEL_USAGE_BUCKETS.map(bucket => ({
+        id: bucket.modelDisplayName.toLowerCase(),
+        modelName: bucket.modelDisplayName,
+        usageField: bucket.usageField,
+        resetField: bucket.resetField
+    }))
+];
+
+// An unknown id falls back to the overall bucket, so a config written by a
+// newer build that knows more sources still renders instead of disappearing.
+export function getWeeklyPaceSource(id: string | undefined): WeeklyPaceSource {
+    return WEEKLY_PACE_SOURCES.find(source => source.id === id) ?? OVERALL_WEEKLY_PACE_SOURCE;
+}
+
+// Cycles from the *effective* source, so an unset or unknown id advances to
+// the entry after the overall bucket rather than landing back on it.
+export function getNextWeeklyPaceSourceId(id: string | undefined): string {
+    const current = getWeeklyPaceSource(id);
+    const index = WEEKLY_PACE_SOURCES.findIndex(source => source.id === current.id);
+    const next = WEEKLY_PACE_SOURCES[(index + 1) % WEEKLY_PACE_SOURCES.length];
+    return next ? next.id : OVERALL_WEEKLY_PACE_SOURCE.id;
+}

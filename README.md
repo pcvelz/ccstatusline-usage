@@ -29,7 +29,7 @@
 This fork adds API-based usage widgets beyond the upstream:
 
 - **Session/Weekly Usage** - Real utilization from Anthropic API with progress bars
-- **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace (optional Off Hours window subtracts sleep time from the expected % calc)
+- **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace, for the overall weekly bucket or a per-model one (Sonnet, Opus, Fable). Optional Off Hours window subtracts sleep time from the expected % calc
 - **Reset Timer** - Time until weekly reset (when at 100% / on a charged model); otherwise time until 5-hour session window resets
 - **Context Window Display** - Visual bar showing context usage
 - **Weekly Fable Usage** - Compact progress bar for weekly Fable API usage
@@ -808,7 +808,7 @@ bun run example
 - **Battery** *(ccstatusline-usage)* - Shows battery percentage on macOS and Linux (only visible when on battery power, hidden when charging)
 - **Session Usage** - Shows daily/session API usage percentage
 - **Weekly Usage** - Shows weekly API usage percentage
-- **Weekly Pace** - Pendulum bar or text label showing if usage pace is on track, overcooking, or underutilized (toggle with `p` key in TUI)
+- **Weekly Pace** - Pendulum bar or text label showing if usage pace is on track, overcooking, or underutilized (toggle with `p` key in TUI, pick the bucket it measures with `s`)
 - **Block Reset Timer** - Shows time remaining until current 5-hour block reset window
 - **Weekly Reset Timer** - Shows time remaining until weekly usage reset
 - **Context Bar** - Shows context usage as a progress bar with short/full display modes
@@ -903,7 +903,7 @@ Widget-specific shortcuts:
 - **Block Timer**: `p` cycle display mode (time/full bar/short bar)
 - **Block Reset Timer**: `p` cycle display mode (time/full bar/short bar)
 - **Weekly Reset Timer**: `p` cycle display mode (time/full bar/short bar)
-- **Weekly Pace**: `p` toggle pendulum bar / text label
+- **Weekly Pace**: `p` toggle pendulum bar / text label, `s` cycle source bucket (weekly / Sonnet / Opus / Fable)
 - **Current Working Dir**: `h` home abbreviation, `s` segment editor, `f` fish-style path
 - **Custom Command**: `e` command, `w` max width, `t` timeout, `p` preserve ANSI colors
 - **Link**: `u` URL, `e` link text

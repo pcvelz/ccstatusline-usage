@@ -22,6 +22,8 @@ import { WeeklyPaceWidget } from '../WeeklyPace';
 const BASE_ITEM: WidgetItem = { id: 'pace', type: 'weekly-pace' };
 const PENDULUM_ITEM: WidgetItem = { ...BASE_ITEM, metadata: { display: 'pendulum' } };
 const SHOW_PERCENT_ITEM: WidgetItem = { ...BASE_ITEM, metadata: { showPercent: 'true' } };
+const FABLE_ITEM: WidgetItem = { ...BASE_ITEM, metadata: { source: 'fable' } };
+const FABLE_PENDULUM_ITEM: WidgetItem = { ...BASE_ITEM, metadata: { source: 'fable', display: 'pendulum' } };
 
 function render(context: RenderContext = {}, item: WidgetItem = BASE_ITEM): string | null {
     return new WeeklyPaceWidget().render(item, context, DEFAULT_SETTINGS);
@@ -41,11 +43,13 @@ function makeWindow(elapsedPercent: number): UsageWindowMetrics {
 
 describe('WeeklyPaceWidget', () => {
     let mockResolveWeeklyUsageWindow: { mockReturnValue: (value: UsageWindowMetrics | null) => void };
+    let mockResolveWeeklyPaceWindow: { mockReturnValue: (value: UsageWindowMetrics | null) => void };
     let mockGetUsageErrorMessage: { mockReturnValue: (value: string) => void };
 
     beforeEach(() => {
         vi.restoreAllMocks();
         mockResolveWeeklyUsageWindow = vi.spyOn(usage, 'resolveWeeklyUsageWindow');
+        mockResolveWeeklyPaceWindow = vi.spyOn(usage, 'resolveWeeklyPaceWindow');
         mockGetUsageErrorMessage = vi.spyOn(usage, 'getUsageErrorMessage');
     });
 
@@ -373,6 +377,64 @@ describe('WeeklyPaceWidget', () => {
         expect(result?.metadata?.decimals).toBe('0');
     });
 
+    // --- Pace source ---
+
+    it('cycles source from the weekly bucket to Sonnet', () => {
+        const widget = new WeeklyPaceWidget();
+        expect(widget.handleEditorAction('cycle-source', BASE_ITEM)?.metadata?.source).toBe('sonnet');
+    });
+
+    it('cycles source from Sonnet to Opus', () => {
+        const widget = new WeeklyPaceWidget();
+        const item: WidgetItem = { ...BASE_ITEM, metadata: { source: 'sonnet' } };
+        expect(widget.handleEditorAction('cycle-source', item)?.metadata?.source).toBe('opus');
+    });
+
+    it('cycles source from Opus to Fable', () => {
+        const widget = new WeeklyPaceWidget();
+        const item: WidgetItem = { ...BASE_ITEM, metadata: { source: 'opus' } };
+        expect(widget.handleEditorAction('cycle-source', item)?.metadata?.source).toBe('fable');
+    });
+
+    it('cycles source from Fable back to the weekly bucket', () => {
+        const widget = new WeeklyPaceWidget();
+        expect(widget.handleEditorAction('cycle-source', FABLE_ITEM)?.metadata?.source).toBe('weekly');
+    });
+
+    it('cycles an unknown source to Sonnet', () => {
+        const widget = new WeeklyPaceWidget();
+        const item: WidgetItem = { ...BASE_ITEM, metadata: { source: 'nope' } };
+        expect(widget.handleEditorAction('cycle-source', item)?.metadata?.source).toBe('sonnet');
+    });
+
+    it('measures the Fable bucket when source is fable', () => {
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
+        const result = render({ usageData: { weeklyUsage: 90, weeklyFableUsage: 30 } }, FABLE_ITEM);
+        expect(result).toBe('Fable D4/7: Underusing -20%');
+    });
+
+    it('labels the Fable pendulum bar with the model name', () => {
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
+        const result = render({ usageData: { weeklyFableUsage: 30 } }, FABLE_PENDULUM_ITEM);
+        expect(result).toMatch(/^Fable Pace: \[/);
+        expect(result).toContain('D4/7 -20%');
+    });
+
+    it('returns null when the Fable bucket has no usage', () => {
+        mockResolveWeeklyPaceWindow.mockReturnValue(makeWindow(50));
+        expect(render({ usageData: { weeklyUsage: 90 } }, FABLE_ITEM)).toBeNull();
+    });
+
+    it('falls back to the weekly bucket for an unknown source', () => {
+        mockResolveWeeklyUsageWindow.mockReturnValue(makeWindow(50));
+        const item: WidgetItem = { ...BASE_ITEM, metadata: { source: 'nope' } };
+        expect(render({ usageData: { weeklyUsage: 50 } }, item)).toBe('D4/7: On Pace');
+    });
+
+    it('names the source in the Fable preview', () => {
+        expect(render({ isPreview: true }, FABLE_ITEM)).toBe('Fable D4/7: On Pace');
+    });
+
     it('returns null for unknown editor action', () => {
         const widget = new WeeklyPaceWidget();
         expect(widget.handleEditorAction('unknown', BASE_ITEM)).toBeNull();
@@ -385,12 +447,18 @@ describe('WeeklyPaceWidget', () => {
         const keybinds = widget.getCustomKeybinds();
         expect(keybinds).toEqual([
             { key: 'p', label: '(p)endulum toggle', action: 'toggle-pendulum' },
+            { key: 's', label: '(s)ource bucket', action: 'cycle-source' },
             { key: '%', label: '(%) always show percent', action: 'toggle-show-percent' },
             { key: '.', label: '(.) decimal precision', action: 'cycle-decimals' }
         ]);
     });
 
     // --- Editor display ---
+
+    it('shows the model name as modifier text for a per-model source', () => {
+        const widget = new WeeklyPaceWidget();
+        expect(widget.getEditorDisplay(FABLE_ITEM).modifierText).toBe('(Fable)');
+    });
 
     it('shows no modifier text in text mode', () => {
         const widget = new WeeklyPaceWidget();
