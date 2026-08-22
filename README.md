@@ -29,7 +29,7 @@
 This fork adds API-based usage widgets beyond the upstream:
 
 - **Session/Weekly Usage** - Real utilization from Anthropic API with progress bars
-- **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace (optional Off Hours window subtracts sleep time from the expected % calc)
+- **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace. Measures the overall weekly bucket by default, or one model's bucket (Sonnet, Opus, Fable). Optional Off Hours window subtracts sleep time from the expected % calc
 - **Reset Timer** - Time until weekly reset (when at 100% / on a charged model); otherwise time until 5-hour session window resets
 - **Context Window Display** - Visual bar showing context usage
 - **Weekly Fable Usage** - Compact progress bar for weekly Fable API usage
@@ -100,6 +100,12 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 <br />
 
 ## 🆕 Recent Updates
+
+### [v2.4.14](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.14) - Weekly Pace source bucket
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Weekly Pace source** — the widget can measure one model's weekly bucket instead of the overall seven-day one. `s` in the items editor cycles weekly / Sonnet / Opus / Fable; the model name prefixes the label (`Fable Pace: [░░░█|░░░░] D3/7 -23%`). Sources are derived from `WEEKLY_MODEL_USAGE_BUCKETS`, so a new model bucket gets a pace source without a second table. Metadata-gated: omitting `source` keeps the previous fields, resolver, and labels, so existing configs render unchanged.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Conclusive-absence rule covers every model bucket** — the rule that stops a never-reported window from holding the in-flight usage lock was hand-listed for Fable only. It is now derived from `WEEKLY_MODEL_USAGE_BUCKETS`. Previously a required `weeklySonnetUsage` / `weeklyOpusUsage` that the account never reports kept the 30-second lock alive, so every second render returned `{error: 'timeout'}` and widgets that check `data.error` before their own field rendered `[Timeout]` indefinitely. This also fixes the existing `weekly-sonnet-usage` and `weekly-opus-usage` widgets.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **No phantom pace verdicts** — a present-but-null legacy bucket parses to utilization 0 with no `resets_at` (#343). Weekly Pace now applies the same placeholder guard `isPlaceholderUsageApiLimit` already applies to `limits[]`, and shows `[No data]` instead of a confident `Underusing -50%` about a bucket that may be actively in use. A per-model source with no reading says `[No data]` rather than hiding, so a mis-set source is visible.
 
 ### [v2.4.13](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.13) - Upstream sync + CI gates
 
@@ -808,7 +814,7 @@ bun run example
 - **Battery** *(ccstatusline-usage)* - Shows battery percentage on macOS and Linux (only visible when on battery power, hidden when charging)
 - **Session Usage** - Shows daily/session API usage percentage
 - **Weekly Usage** - Shows weekly API usage percentage
-- **Weekly Pace** - Pendulum bar or text label showing if usage pace is on track, overcooking, or underutilized (toggle with `p` key in TUI)
+- **Weekly Pace** - Pendulum bar or text label showing if usage pace is on track, overcooking, or underutilized (toggle with `p` key in TUI, pick the bucket it measures with `s`). A per-model source prefixes the model name (`Fable Pace: ...`); raw value mode drops it along with the label
 - **Block Reset Timer** - Shows time remaining until current 5-hour block reset window
 - **Weekly Reset Timer** - Shows time remaining until weekly usage reset
 - **Context Bar** - Shows context usage as a progress bar with short/full display modes
@@ -903,7 +909,7 @@ Widget-specific shortcuts:
 - **Block Timer**: `p` cycle display mode (time/full bar/short bar)
 - **Block Reset Timer**: `p` cycle display mode (time/full bar/short bar)
 - **Weekly Reset Timer**: `p` cycle display mode (time/full bar/short bar)
-- **Weekly Pace**: `p` toggle pendulum bar / text label
+- **Weekly Pace**: `p` toggle pendulum bar / text label, `s` cycle which usage bucket it measures
 - **Current Working Dir**: `h` home abbreviation, `s` segment editor, `f` fish-style path
 - **Custom Command**: `e` command, `w` max width, `t` timeout, `p` preserve ANSI colors
 - **Link**: `u` URL, `e` link text

@@ -37,10 +37,16 @@ const EXTRA_USAGE_DETAIL_FIELDS = new Set<UsageDataField>([
     'extraUsageUtilization'
 ]);
 
-const FABLE_USAGE_FIELDS = new Set<UsageDataField>([
-    'weeklyFableUsage',
-    'weeklyFableResetAt'
-]);
+// Once the API has reported the core usage state, a missing per-model window
+// is conclusive: legacy accounts and plans without a given model never report
+// that model's limit, so refetching cannot produce it. Derived from
+// WEEKLY_MODEL_USAGE_BUCKETS rather than hand-listed, so a bucket added later
+// cannot be left out and leave a required field permanently unsatisfiable
+// (which holds the in-flight lock and turns every other render into
+// [Timeout]).
+const WEEKLY_MODEL_USAGE_FIELDS = new Set<UsageDataField>(
+    WEEKLY_MODEL_USAGE_BUCKETS.flatMap(bucket => [bucket.usageField, bucket.resetField])
+);
 
 // Maps each window reset field to the utilization field parsed from the same
 // API bucket. A null bucket (Enterprise accounts have no rate-limit windows,
@@ -344,10 +350,9 @@ function hasRequiredUsageField(data: UsageData, field: UsageDataField): boolean 
         return true;
     }
 
-    // Once the API has reported the core usage state, a missing fable window is
-    // conclusive: legacy accounts and non-Fable plans never report a fable
-    // limit, so refetching cannot produce it.
-    return (data.sessionUsage !== undefined || data.weeklyUsage !== undefined) && FABLE_USAGE_FIELDS.has(field);
+    // See WEEKLY_MODEL_USAGE_FIELDS: once the core usage state has arrived, a
+    // still-missing per-model window is conclusive.
+    return (data.sessionUsage !== undefined || data.weeklyUsage !== undefined) && WEEKLY_MODEL_USAGE_FIELDS.has(field);
 }
 
 function hasRequiredUsageFields(data: UsageData, requiredFields: readonly UsageDataField[] = []): boolean {

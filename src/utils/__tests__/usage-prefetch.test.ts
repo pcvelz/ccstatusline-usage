@@ -421,6 +421,50 @@ describe('usage prefetch', () => {
         expect(mockFetchUsage.mock.calls[0]).toEqual([{ requiredFields: ['weeklyFableUsage'] }]);
     });
 
+    it('requires the overall weekly fields for a default-source weekly pace widget', async () => {
+        mockFetchUsage.mockResolvedValue({ weeklyUsage: 40, weeklyResetAt: epochToIso(1774540000) });
+
+        const lines = makeLines([{ id: '1', type: 'weekly-pace' }]);
+
+        await prefetchUsageDataIfNeeded(lines);
+
+        expect(mockFetchUsage.mock.calls.length).toBe(1);
+        expect(mockFetchUsage.mock.calls[0]).toEqual([{ requiredFields: ['weeklyUsage', 'weeklyResetAt'] }]);
+    });
+
+    it('requires the Fable fields for a fable-source weekly pace widget', async () => {
+        mockFetchUsage.mockResolvedValue({ weeklyFableUsage: 8 });
+
+        const lines = makeLines([{ id: '1', type: 'weekly-pace', metadata: { source: 'fable' } }]);
+
+        await prefetchUsageDataIfNeeded(lines);
+
+        expect(mockFetchUsage.mock.calls.length).toBe(1);
+        expect(mockFetchUsage.mock.calls[0]).toEqual([{ requiredFields: ['weeklyFableUsage', 'weeklyFableResetAt'] }]);
+    });
+
+    it('accepts the overall weekly reset in place of a missing Fable reset', async () => {
+        mockFetchUsage.mockResolvedValue({ weeklyFableUsage: 8 });
+
+        const lines = makeLines([{ id: '1', type: 'weekly-pace', metadata: { source: 'fable' } }]);
+
+        await prefetchUsageDataIfNeeded(lines, { rate_limits: { seven_day: { resets_at: 1774540000 } } });
+
+        expect(mockFetchUsage.mock.calls.length).toBe(1);
+        expect(mockFetchUsage.mock.calls[0]).toEqual([{ requiredFields: ['weeklyFableUsage'] }]);
+    });
+
+    it('falls back to the overall weekly fields for an unknown pace source', async () => {
+        mockFetchUsage.mockResolvedValue({ weeklyUsage: 40, weeklyResetAt: epochToIso(1774540000) });
+
+        const lines = makeLines([{ id: '1', type: 'weekly-pace', metadata: { source: 'nope' } }]);
+
+        await prefetchUsageDataIfNeeded(lines);
+
+        expect(mockFetchUsage.mock.calls.length).toBe(1);
+        expect(mockFetchUsage.mock.calls[0]).toEqual([{ requiredFields: ['weeklyUsage', 'weeklyResetAt'] }]);
+    });
+
     it('fetches extra usage fields while preserving statusline usage data', async () => {
         mockFetchUsage.mockResolvedValue({
             extraUsageEnabled: true,
