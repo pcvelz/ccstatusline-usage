@@ -81,6 +81,7 @@ export const WIDGET_MANIFEST: WidgetManifestEntry[] = [
     { type: 'claude-account-email', create: () => new widgets.ClaudeAccountEmailWidget() },
     { type: 'sandbox-status', create: () => new widgets.SandboxStatusWidget() },
     { type: 'session-name', create: () => new widgets.SessionNameWidget() },
+    { type: 'agent-address', create: () => new widgets.AgentAddressWidget() },
     { type: 'free-memory', create: () => new widgets.FreeMemoryWidget() },
     { type: 'session-usage', create: () => new widgets.SessionUsageWidget() },
     { type: 'weekly-usage', create: () => new widgets.WeeklyUsageWidget() },

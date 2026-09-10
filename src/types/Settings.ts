@@ -79,7 +79,9 @@ export const SettingsSchema = z.object({
                 { id: 'sep3', type: 'separator' },
                 { id: 'model', type: 'model', color: 'magenta' },
                 { id: 'sep4', type: 'separator' },
-                { id: 'session-id', type: 'claude-session-id', color: 'cyan' }
+                { id: 'session-id', type: 'claude-session-id', color: 'cyan' },
+                { id: 'sep-chatref', type: 'separator' },
+                { id: 'chat-ref', type: 'agent-address', color: 'cyan' }
             ],
             [
                 { id: 'context-bar', type: 'context-bar', color: 'blue' },

@@ -29,54 +29,44 @@
 This fork adds API-based usage widgets beyond the upstream:
 
 - **Session/Weekly Usage** - Real utilization from Anthropic API with progress bars
-- **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace (optional Off Hours window subtracts sleep time from the expected % calc)
-- **Reset Timer** - Time until weekly reset (when at 100% / on a charged model); otherwise time until 5-hour session window resets
-- **Context Window Display** - Visual bar showing context usage
 - **Weekly Fable Usage** - Compact progress bar for weekly Fable API usage
+- **Reset Timer** - Time until weekly reset (when at 100% / on a charged model); otherwise time until 5-hour session window resets
+- **Chat Ref** - The name other Claude Code sessions use to address this one, resolved from the local session registry
+- **Context Window Display** - Visual bar showing context usage
+- **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace (optional Off Hours window subtracts sleep time from the expected % calc)
 - **Off Peak** - Optional widget showing peak/off-peak status with countdown timer
 - **Two-line Layout** - Session info on line 1, context on line 2
 - **Multi-provider routing** - Usage widgets dispatch per model: Anthropic models hit the usage API; opencode/local models (GLM, Kimi, MiniMax, Qwen, Ollama) skip the fetch and gracefully hide usage bars while keeping the real-time context bar.
 
-### Multi-Provider Routing (Opencode / Local Models)
+<br />
 
-Claude Code can route individual prompts to non-Anthropic backends via opencode or a local Ollama runtime. The status line reads the `model.id` that Claude Code sends on stdin each render and dispatches through a per-provider resolver (`src/utils/usage/resolver.ts`):
+## ✨ Features
 
-- **Anthropic** (`opus`, `sonnet`, `haiku`, `fable` in the id) — fetches Session/Weekly/Reset from the usage API.
-- **Opencode** (`glm`, `kimi`, `minimax`, `mm-`, `qwen`, `owen`, `mimo`) — no usage API call; Session/Weekly/Reset widgets hide themselves. Context Bar still renders when `context_window` is in the payload.
-- **Unknown model id** — same behavior as opencode (hides usage widgets).
+- **📈 API Usage Tracking** - Real-time 5-hour session and weekly utilization from Anthropic API with progress bars
+- **⏱️ Reset Timer** - Countdown to when your 5-hour session window resets
+- **💬 Chat Ref** - Shows the address other sessions use to message this one, so you can hand it out without looking it up
+- **📊 Real-time Metrics** - Display model name, git branch, token usage, per-model weekly usage, extra usage limits, voice input state, session duration, compaction count, block timer, and more
+- **📐 Multi-line Support** - Configure multiple independent status lines
+- **🎨 Fully Customizable** - Choose what to display and customize colors for each element
+- **⚡ Powerline Support** - Beautiful Powerline-style rendering with arrow separators, caps, and custom fonts
+- **🖥️ Interactive TUI** - Built-in configuration interface using React/Ink
+- **🔎 Fast Widget Picker** - Add/change widgets by category with search and ranked matching
+- **⚙️ Global Options** - Apply consistent formatting across all widgets (padding, separators, bold, minimalist mode, and color overrides)
+- **📦 Portable Configurations** - Export settings to JSON and preview replace-or-merge imports for backups and sharing
+- **🚀 Cross-platform** - Works seamlessly with both Bun and Node.js
+- **🔧 Flexible Configuration** - Supports custom Claude Code config directory via `CLAUDE_CONFIG_DIR` environment variable
+- **📏 Smart Width Detection** - Automatically adapts to terminal width with flex separators
+- **⚡ Zero Config** - Sensible defaults that work out of the box
 
-This means opencode-routed turns don't trigger pointless Anthropic API calls or rate-limiting during heavy local usage.
-
-Example — configure Claude Code to route a model through opencode (edit `~/.claude/settings.json`):
-
-```jsonc
-{
-  "statusLine": {
-    "type": "command",
-    "command": "npx -y ccstatusline-usage@latest",
-    "padding": 0
-  },
-  "model": "glm-5.1"   // or "kimi-k2.6", "minimax-m2.7", "qwen-3.6-plus", "qwen3.6:35b-a3b-q4_K_M" for local Ollama
-}
-```
-
-What the status line renders per model:
-
-```
-# Anthropic (opus / sonnet / haiku / fable)
-Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | Fable: [█░░░░░░░] 12.0% | 2:03 hr | Model: Fable 5
-  Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8%
-
-# Opencode / local (glm-5.1, kimi, qwen, …)
-Model: glm-5.1
-  Context: [██░░░░░░░░░░░░░] 50k/200k (25%)
-```
+<br />
 
 ### Enhanced Status Line Preview
 
+The default layout, out of the box. On a narrow terminal the labels shorten automatically (`Session ID:` becomes `S:`, `Chat ref:` becomes `R:`):
+
 ```
-Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | Fable: [█░░░░░░░] 12.0% | 2:03 hr | Model: Fable 5 | Session ID: 0109b99d...
-  Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8%
+Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | 2:03 hr | B: 72% | Model: Fable 5 | Session ID: 0109b99d... | Chat ref: my-project-a1
+  Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8% | Fable: [███████░░░] 68.0%
 ```
 
 ![Demo](https://raw.githubusercontent.com/sirmalloc/ccstatusline/main/screenshots/demo.gif)
@@ -100,6 +90,11 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 <br />
 
 ## 🆕 Recent Updates
+
+### [v2.4.14](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.14) - Chat Ref widget
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Chat Ref widget** — new `agent-address` widget showing the name other Claude Code sessions use to address this one (`Chat ref: my-project-a1`, shortening to `R:` on narrow terminals). Resolved from the local session registry by matching the payload's `session_id`, with a parent-pid fast path and a directory scan fallback. Added to the default layout on line 1, after Session ID.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **README restructure** — removed a duplicated multi-provider routing example, moved Features and the status line preview directly under Fork Enhancements, and corrected the preview block, which previously omitted the Battery widget and placed the Fable bar on the wrong line.
 
 ### [v2.4.13](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.13) - Upstream sync + CI gates
 
@@ -474,25 +469,6 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 - **🚀 Auto Font Install** - Automatic Powerline font installation with user consent
 
 </details>
-
-<br />
-
-## ✨ Features
-
-- **📊 Real-time Metrics** - Display model name, git branch, token usage, per-model weekly usage, extra usage limits, voice input state, session duration, compaction count, block timer, and more
-- **📈 API Usage Tracking** - Real-time 5-hour session and weekly utilization from Anthropic API with progress bars
-- **⏱️ Reset Timer** - Countdown to when your 5-hour session window resets
-- **🎨 Fully Customizable** - Choose what to display and customize colors for each element
-- **⚡ Powerline Support** - Beautiful Powerline-style rendering with arrow separators, caps, and custom fonts
-- **📐 Multi-line Support** - Configure multiple independent status lines
-- **🖥️ Interactive TUI** - Built-in configuration interface using React/Ink
-- **🔎 Fast Widget Picker** - Add/change widgets by category with search and ranked matching
-- **⚙️ Global Options** - Apply consistent formatting across all widgets (padding, separators, bold, minimalist mode, and color overrides)
-- **📦 Portable Configurations** - Export settings to JSON and preview replace-or-merge imports for backups and sharing
-- **🚀 Cross-platform** - Works seamlessly with both Bun and Node.js
-- **🔧 Flexible Configuration** - Supports custom Claude Code config directory via `CLAUDE_CONFIG_DIR` environment variable
-- **📏 Smart Width Detection** - Automatically adapts to terminal width with flex separators
-- **⚡ Zero Config** - Sensible defaults that work out of the box
 
 <br />
 

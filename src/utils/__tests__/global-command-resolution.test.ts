@@ -80,7 +80,15 @@ describe('global command resolution', () => {
         inspectGlobalCommandResolution('bun', { platform: 'linux' });
 
         expect(execFileSyncSpy).toHaveBeenCalled();
-        for (const call of execFileSyncSpy.mock.calls) {
+
+        // Only inspect the probes this test triggered. execFileSync is spied on the
+        // shared child_process module, so calls made by other test files running
+        // concurrently land in mock.calls too and would fail the stdio assertion.
+        const probeCommands = ['where', 'which', 'npm', 'bun'];
+        const probeCalls = execFileSyncSpy.mock.calls.filter(call => probeCommands.includes(call[0]));
+
+        expect(probeCalls.length).toBeGreaterThan(0);
+        for (const call of probeCalls) {
             const options = call[2] as { stdio?: string[] };
             expect(options.stdio).toEqual(['ignore', 'pipe', 'ignore']);
         }
