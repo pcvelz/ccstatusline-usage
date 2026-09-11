@@ -31,6 +31,7 @@ main() {
     [[ -f "$rc_file" ]] && cp -p "$rc_file" "$backup_dir/npmrc.bak"
 
     echo "Issue a granular token first: npmjs.com -> Access Tokens -> Generate New Token -> Granular."
+    echo "Tick 'Bypass two-factor authentication', or every publish fails with EOTP (npm whoami still passes)."
     printf 'Paste the new npm token (input hidden): '
     IFS= read -rs new_token < /dev/tty
     echo

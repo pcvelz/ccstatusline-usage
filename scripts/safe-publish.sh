@@ -37,21 +37,41 @@ if ! npm publish --dry-run 2>&1; then
     exit 1
 fi
 
-# Step 3: Actual publish
+# Step 3: Actual publish. NPM_OTP=123456 passes a one-time password for
+# accounts whose token does not bypass 2FA.
 echo "Publishing..."
-if npm publish 2>&1; then
-    echo "Successfully published ${PKG_NAME}@${PKG_VERSION}"
-    exit 0
+OTP_ARGS=()
+[[ -n "${NPM_OTP:-}" ]] && OTP_ARGS=(--otp "$NPM_OTP")
+PUBLISH_OUT=$(npm publish "${OTP_ARGS[@]}" 2>&1)
+PUBLISH_RC=$?
+echo "$PUBLISH_OUT" | grep -vE '^npm notice' | tail -5
+if [[ $PUBLISH_RC -eq 0 ]]; then
+    # npm accepts the upload before the version is visible; confirm it landed.
+    for _ in $(seq 1 40); do
+        if [[ "$(npm view "${PKG_NAME}@${PKG_VERSION}" version --prefer-online 2>/dev/null)" == "$PKG_VERSION" ]]; then
+            echo "Successfully published ${PKG_NAME}@${PKG_VERSION} (visible on the registry)"
+            exit 0
+        fi
+        sleep 15
+    done
+    echo "WARN: npm accepted ${PKG_NAME}@${PKG_VERSION} but the registry still doesn't show it after 10 minutes."
+    exit 5
 fi
 
-# Step 4: Publish failed — check for ghost version
-echo "Publish failed. Checking for ghost version..."
-sleep 5
-
-if ! npm whoami >/dev/null 2>&1; then
-    echo "ERROR: npm authentication failed during publish. This is NOT a ghost version; nothing was consumed."
+# Step 4: Publish failed. Rule out the causes that consume nothing before
+# assuming a ghost: EOTP and E401/E403 auth errors never burn a version.
+if grep -q 'EOTP' <<< "$PUBLISH_OUT"; then
+    echo "ERROR: npm wants a one-time password (EOTP). NOT a ghost; nothing was consumed."
+    echo "Re-run with NPM_OTP=<6-digit code>, or issue a granular token with 'bypass two-factor authentication' and run npm_rotate."
+    exit 4
+fi
+if grep -qE 'E401|E403|code E404' <<< "$PUBLISH_OUT" || ! npm whoami >/dev/null 2>&1; then
+    echo "ERROR: npm rejected the publish on auth/permissions. NOT a ghost; nothing was consumed."
     exit 3
 fi
+
+echo "Publish failed. Checking for ghost version..."
+sleep 5
 
 if npm view "${PKG_NAME}@${PKG_VERSION}" version 2>/dev/null; then
     echo "Version was actually published (delayed propagation). Success!"
