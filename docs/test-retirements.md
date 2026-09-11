@@ -3,6 +3,37 @@
 Ledger for `scripts/test-inventory-gate.sh`: every test title that shipped in a
 release and later disappeared must be listed here with the reason. The gate
 blocks any release whose inventory diff contains a title absent from this file.
+A test file whose `expect(` count went down must be listed here by its
+backticked path with the reason (the `###` file headings count). Entries must
+be backticked: the gate matches `` `title` `` / `` `path` ``, not bare text.
+
+## v2.4.14 -> upstream merge, found by the widened gate
+
+The first version of the gate only saw single-quoted `it('...')` titles and
+matched ledger text by substring, so it missed `it.each(...)('$name ...')`
+template titles and assertions deleted from tests that kept their title. These
+come from the same #430 unified-hideable-state change as the section below. Each
+one was checked against its replacement at HEAD.
+
+### `src/widgets/__tests__/GitConflicts.test.ts` (no-git)
+
+- `hides no git when configured`: same assertion (`render({ hideNoGit: true })` is `null`), now titled "hides no git through the shared hide state".
+
+### `src/widgets/__tests__/GitWidgetSharedBehavior.test.ts`
+
+- `$name should expose hide-no-git keybind`: per-widget hide keybinds were removed on purpose. "$name should not declare per-widget hide keybinds" now asserts they are gone.
+- `$name should toggle hideNoGit metadata`: replaced by "$name should enable no-git via the unified hide metadata".
+- `$name should show hide-no-git modifier in editor display`: the per-widget modifier text is gone. The shared hide modifier is covered in `src/widgets/shared/__tests__/hideable.test.ts` ("formats the hide modifier text from enabled state keys"). Also the reason for the expect() drop 4 -> 3.
+
+### `src/widgets/__tests__/JjWidgetSharedBehavior.test.ts`
+
+- `$name should expose hide-no-jj keybind`: same as the git case. "$name should not declare per-widget hide keybinds" covers it.
+- `$name should toggle hideNoJj metadata`: replaced by "$name should enable no-jj via the unified hide metadata".
+- `$name should show hide-no-jj modifier in editor display`: covered by the shared hideable modifier test. Also the reason for the expect() drop 4 -> 3.
+
+### `src/widgets/__tests__/ExtraUsageUtilization.test.ts`
+
+The `exposes and toggles hide-if-disabled configuration` test (its title is listed under ExtraUsageRemaining below) was replaced by "declares the disabled and no-data hideable states alongside display keybinds" and "hides usage errors when the no-data state is enabled". The expect() count drops 23 -> 21 because the legacy `toggle-hide-disabled` action assertions were removed with the action.
 
 ## v2.4.14 -> upstream merge (16 commits, unified hideable states #430)
 

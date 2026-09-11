@@ -1,0 +1,47 @@
+# Fork customizations that an upstream merge must never drop.
+# Checked by scripts/verify-upstream-merge.sh against the merge commit.
+#
+# Format: <path> <literal text that must appear in that file>
+# The literal is matched as a fixed string (grep -F), rest of line after the
+# first space. When you add a fork-only feature, add a line here in the same
+# commit so the next upstream merge can't lose it silently.
+
+# Package identity
+package.json "name": "ccstatusline-usage"
+src/utils/claude-settings.ts ccstatusline-usage
+
+# API usage widgets and their registrations
+src/widgets/ApiUsage.tsx export class SessionUsageWidget
+src/widgets/ApiUsage.tsx export class WeeklyUsageWidget
+src/widgets/ApiUsage.tsx export class ResetTimerWidget
+src/widgets/ApiUsage.tsx export class ContextBarWidget
+src/widgets/index.ts ContextBarWidget
+src/widgets/index.ts ResetTimerWidget
+src/widgets/index.ts SessionUsageWidget
+src/widgets/index.ts WeeklyUsageWidget
+src/widgets/index.ts WeeklyFableUsageWidget
+src/widgets/index.ts AgentAddressWidget
+src/utils/widget-manifest.ts type: 'session-usage'
+src/utils/widget-manifest.ts type: 'weekly-usage'
+src/utils/widget-manifest.ts type: 'reset-timer'
+src/utils/widget-manifest.ts type: 'context-bar'
+src/utils/widget-manifest.ts type: 'weekly-fable-usage'
+src/utils/widget-manifest.ts type: 'agent-address'
+
+# Payload + provider pattern
+src/types/StatusJSON.ts context_window: z.object(
+src/types/Widget.ts getSupportedProviders?(): ProviderName[]
+src/utils/renderer.ts resolveProvider
+src/utils/usage/resolver.ts export function resolveProvider
+
+# Terminal width (tmux pane) + compact/mobile mode
+src/utils/terminal.ts process.env.TMUX
+src/utils/terminal.ts tmux display-message
+src/ccstatusline.ts import { renderCompactOutput } from './utils/compact-renderer';
+src/ccstatusline.ts const terminalWidth = getTerminalWidth();
+
+# README branding (upstream merges have overwritten these before)
+README.md # ccstatusline-usage
+README.md > Fork of [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline)
+README.md ## Fork Enhancements
+README.md https://www.npmjs.com/package/ccstatusline-usage

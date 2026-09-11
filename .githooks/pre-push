@@ -14,6 +14,37 @@
 # any normal push equals the pushed HEAD. Pushing refs that do not match the
 # working tree (e.g. pushing another branch by name) still gets a best-effort
 # gate rather than none.
+#
+# Upstream merges: every upstream-merge commit in the pushed range must also
+# pass scripts/verify-upstream-merge.sh (fork customizations, no version bump,
+# no unexplained hand edits, test inventory). The release flow commits and
+# pushes in one step, so this is where the merge gate is enforced even when
+# the merging agent skipped it. A merge counts as an upstream merge when its
+# second parent is in upstream/main; clones without an `upstream` remote skip it.
+
+ZERO=0000000000000000000000000000000000000000
+MERGE_STATUS=0
+
+if git rev-parse -q --verify upstream/main >/dev/null 2>&1; then
+    while read -r LOCAL_REF LOCAL_OID REMOTE_REF REMOTE_OID; do
+        [ "$LOCAL_OID" = "$ZERO" ] && continue
+        if [ "$REMOTE_OID" = "$ZERO" ]; then
+            MERGES=$(git rev-list --merges "$LOCAL_OID" --not --remotes=origin 2>/dev/null)
+        else
+            MERGES=$(git rev-list --merges "$REMOTE_OID..$LOCAL_OID" 2>/dev/null)
+        fi
+        for MERGE in $MERGES; do
+            SECOND=$(git rev-parse -q --verify "$MERGE^2") || continue
+            git merge-base --is-ancestor "$SECOND" upstream/main || continue
+            echo "[pre-push] upstream merge $(git log -1 --format='%h %s' "$MERGE") - running verify-upstream-merge.sh"
+            if ! bash scripts/verify-upstream-merge.sh "$MERGE"; then
+                echo "[pre-push] BLOCKED: $MERGE fails the upstream-merge gate. Fix, amend the merge commit, push again." >&2
+                MERGE_STATUS=1
+            fi
+        done
+    done
+fi
+[ "$MERGE_STATUS" -eq 0 ] || exit 1
 
 echo "[pre-push] running CI criteria: bun run lint (tsc + eslint)..."
 if ! bun run lint; then
