@@ -4,6 +4,57 @@ Ledger for `scripts/test-inventory-gate.sh`: every test title that shipped in a
 release and later disappeared must be listed here with the reason. The gate
 blocks any release whose inventory diff contains a title absent from this file.
 
+## v2.4.14 -> upstream merge (16 commits, unified hideable states #430)
+
+Upstream PR #430 replaced per-widget ad-hoc hide flags (`hideNoGit`, `hideTitle`, `hideStatus`, hide-zero, hide-when-empty, hide-if-disabled) with a single hideable-state system driven by an `h` checklist and `metadata.hide`. The old titles tested the legacy flags/keybinds; equivalent or broader coverage exists under new titles in the same files (e.g. "hides zero conflicts through the shared hide state", "should render preview without status when the status state is hidden", "hides a zero metric value when the zero hideable state is enabled"). Verified per file against the surviving suite.
+
+### `src/widgets/__tests__/CacheTimer.test.ts`
+
+- `annotates the editor only when hide-when-empty is enabled`
+- `exposes a hide-when-empty keybind and toggles the flag`
+
+### `src/widgets/__tests__/ExtraUsageRemaining.test.ts`
+
+- `exposes and toggles hide-if-disabled configuration`
+
+### `src/widgets/__tests__/CompactionCounter.test.ts`
+
+- `hides a zero metric value when hide zero is enabled`
+- `shows hide zero in the editor display when enabled`
+- `toggles hide zero metadata on and off`
+- `uses only metric and hide-zero keybinds in metric mode`
+
+### `src/widgets/__tests__/GitConflicts.test.ts`
+
+- `renders preview content`
+- `renders the conflict count`
+- `renders zero conflicts instead of hiding the widget`
+
+### `src/widgets/__tests__/GitCiStatus.test.ts`
+
+- `returns null when hideNoGit and not in a git repo`
+
+### `src/widgets/__tests__/GitPr.test.ts`
+
+- `should render preview without status when hideStatus enabled`
+- `should render preview without title when hideTitle enabled`
+- `should return null when hideNoGit and not in git repo`
+
+### `src/widgets/__tests__/Skills.test.ts`
+
+- `shows hide-when-empty in editor modifier text when enabled`
+- `toggles hide-when-empty metadata`
+
+### `src/widgets/__tests__/CacheWidgets.test.ts`
+
+- `toggles cache options via custom keybind actions`
+
+### `src/tui/components/color-menu/__tests__/mutations.test.ts`
+
+Same test, extended: upstream added `numberFormat` to the stripped fields and updated the title to match (`resetWidgetStyling removes color, backgroundColor, bold, dim, and numberFormat from one widget`).
+
+- `resetWidgetStyling removes color, backgroundColor, bold, and dim from one widget`
+
 ## v2.4.10 -> v2.4.11 (upstream merge, 71 commits)
 
 ### `src/tui/components/color-menu/__tests__/mutations.test.ts`

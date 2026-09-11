@@ -48,6 +48,7 @@ export { BlockTimerWidget } from './BlockTimer';
 export { CurrentWorkingDirWidget } from './CurrentWorkingDir';
 export { ClaudeSessionIdWidget } from './ClaudeSessionId';
 export { AgentAddressWidget } from './AgentAddress';
+export { ClaudeStatusWidget } from './ClaudeStatus';
 export { JjBookmarksWidget } from './JjBookmarks';
 export { JjWorkspaceWidget } from './JjWorkspace';
 export { JjRootDirWidget } from './JjRootDir';

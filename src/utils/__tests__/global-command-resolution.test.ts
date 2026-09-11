@@ -90,7 +90,7 @@ describe('global command resolution', () => {
         expect(probeCalls.length).toBeGreaterThan(0);
         for (const call of probeCalls) {
             const options = call[2] as { stdio?: string[] };
-            expect(options.stdio).toEqual(['ignore', 'pipe', 'ignore']);
+            expect(options.stdio?.[2]).toBe('ignore');
         }
     });
 

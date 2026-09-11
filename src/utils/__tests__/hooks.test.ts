@@ -92,7 +92,7 @@ describe('syncWidgetHooks', () => {
                 PreToolUse: [
                     {
                         matcher: 'Skill',
-                        hooks: [{ type: 'command', command: 'bunx -y ccstatusline@latest --hook' }]
+                        hooks: [{ type: 'command', command: 'bunx -y ccstatusline-usage@latest --hook' }]
                     },
                     {
                         matcher: 'Other',
@@ -100,7 +100,7 @@ describe('syncWidgetHooks', () => {
                     }
                 ],
                 UserPromptSubmit: [
-                    { hooks: [{ type: 'command', command: 'bunx -y ccstatusline@latest --hook' }] }
+                    { hooks: [{ type: 'command', command: 'bunx -y ccstatusline-usage@latest --hook' }] }
                 ]
             }
         }, null, 2), 'utf-8');
@@ -183,7 +183,7 @@ describe('syncWidgetHooks', () => {
                     {
                         matcher: 'Skill',
                         hooks: [
-                            { type: 'command', command: 'bunx -y ccstatusline@latest --hook' },
+                            { type: 'command', command: 'bunx -y ccstatusline-usage@latest --hook' },
                             { type: 'command', command: 'keep-command' }
                         ]
                     },

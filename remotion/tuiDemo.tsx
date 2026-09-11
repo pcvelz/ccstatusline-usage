@@ -96,7 +96,7 @@ interface WidgetCatalogItem extends MenuItem {
 }
 
 const TUI_START_FRAME = 96;
-const COMMAND_TEXT = '$ npx ccstatusline@latest';
+const COMMAND_TEXT = '$ npx ccstatusline-usage@latest';
 
 const THEMES: Record<ThemeName, Theme> = {
     'custom': {
@@ -1334,7 +1334,7 @@ function TerminalWindow({
                     <span style={{ ...styles.dot, backgroundColor: '#FFBD2E' }} />
                     <span style={{ ...styles.dot, backgroundColor: '#28C840' }} />
                 </div>
-                <div style={styles.windowTitle}>ccstatusline - npx ccstatusline@latest</div>
+                <div style={styles.windowTitle}>ccstatusline - npx ccstatusline-usage@latest</div>
             </div>
             <div style={styles.terminalBody}>
                 {!launched ? (

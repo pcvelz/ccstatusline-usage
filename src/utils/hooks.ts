@@ -16,7 +16,7 @@ export interface WidgetHookDef {
 const HOOK_TAG = 'ccstatusline-managed';
 
 // Matches ccstatusline hook commands written by any install method
-// (global binary, `bunx ccstatusline@latest --hook`, `npx ccstatusline --hook`, …).
+// (global binary, `bunx ccstatusline-usage@latest --hook`, `npx ccstatusline --hook`, …).
 // Used to heal legacy/untagged hooks that predate HOOK_TAG so they do not
 // accumulate alongside the managed set on every sync. The space before `--hook`
 // and trailing boundary avoid matching unrelated `--hook*` substrings.
