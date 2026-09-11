@@ -13,6 +13,16 @@ PKG_VERSION=$(node -p "require('./package.json').version")
 
 echo "Publishing ${PKG_NAME}@${PKG_VERSION}..."
 
+# Step 0: Auth first. npm reports an expired or missing token on publish as
+# "404 '<pkg>@<version>' is not in this registry", which the ghost logic below
+# used to misread as a burned version (and then tried to unpublish). An auth
+# failure is not a ghost: stop before anything touches the registry.
+if ! npm whoami >/dev/null 2>&1; then
+    echo "ERROR: npm is not authenticated (npm whoami failed). This is NOT a ghost version."
+    echo "Renew the granular access token (npmjs.com -> Access Tokens), update ~/.npmrc, re-run."
+    exit 3
+fi
+
 # Step 1: Check if version already exists on npm
 if npm view "${PKG_NAME}@${PKG_VERSION}" version 2>/dev/null; then
     echo "ERROR: ${PKG_NAME}@${PKG_VERSION} already exists on npm."
@@ -37,6 +47,11 @@ fi
 # Step 4: Publish failed — check for ghost version
 echo "Publish failed. Checking for ghost version..."
 sleep 5
+
+if ! npm whoami >/dev/null 2>&1; then
+    echo "ERROR: npm authentication failed during publish. This is NOT a ghost version; nothing was consumed."
+    exit 3
+fi
 
 if npm view "${PKG_NAME}@${PKG_VERSION}" version 2>/dev/null; then
     echo "Version was actually published (delayed propagation). Success!"
