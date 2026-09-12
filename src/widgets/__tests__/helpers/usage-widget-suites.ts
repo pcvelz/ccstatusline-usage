@@ -23,6 +23,7 @@ interface UsagePercentWidgetSuiteConfig<TWidget extends UsageWidgetLike> {
     baseItem: WidgetItem;
     createWidget: () => TWidget;
     errorMessageMock: { mockReturnValue: (value: string) => void };
+    expectedMobileTime?: string;
     expectedModifierText: string;
     expectedPreviewInvertedTime: string;
     expectedProgress: string;
@@ -130,6 +131,18 @@ export function runUsagePercentWidgetSuite<TWidget extends UsageWidgetLike>(conf
 
         expect(config.render(widget, item, context)).toBe(expected);
     });
+
+    const { expectedMobileTime } = config;
+    if (expectedMobileTime !== undefined) {
+        it('uses the short label on narrow terminals', () => {
+            const widget = config.createWidget();
+            const context = getUsageContext(config.usageField, config.usageValue);
+
+            expect(config.render(widget, config.baseItem, { ...context, terminalWidth: 100 })).toBe(expectedMobileTime);
+            expect(config.render(widget, config.rawTimeItem, { ...context, terminalWidth: 100 })).toBe(config.expectedRawTime);
+            expect(config.render(widget, config.baseItem, { ...context, terminalWidth: 200 })).toBe(config.expectedTime);
+        });
+    }
 
     it('shows usage error text when API call fails', () => {
         const widget = config.createWidget();

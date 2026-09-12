@@ -73,6 +73,7 @@ describe('WeeklyFableUsageWidget', () => {
         createWidget: () => new WeeklyFableUsageWidget(),
         errorMessageMock: usageErrorMessageMock,
         expectedInvertedTime: 'Fable: 57.9%',
+        expectedMobileTime: 'F: 42.1%',
         expectedModifierText: '(long bar, remaining)',
         expectedPreviewInvertedTime: 'Fable: 87.0%',
         expectedProgress: 'Fable: [███████████████████░░░░░░░░░░░░░] 57.9%',

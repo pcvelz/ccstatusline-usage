@@ -24,6 +24,7 @@ import {
     cycleUsageDisplayMode,
     getUsageDisplayMode,
     getUsageDisplayModifierText,
+    getUsageLabel,
     getUsagePercentCustomKeybinds,
     getUsageProgressBarWidth,
     isUsageCursorEnabled,
@@ -36,6 +37,7 @@ import {
 } from './shared/usage-display';
 
 const LABEL = 'Fable: ';
+const SHORT_LABEL = 'F: ';
 
 export class WeeklyFableUsageWidget implements Widget {
     getDefaultColor(): string { return 'magenta'; }
@@ -75,6 +77,7 @@ export class WeeklyFableUsageWidget implements Widget {
         const displayMode = getUsageDisplayMode(item);
         const inverted = isUsageInverted(item);
         const showCursor = isUsageCursorEnabled(item);
+        const label = getUsageLabel(context, LABEL, SHORT_LABEL);
 
         if (context.isPreview) {
             const previewPercent = 13;
@@ -84,16 +87,16 @@ export class WeeklyFableUsageWidget implements Widget {
                 const width = getUsageProgressBarWidth(displayMode);
                 const progressBar = makeTimerProgressBar(renderedPercent, width, showCursor ? { cursorPercent: 50 } : undefined);
                 const progressDisplay = `[${progressBar}] ${formatPercent(renderedPercent, format)}`;
-                return formatRawOrLabeledValue(item, LABEL, progressDisplay);
+                return formatRawOrLabeledValue(item, label, progressDisplay);
             }
 
             if (isUsageSliderMode(displayMode)) {
                 const slider = makeSliderBar(renderedPercent, undefined, showCursor ? { cursorPercent: 50 } : undefined);
                 const sliderDisplay = displayMode === 'slider' ? `${slider} ${formatPercent(renderedPercent, format)}` : slider;
-                return formatRawOrLabeledValue(item, LABEL, sliderDisplay);
+                return formatRawOrLabeledValue(item, label, sliderDisplay);
             }
 
-            return formatRawOrLabeledValue(item, LABEL, formatPercent(renderedPercent, format));
+            return formatRawOrLabeledValue(item, label, formatPercent(renderedPercent, format));
         }
 
         const data = context.usageData ?? {};
@@ -127,16 +130,16 @@ export class WeeklyFableUsageWidget implements Widget {
 
             const progressBar = makeTimerProgressBar(renderedPercent, width, getCursorOptions());
             const progressDisplay = `[${progressBar}] ${formatPercent(renderedPercent, format)}`;
-            return formatRawOrLabeledValue(item, LABEL, progressDisplay);
+            return formatRawOrLabeledValue(item, label, progressDisplay);
         }
 
         if (isUsageSliderMode(displayMode)) {
             const slider = makeSliderBar(renderedPercent, undefined, getCursorOptions());
             const sliderDisplay = displayMode === 'slider' ? `${slider} ${formatPercent(renderedPercent, format)}` : slider;
-            return formatRawOrLabeledValue(item, LABEL, sliderDisplay);
+            return formatRawOrLabeledValue(item, label, sliderDisplay);
         }
 
-        return formatRawOrLabeledValue(item, LABEL, formatPercent(renderedPercent, format));
+        return formatRawOrLabeledValue(item, label, formatPercent(renderedPercent, format));
     }
 
     getCustomKeybinds(item?: WidgetItem): CustomKeybind[] {

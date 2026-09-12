@@ -73,6 +73,7 @@ describe('WeeklySonnetUsageWidget', () => {
         createWidget: () => new WeeklySonnetUsageWidget(),
         errorMessageMock: usageErrorMessageMock,
         expectedInvertedTime: 'Weekly Sonnet: 57.9%',
+        expectedMobileTime: 'WS: 42.1%',
         expectedModifierText: '(long bar, remaining)',
         expectedPreviewInvertedTime: 'Weekly Sonnet: 92.0%',
         expectedProgress: 'Weekly Sonnet: [███████████████████░░░░░░░░░░░░░] 57.9%',

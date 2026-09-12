@@ -91,6 +91,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.16](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.16) - Short labels for per-model weekly usage
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Compact per-model labels** - Weekly Fable, Weekly Sonnet and Weekly Opus usage now shorten to `F:`, `WS:` and `WO:` on narrow terminals (below 134 columns), matching the `S:` / `W:` Session and Weekly bars. Raw value mode is unchanged.
+
 ### [v2.4.15](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.15) - Upstream sync: service health, flexible formatting, resilient rendering
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Upstream sync** — merged upstream v2.2.28 - v2.2.29 (16 commits). All fork widgets (API usage bars, Reset Timer, Context Bar, Fable, Chat Ref, compact mode) keep working; the Fable widget's error text now follows the shared no-data hide state.

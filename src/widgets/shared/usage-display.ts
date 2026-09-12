@@ -1,3 +1,4 @@
+import type { RenderContext } from '../../types/RenderContext';
 import type {
     CustomKeybind,
     HideableState,
@@ -23,6 +24,15 @@ export type UsageDisplayMode = 'time' | 'progress' | 'progress-short' | 'progres
 export const USAGE_NO_DATA_HIDEABLE_STATE: HideableState = { key: 'no-data', label: 'when usage data is unavailable' };
 
 const SLIDER_WIDTH = 10;
+
+// Same mobile tier as the Session/Weekly bars in ApiUsage, so every usage
+// label switches to its short form at the same terminal width.
+const MOBILE_WIDTH_THRESHOLD = 134;
+
+export function getUsageLabel(context: RenderContext, label: string, shortLabel: string): string {
+    const width = context.terminalWidth ?? 0;
+    return width > 0 && width < MOBILE_WIDTH_THRESHOLD ? shortLabel : label;
+}
 
 const PROGRESS_TOGGLE_KEYBIND: CustomKeybind = { key: 'p', label: '(p)rogress toggle', action: 'toggle-progress' };
 const INVERT_TOGGLE_KEYBIND: CustomKeybind = { key: 'v', label: 'in(v)ert fill', action: 'toggle-invert' };
