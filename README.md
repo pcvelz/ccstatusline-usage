@@ -91,12 +91,12 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
-### [v2.4.17](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.17) - llama-swap slot widgets: prefill progress, slot state, tokens per second
+### [v2.4.17](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.17) - llama-swap slot widgets + prefill progress bar
 
-- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Prefill progress in the Context Bar** - When the session runs on a local llama-swap backend and its slot is prefilling, the Context Bar turns into `Prefill: [█████▶░░] 60k/95k (63%)` (`P:` on narrow terminals): the bar spans the chat's current context, solid cells are what the slot has processed, `▶` marks the prefill front, and the numbers read prefilled / chat context. It reverts to the normal `Context:` bar the moment decoding starts.
-- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Slot Status and Slot Throughput widgets** - `State: PREFILL | DECODE | PARKED | FLAT | TURN | NONE` and `Rate: 256.4 t/s`, read from llama-swap-macos-extended's `/api/events` inflight stream joined to its `/api/slots` counters, with the same PARKED-first classification and per-lane rate sampling as the llama-swap menu bar. State is kept per session under `~/.cache/ccstatusline/llama-swap/`, so concurrent sessions cannot clobber each other's rate samples; a rate is never measured over a span shorter than one second.
-- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Live refresh required** - Claude Code only re-runs the status line on message events, so a turn's prefill and decode phases are invisible without `"refreshInterval": 2` in the `statusLine` block of `~/.claude/settings.json`.
-- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Empirical harness** - `bash scripts/harness.sh <tmux-session> [--seconds N] [--interval S] [--verbose]` captures the pane's status block and llama-swap's slot view every tick and prints `MATCH` / `MISMATCH` rows plus the phases observed, so the widgets are proven against the backend rather than assumed.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Prefill progress bar** - on a llama-swap backend the Context Bar reads `Prefill: [█████▶░░] 60k/95k (63%)` (`P:` narrow) while the slot is prefilling: `▶` is the prefill front, numbers are prefilled / chat context. Reverts to `Context:` when decoding starts.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Slot Status + Slot Throughput widgets** - `State: PREFILL` and `Rate: 256.4 t/s` for the session's own lane, from llama-swap's `/api/events` joined to `/api/slots`, same rules as the llama-swap menu bar. Needs `"refreshInterval": 2` in the Claude Code `statusLine` settings to update mid-turn.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Harness** - `scripts/harness.sh <tmux-session>` prints pane-vs-backend `MATCH`/`MISMATCH` rows per tick.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Upstream sync** - 4 commits (dev-dependency bumps). Upstream's Related Projects addition was not taken.
 
 ### [v2.4.16](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.16) - Short labels for per-model weekly usage
 
@@ -1159,7 +1159,6 @@ jq 'del(.statusLine)' ~/.claude/settings.json > /tmp/cs.json && cat /tmp/cs.json
 - [crispy-recall](https://github.com/TheSylvester/crispy-recall) - Searchable memory for your Claude Code and Codex sessions. Local, fast, no daemon.
 - [statuslin.es](https://statuslin.es) - Community gallery of Claude Code status lines with live, sandbox-rendered previews.
 - [claude-carbon](https://github.com/gwittebolle/claude-carbon) - Live CO2 estimate for your Claude Code sessions, next to the cost. Ships a `--segment` mode built to embed as a Custom Command widget.
-- [claudenews](https://github.com/bhpark1013/claudenews) - Developer news in your status line while the agent works: Hacker News, GitHub Trending, and per-language sources, with optional translation and short summaries. Ships a `--segment` mode built to embed as a Custom Command widget.
 
 ## 🙏 Acknowledgments
 
