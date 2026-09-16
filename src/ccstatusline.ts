@@ -23,6 +23,7 @@ import {
 } from './utils/git-review-cache';
 import { handleHookInput } from './utils/hook-handler';
 import { getTranscriptAnalysis } from './utils/jsonl';
+import { prefetchLlamaSwapData } from './utils/llama-swap-prefetch';
 import { advanceGlobalPowerlineThemeIndex } from './utils/powerline-theme-index';
 import {
     buildConfigWarningBadge,
@@ -144,10 +145,11 @@ async function renderMultipleLines(data: StatusJSON) {
             includeSessionName: hasSessionNameWidget
         })
         : Promise.resolve(null);
-    const [transcriptAnalysis, usageData, claudeStatusData] = await Promise.all([
+    const [transcriptAnalysis, usageData, claudeStatusData, llamaSwapData] = await Promise.all([
         transcriptAnalysisPromise,
         prefetchUsageDataIfNeeded(lines, data),
-        prefetchClaudeStatusIfNeeded(lines)
+        prefetchClaudeStatusIfNeeded(lines),
+        prefetchLlamaSwapData(lines, data)
     ]);
 
     const tokenMetrics = transcriptAnalysis?.tokenMetrics ?? null;
@@ -199,7 +201,8 @@ async function renderMultipleLines(data: StatusJSON) {
         isPreview: false,
         minimalist: settings.minimalistMode,
         gitCacheTtlSeconds: settings.gitCacheTtlSeconds,
-        gitReviewNeedsChecks: lines.some(line => line.some(item => item.type === 'git-ci-status'))
+        gitReviewNeedsChecks: lines.some(line => line.some(item => item.type === 'git-ci-status')),
+        llamaSwapData
     };
 
     // Always pre-render all widgets once (for efficiency)

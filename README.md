@@ -91,6 +91,13 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.4.17](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.17) - llama-swap slot widgets: prefill progress, slot state, tokens per second
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Prefill progress in the Context Bar** - When the session runs on a local llama-swap backend and its slot is prefilling, the Context Bar turns into `Prefill: [█████▶░░] 60k/95k (63%)` (`P:` on narrow terminals): the bar spans the chat's current context, solid cells are what the slot has processed, `▶` marks the prefill front, and the numbers read prefilled / chat context. It reverts to the normal `Context:` bar the moment decoding starts.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Slot Status and Slot Throughput widgets** - `State: PREFILL | DECODE | PARKED | FLAT | TURN | NONE` and `Rate: 256.4 t/s`, read from llama-swap-macos-extended's `/api/events` inflight stream joined to its `/api/slots` counters, with the same PARKED-first classification and per-lane rate sampling as the llama-swap menu bar. State is kept per session under `~/.cache/ccstatusline/llama-swap/`, so concurrent sessions cannot clobber each other's rate samples; a rate is never measured over a span shorter than one second.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Live refresh required** - Claude Code only re-runs the status line on message events, so a turn's prefill and decode phases are invisible without `"refreshInterval": 2` in the `statusLine` block of `~/.claude/settings.json`.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Empirical harness** - `bash scripts/harness.sh <tmux-session> [--seconds N] [--interval S] [--verbose]` captures the pane's status block and llama-swap's slot view every tick and prints `MATCH` / `MISMATCH` rows plus the phases observed, so the widgets are proven against the backend rather than assumed.
+
 ### [v2.4.16](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.16) - Short labels for per-model weekly usage
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Compact per-model labels** - Weekly Fable, Weekly Sonnet and Weekly Opus usage now shorten to `F:`, `WS:` and `WO:` on narrow terminals (below 134 columns), matching the `S:` / `W:` Session and Weekly bars. Raw value mode is unchanged.

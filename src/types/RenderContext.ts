@@ -2,6 +2,7 @@ import type {
     BlockMetrics,
     SkillsMetrics
 } from '../types';
+import type { LlamaSwapData } from '../utils/llama-swap-types';
 
 import type { SpeedMetrics } from './SpeedMetrics';
 import type { StatusJSON } from './StatusJSON';
@@ -71,4 +72,7 @@ export interface RenderContext {
     };
     globalPowerlineThemeIndex?: number;  // Global powerline theme index that continues across lines
     globalPowerlineStartCapIndex?: number;  // Global start cap index across powerline flex segments and lines
+
+    // Llama-swap slot data (populated by prefetch when llama-swap backend detected)
+    llamaSwapData?: LlamaSwapData | null;
 }

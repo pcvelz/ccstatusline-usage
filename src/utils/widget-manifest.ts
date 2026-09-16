@@ -109,7 +109,9 @@ export const WIDGET_MANIFEST: WidgetManifestEntry[] = [
     { type: 'worktree-branch', create: () => new widgets.GitWorktreeBranchWidget() },
     { type: 'worktree-original-branch', create: () => new widgets.GitWorktreeOriginalBranchWidget() },
     { type: 'compaction-counter', create: () => new widgets.CompactionCounterWidget() },
-    { type: 'cache-timer', create: () => new widgets.CacheTimerWidget() }
+    { type: 'cache-timer', create: () => new widgets.CacheTimerWidget() },
+    { type: 'slot-status', create: () => new widgets.SlotStatusWidget() },
+    { type: 'slot-throughput', create: () => new widgets.SlotThroughputWidget() }
 ];
 
 export const LAYOUT_WIDGET_MANIFEST: LayoutWidgetManifestEntry[] = [

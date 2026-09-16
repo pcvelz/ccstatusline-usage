@@ -45,7 +45,7 @@ const DEFAULT_BAR_WIDTH = 16;
 
 type DisplaySize = 'mobile' | 'medium' | 'full';
 
-function getDisplaySize(context: RenderContext): DisplaySize {
+export function getDisplaySize(context: RenderContext): DisplaySize {
     const w = context.terminalWidth ?? 0;
     if (w > 0 && w < MOBILE_THRESHOLD)
         return 'mobile';
@@ -54,7 +54,7 @@ function getDisplaySize(context: RenderContext): DisplaySize {
     return 'full';
 }
 
-function getBarWidth(size: DisplaySize): number {
+export function getBarWidth(size: DisplaySize): number {
     if (size === 'mobile')
         return MOBILE_BAR_WIDTH;
     if (size === 'medium')
@@ -62,11 +62,37 @@ function getBarWidth(size: DisplaySize): number {
     return DEFAULT_BAR_WIDTH;
 }
 
-function makeProgressBar(percent: number, width = DEFAULT_BAR_WIDTH): string {
+export function makeProgressBar(percent: number, width = DEFAULT_BAR_WIDTH): string {
     const clamped = Math.min(100, Math.max(0, percent));
     const filled = Math.round((clamped / 100) * width);
     const empty = width - filled;
     return '[' + '█'.repeat(filled) + '░'.repeat(empty) + ']';
+}
+
+// True when the render context is fed by a llama-swap backend and the
+// current lane is actively prefilling (prompt processing in progress).
+export function isPrefillSlot(context: RenderContext): boolean {
+    return context.llamaSwapData?.fetched === true
+        && context.llamaSwapData.lane?.word === 'PREFILL';
+}
+
+// Prefill-progress bar used while a llama-swap slot is prefilling this
+// session's prompt. The bar spans the chat's CURRENT context (full width =
+// every token the prefill has to process): solid cells for the part already
+// processed, ONE arrow head at the prefill front, empty cells for the rest.
+// Same cell height everywhere (no shade glyphs): the arrow position is the
+// progress. `prefillShare` is processed / chat context in percent.
+export function makePrefillBar(prefillShare: number, width: number): string {
+    const clamped = Math.min(100, Math.max(0, prefillShare));
+    let filledDone = Math.round((clamped / 100) * width);
+
+    // The arrow occupies a cell of its own and never leaves the bar.
+    const lastArrowCell = Math.max(0, width - 1);
+    if (filledDone > lastArrowCell)
+        filledDone = lastArrowCell;
+
+    const empty = Math.max(0, width - filledDone - 1);
+    return '[' + '█'.repeat(filledDone) + '▶' + '░'.repeat(empty) + ']';
 }
 
 function formatUsageBar(label: string, shortLabel: string, percent: number, size: DisplaySize): string {
@@ -362,6 +388,18 @@ export class ContextBarWidget implements Widget {
         const totalStr = total >= 1000000 ? `${Math.round(total / 1000000)}M` : `${Math.round(total / 1000)}k`;
 
         const size = getDisplaySize(context);
+        // While the slot is prefilling, the widget reads as prefill progress:
+        // label Prefill, the bar spans the chat context with an arrow at the
+        // prefill front, numbers <prefilled>k/<chat context>k and the percent
+        // is the prefilled share. It reverts to the Context reading the
+        // moment the word changes.
+        if (isPrefillSlot(context)) {
+            const prefilled = Math.max(0, context.llamaSwapData?.lane?.contextUsed ?? 0);
+            const prefillShare = used > 0 ? Math.min(100, (prefilled / used) * 100) : 0;
+            const label = size === 'mobile' ? 'P' : 'Prefill';
+            const suffix = size === 'mobile' ? '' : ` (${Math.round(prefillShare)}%)`;
+            return `${label}: ${makePrefillBar(prefillShare, getBarWidth(size))} ${Math.round(prefilled / 1000)}k/${usedK}k${suffix}`;
+        }
         const bar = makeProgressBar(percent, getBarWidth(size));
         const label = size === 'mobile' ? 'C' : 'Context';
         const suffix = size === 'mobile' ? '' : ` (${Math.round(percent)}%)`;

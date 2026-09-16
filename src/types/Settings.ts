@@ -89,7 +89,11 @@ export const SettingsSchema = z.object({
                 { id: 'sep-weekly-pace', type: 'separator' },
                 { id: 'weekly-pace', type: 'weekly-pace', color: 'brightBlue', metadata: { display: 'pendulum' } },
                 { id: 'sep-fable', type: 'separator' },
-                { id: 'weekly-fable-usage', type: 'weekly-fable-usage', color: 'magenta', metadata: { display: 'progress-mini' } }
+                { id: 'weekly-fable-usage', type: 'weekly-fable-usage', color: 'magenta', metadata: { display: 'progress-mini' } },
+                { id: 'sep-slot1', type: 'separator' },
+                { id: 'slot-status', type: 'slot-status', color: 'green' },
+                { id: 'sep-slot2', type: 'separator' },
+                { id: 'slot-throughput', type: 'slot-throughput', color: 'cyan' }
             ],
             []
         ]),
