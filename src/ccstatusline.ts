@@ -30,7 +30,8 @@ import {
     calculateMaxWidthsFromPreRendered,
     countPowerlineStartCapSlots,
     preRenderAllWidgets,
-    renderStatusLine
+    renderStatusLine,
+    resolveEffectiveTerminalWidth
 } from './utils/renderer';
 import { advanceGlobalSeparatorIndex } from './utils/separator-index';
 import { getSkillsMetrics } from './utils/skills';
@@ -169,7 +170,7 @@ async function renderMultipleLines(data: StatusJSON) {
     const compact = shouldUseCompactMode(terminalWidth, data);
     const compactWidth = compact
         ? (terminalWidth !== null && terminalWidth > 0
-            ? (terminalWidth >= 80 ? Math.floor(terminalWidth / 2) - 4 : terminalWidth - 6)
+            ? terminalWidth - 6
             : TEAM_LEAD_DEFAULT_WIDTH)
         : null;
 
@@ -212,8 +213,13 @@ async function renderMultipleLines(data: StatusJSON) {
     if (compact && compactWidth) {
         renderCompactOutput(preRenderedLines, settings, compactWidth);
     } else {
-        // Render each line using pre-rendered content
+        // Render each line using pre-rendered content. Lines are buffered: if any
+        // line overflows the available width, the whole block re-flows at widget
+        // boundaries (like compact mode) instead of being cut off with "...".
         const preCalculatedMaxWidths = calculateMaxWidthsFromPreRendered(preRenderedLines, settings);
+        const pendingLines: string[] = [];
+        const overflow = { hit: false };
+        context.onLineOverflow = () => { overflow.hit = true; };
         let globalSeparatorIndex = 0;
         let globalPowerlineThemeIndex = 0;
         let globalPowerlineStartCapIndex = 0;
@@ -245,7 +251,7 @@ async function renderMultipleLines(data: StatusJSON) {
 
                     // Add reset code at the beginning to override Claude Code's dim setting
                     outputLine = '\x1b[0m' + outputLine;
-                    console.log(outputLine);
+                    pendingLines.push(outputLine);
 
                     globalSeparatorIndex = advanceGlobalSeparatorIndex(globalSeparatorIndex, lineItems, preRenderedWidgets);
                     if (settings.powerline.enabled) {
@@ -256,6 +262,17 @@ async function renderMultipleLines(data: StatusJSON) {
                     }
                 }
             }
+        }
+
+        // Powerline segments cannot be re-flowed without losing their caps, so
+        // powerline keeps the truncating behaviour.
+        const availableWidth = resolveEffectiveTerminalWidth(terminalWidth, settings, context);
+        if (overflow.hit && !settings.powerline.enabled && availableWidth && availableWidth > 0) {
+            configBadgePrepended = false;
+            renderCompactOutput(preRenderedLines, settings, availableWidth);
+        } else {
+            for (const outputLine of pendingLines)
+                console.log(outputLine);
         }
     }
 

@@ -181,7 +181,7 @@ export class WeeklyResetTimerWidget implements Widget {
             const previewPercent = inverted ? 90.0 : 10.0;
 
             if (isUsageProgressMode(displayMode)) {
-                const barWidth = getUsageProgressBarWidth(displayMode);
+                const barWidth = getUsageProgressBarWidth(displayMode, context);
                 const progressBar = makeTimerProgressBar(previewPercent, barWidth);
                 return formatRawOrLabeledValue(item, 'Weekly Reset ', `[${progressBar}] ${formatPercent(previewPercent, format)}`);
             }
@@ -225,7 +225,7 @@ export class WeeklyResetTimerWidget implements Widget {
         }
 
         if (isUsageProgressMode(displayMode)) {
-            const barWidth = getUsageProgressBarWidth(displayMode);
+            const barWidth = getUsageProgressBarWidth(displayMode, context);
             const percent = inverted ? window.remainingPercent : window.elapsedPercent;
             const progressBar = makeTimerProgressBar(percent, barWidth);
             return formatRawOrLabeledValue(item, 'Weekly Reset ', `[${progressBar}] ${formatPercent(percent, format)}`);

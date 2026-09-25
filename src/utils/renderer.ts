@@ -89,7 +89,7 @@ function resolvePaddingSides(padding: string, side: DefaultPaddingSide | undefin
     return { leading: padding, trailing: padding };
 }
 
-function resolveEffectiveTerminalWidth(
+export function resolveEffectiveTerminalWidth(
     detectedWidth: number | null,
     settings: Settings,
     context: RenderContext
@@ -1404,6 +1404,7 @@ export function renderStatusLine(
         const plainLength = getVisibleWidth(statusLine);
 
         if (plainLength > maxWidth) {
+            context.onLineOverflow?.();
             statusLine = truncateStyledText(statusLine, maxWidth, { ellipsis: true });
         }
     }

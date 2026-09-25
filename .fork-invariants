@@ -39,6 +39,10 @@ src/utils/terminal.ts process.env.TMUX
 src/utils/terminal.ts tmux display-message
 src/ccstatusline.ts import { renderCompactOutput } from './utils/compact-renderer';
 src/ccstatusline.ts const terminalWidth = getTerminalWidth();
+src/utils/terminal.ts process.env.TMUX_PANE
+src/ccstatusline.ts context.onLineOverflow
+src/utils/renderer.ts context.onLineOverflow?.();
+src/widgets/shared/usage-display.ts export function getUsageProgressBarWidth(mode: UsageDisplayMode, context?: RenderContext): number {
 
 # README branding (upstream merges have overwritten these before)
 README.md # ccstatusline-usage

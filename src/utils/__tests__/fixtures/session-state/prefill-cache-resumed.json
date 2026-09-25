@@ -1,0 +1,28 @@
+{
+  "schema": "llama-swap.sessions/v1",
+  "generatedAt": "2026-09-18T19:27:03.412+02:00",
+  "resident": { "model": "Qwen3.8-27B-UD-Q5_K_XL", "alias": "local-27b", "state": "ready", "window": 262144, "slots": 2 },
+  "queue": { "waiting": 0, "byTier": { "default": 0, "priority": 0, "background": 0 } },
+  "cooldown": null,
+  "memoryBrake": { "enabled": true, "holding": false, "remainingSeconds": 0 },
+  "sessions": [
+    {
+      "sessionId": "69699f8b-0b1e-4c3a-9f1e-2d7c5a1b9e00",
+      "sessionShort": "69699f8b",
+      "requestId": "r-41",
+      "model": "Qwen3.8-27B-UD-Q5_K_XL",
+      "alias": "local-27b",
+      "tier": "default",
+      "priority": 0,
+      "phase": "PREFILL",
+      "parkReason": null,
+      "slot": 0,
+      "context": { "used": 92170, "cached": 79603, "processed": 12567, "decoded": 0, "promptTotal": 102400, "window": 262144 },
+      "progress": 0.9001,
+      "rate": { "kind": "prefill", "tokensPerSecond": 50.7, "windowSeconds": 30.0 },
+      "elapsedMs": 118400,
+      "phaseSinceMs": 118400,
+      "respTokens": 0
+    }
+  ]
+}

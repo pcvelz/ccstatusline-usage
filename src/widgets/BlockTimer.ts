@@ -75,7 +75,7 @@ export class BlockTimerWidget implements Widget {
             const previewPercent = inverted ? 26.1 : 73.9;
 
             if (isUsageProgressMode(displayMode)) {
-                const barWidth = getUsageProgressBarWidth(displayMode);
+                const barWidth = getUsageProgressBarWidth(displayMode, context);
                 const progressBar = makeTimerProgressBar(previewPercent, barWidth);
                 return formatRawOrLabeledValue(item, 'Block ', `[${progressBar}] ${formatPercent(previewPercent, format)}`);
             }
@@ -101,7 +101,7 @@ export class BlockTimerWidget implements Widget {
 
             const emptyPercent = formatPercent(0, format);
             if (isUsageProgressMode(displayMode)) {
-                const barWidth = getUsageProgressBarWidth(displayMode);
+                const barWidth = getUsageProgressBarWidth(displayMode, context);
                 const emptyBar = '░'.repeat(barWidth);
                 return formatRawOrLabeledValue(item, 'Block ', `[${emptyBar}] ${emptyPercent}`);
             }
@@ -118,7 +118,7 @@ export class BlockTimerWidget implements Widget {
         }
 
         if (isUsageProgressMode(displayMode)) {
-            const barWidth = getUsageProgressBarWidth(displayMode);
+            const barWidth = getUsageProgressBarWidth(displayMode, context);
             const percent = inverted ? window.remainingPercent : window.elapsedPercent;
             const progressBar = makeTimerProgressBar(percent, barWidth);
             return formatRawOrLabeledValue(item, 'Block ', `[${progressBar}] ${formatPercent(percent, format)}`);

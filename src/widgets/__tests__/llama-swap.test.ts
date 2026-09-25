@@ -16,6 +16,7 @@ import {
     isParked,
     joinSlot,
     llamaSwapBaseUrl,
+    slotContextUsed,
     updateLaneSample
 } from '../../utils/llama-swap';
 import type {
@@ -46,6 +47,7 @@ function slot(overrides: Partial<SlotCounters> = {}): SlotCounters {
         is_processing: true,
         n_prompt_tokens: 106_000,
         n_prompt_tokens_processed: 54_000,
+        n_prompt_tokens_cache: 0,
         n_decoded: 0,
         ...overrides
     };
@@ -140,6 +142,36 @@ describe('classifyWord', () => {
     });
 });
 
+describe('slotContextUsed', () => {
+    it('returns null when there is no joined slot', () => {
+        expect(slotContextUsed(null)).toBeNull();
+    });
+
+    it('adds the reused KV-cache prefix on a cache-resumed prefill retry', () => {
+        // Live slot mid-prefill after a cache-resumed retry (2026-09-18 bug report):
+        // n_prompt_tokens=102200, n_prompt_tokens_processed=5912,
+        // n_prompt_tokens_cache=96266, n_decoded=20. The real position is
+        // ~102k of 102k, not the 6k the processed-only counter alone reports.
+        const s = slot({ n_prompt_tokens: 102_200, n_prompt_tokens_processed: 5_912, n_prompt_tokens_cache: 96_266, n_decoded: 20 });
+        expect(slotContextUsed(s)).toBe(96_266 + 5_912 + 20);
+    });
+
+    it('is unaffected by cache on a fresh prefill (cache 0)', () => {
+        const s = slot({ n_prompt_tokens_processed: 54_000, n_prompt_tokens_cache: 0, n_decoded: 0 });
+        expect(slotContextUsed(s)).toBe(54_000);
+    });
+
+    it('keeps counting the cache prefix once decode starts after a cached prefill', () => {
+        const s = slot({ n_prompt_tokens_processed: 5_912, n_prompt_tokens_cache: 96_266, n_decoded: 500 });
+        expect(slotContextUsed(s)).toBe(96_266 + 5_912 + 500);
+    });
+
+    it('treats an absent n_prompt_tokens_cache as 0 (older llama.cpp build)', () => {
+        const s = { id: 0, is_processing: true, n_prompt_tokens: 106_000, n_prompt_tokens_processed: 54_000, n_decoded: 0 } as SlotCounters;
+        expect(slotContextUsed(s)).toBe(54_000);
+    });
+});
+
 describe('joinSlot', () => {
     const models: ModelSlots[] = [
         { model: MODEL, state: 'ready', slots: [slot({ id: 0, is_processing: false }), slot({ id: 1 })] }
@@ -212,6 +244,19 @@ describe('updateLaneSample', () => {
         expect(rate).toBeNull();
         expect(sample.lastRate).toBeNull();
         expect(sample.prefillProcessed).toBe(2000);
+    });
+
+    it('re-baselines cleanly on a cache-resumed retry: the rate stays based on processed alone, never the cache jump', () => {
+        // A cache-resumed retry restarts n_prompt_tokens_processed near 0 while
+        // n_prompt_tokens_cache jumps to the reused prefix. The rate must come
+        // from processed's own delta (which is negative here vs the old
+        // request's high processed, so it re-baselines) and must never read the
+        // cache field as if it were prefill work done this second.
+        const prev: LaneSample = { prefillProcessed: 88_000, decoded: 0, at: t0, lastChangeAt: t0, lastRate: 300, lastRateAt: t0 };
+        const { sample, rate } = updateLaneSample(prev, slot({ n_prompt_tokens_processed: 5_912, n_prompt_tokens_cache: 96_266, n_decoded: 20 }), t0 + 1000);
+        expect(rate).toBeNull();
+        expect(sample.lastRate).toBeNull();
+        expect(sample.prefillProcessed).toBe(5_912);
     });
 });
 

@@ -79,7 +79,7 @@ export class WeeklyUsageWidget implements Widget {
             const renderedPercent = inverted ? 100 - previewPercent : previewPercent;
 
             if (isUsageProgressMode(displayMode)) {
-                const width = getUsageProgressBarWidth(displayMode);
+                const width = getUsageProgressBarWidth(displayMode, context);
                 const progressBar = makeTimerProgressBar(renderedPercent, width, showCursor ? { cursorPercent: 50 } : undefined);
                 const progressDisplay = `[${progressBar}] ${formatPercent(renderedPercent, format)}`;
                 return formatRawOrLabeledValue(item, 'Weekly: ', progressDisplay);
@@ -116,7 +116,7 @@ export class WeeklyUsageWidget implements Widget {
         };
 
         if (isUsageProgressMode(displayMode)) {
-            const width = getUsageProgressBarWidth(displayMode);
+            const width = getUsageProgressBarWidth(displayMode, context);
 
             const progressBar = makeTimerProgressBar(renderedPercent, width, getCursorOptions());
             const progressDisplay = `[${progressBar}] ${formatPercent(renderedPercent, format)}`;

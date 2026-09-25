@@ -29,12 +29,18 @@ export class SlotThroughputWidget implements Widget {
             return null;
 
         const rate = llamaData.lane?.tokensPerSecond;
+        // rate.kind (contract mode only) says what the number measures:
+        // prefill counts processed tokens, decode counts generated tokens.
+        // Rendered verbatim, never recomputed.
+        const kind = llamaData.lane?.rateKind;
+        const kindSuffix = kind ? ` (${kind})` : '';
+
         if (rate === null || rate === undefined || rate <= 0) {
             return item.rawValue ? '0.0 t/s' : `Rate: 0.0 t/s`;
         }
 
         const display = formatRate(rate);
-        return item.rawValue ? display : `Rate: ${display}`;
+        return item.rawValue ? `${display}${kindSuffix}` : `Rate: ${display}${kindSuffix}`;
     }
 
     supportsRawValue(): boolean { return true; }

@@ -70,7 +70,7 @@ export class ExtraUsageUtilizationWidget implements Widget {
             const renderedPercent = inverted ? 100 - previewPercent : previewPercent;
 
             if (isUsageProgressMode(displayMode)) {
-                const width = getUsageProgressBarWidth(displayMode);
+                const width = getUsageProgressBarWidth(displayMode, context);
                 const progressBar = makeTimerProgressBar(renderedPercent, width);
                 return formatRawOrLabeledValue(item, 'Overage: ', `[${progressBar}] ${formatPercent(renderedPercent, format)}`);
             }
@@ -104,7 +104,7 @@ export class ExtraUsageUtilizationWidget implements Widget {
         const renderedPercent = inverted ? 100 - percent : percent;
 
         if (isUsageProgressMode(displayMode)) {
-            const width = getUsageProgressBarWidth(displayMode);
+            const width = getUsageProgressBarWidth(displayMode, context);
             const progressBar = makeTimerProgressBar(renderedPercent, width);
             return formatRawOrLabeledValue(item, 'Overage: ', `[${progressBar}] ${formatPercent(renderedPercent, format)}`);
         }

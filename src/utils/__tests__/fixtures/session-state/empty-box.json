@@ -1,0 +1,9 @@
+{
+  "schema": "llama-swap.sessions/v1",
+  "generatedAt": "2026-09-18T16:30:33.000+02:00",
+  "resident": null,
+  "queue": { "waiting": 0, "byTier": { "default": 0, "priority": 0, "background": 0 } },
+  "cooldown": null,
+  "memoryBrake": { "enabled": true, "holding": false, "remainingSeconds": 0 },
+  "sessions": []
+}

@@ -75,4 +75,8 @@ export interface RenderContext {
 
     // Llama-swap slot data (populated by prefetch when llama-swap backend detected)
     llamaSwapData?: LlamaSwapData | null;
+
+    // Called when a rendered line exceeds the available width, right before it
+    // would be truncated, so the caller can re-flow widgets instead of cutting.
+    onLineOverflow?: () => void;
 }

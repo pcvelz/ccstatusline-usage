@@ -187,6 +187,20 @@ export function classifyWord(
     return 'PREFILL';
 }
 
+/**
+ * How far a joined slot has actually progressed. n_prompt_tokens_processed
+ * alone is only the work done THIS request: a cache-resumed retry restarts
+ * that counter near 0 while n_prompt_tokens_cache reports the reused prefix
+ * from the KV cache, so the two must be added together (plus any decoded
+ * tokens) to read as the true position in the prompt. Returns null when
+ * there is no joined slot to read.
+ */
+export function slotContextUsed(slot: SlotCounters | null): number | null {
+    if (!slot)
+        return null;
+    return (slot.n_prompt_tokens_cache ?? 0) + slot.n_prompt_tokens_processed + slot.n_decoded;
+}
+
 // ── Slot join (menu bar BackendClient.joinedSlot) ──
 
 /**

@@ -29,40 +29,20 @@ import {
     renderUsageTimezoneEditor
 } from './shared/timezone-editor';
 import {
+    getBarWidth,
+    getDisplaySize,
     getUsageTimerCustomKeybinds,
     toggleUsageDateMode,
-    toggleUsageHourFormat
+    toggleUsageHourFormat,
+    type DisplaySize
 } from './shared/usage-display';
+
+export { getBarWidth, getDisplaySize };
 
 const DARK_RED_OPEN = '\x1b[38;2;204;0;0m';
 const DARK_RED_CLOSE = '\x1b[39m';
 
-const MOBILE_THRESHOLD = 134;
-const MEDIUM_THRESHOLD = 178;
-const MOBILE_BAR_WIDTH = 4;
-const MEDIUM_BAR_WIDTH = 8;
-const DEFAULT_BAR_WIDTH = 16;
-
-type DisplaySize = 'mobile' | 'medium' | 'full';
-
-export function getDisplaySize(context: RenderContext): DisplaySize {
-    const w = context.terminalWidth ?? 0;
-    if (w > 0 && w < MOBILE_THRESHOLD)
-        return 'mobile';
-    if (w >= MOBILE_THRESHOLD && w < MEDIUM_THRESHOLD)
-        return 'medium';
-    return 'full';
-}
-
-export function getBarWidth(size: DisplaySize): number {
-    if (size === 'mobile')
-        return MOBILE_BAR_WIDTH;
-    if (size === 'medium')
-        return MEDIUM_BAR_WIDTH;
-    return DEFAULT_BAR_WIDTH;
-}
-
-export function makeProgressBar(percent: number, width = DEFAULT_BAR_WIDTH): string {
+export function makeProgressBar(percent: number, width = getBarWidth('full')): string {
     const clamped = Math.min(100, Math.max(0, percent));
     const filled = Math.round((clamped / 100) * width);
     const empty = width - filled;
@@ -395,7 +375,15 @@ export class ContextBarWidget implements Widget {
         // moment the word changes.
         if (isPrefillSlot(context)) {
             const prefilled = Math.max(0, context.llamaSwapData?.lane?.contextUsed ?? 0);
-            const prefillShare = used > 0 ? Math.min(100, (prefilled / used) * 100) : 0;
+            // Contract mode: progress is already computed server-side
+            // ((cached + processed) / promptTotal) - render it verbatim, no
+            // client-side ratio math. Fallback mode has no progress field,
+            // so the widget derives its own share from the chat's own
+            // context accounting (the pre-contract stop-gap behaviour).
+            const contractProgress = context.llamaSwapData?.lane?.progress;
+            const prefillShare = typeof contractProgress === 'number'
+                ? Math.min(100, Math.max(0, contractProgress * 100))
+                : (used > 0 ? Math.min(100, (prefilled / used) * 100) : 0);
             const label = size === 'mobile' ? 'P' : 'Prefill';
             const suffix = size === 'mobile' ? '' : ` (${Math.round(prefillShare)}%)`;
             return `${label}: ${makePrefillBar(prefillShare, getBarWidth(size))} ${Math.round(prefilled / 1000)}k/${usedK}k${suffix}`;

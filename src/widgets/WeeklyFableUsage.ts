@@ -84,7 +84,7 @@ export class WeeklyFableUsageWidget implements Widget {
             const renderedPercent = inverted ? 100 - previewPercent : previewPercent;
 
             if (isUsageProgressMode(displayMode)) {
-                const width = getUsageProgressBarWidth(displayMode);
+                const width = getUsageProgressBarWidth(displayMode, context);
                 const progressBar = makeTimerProgressBar(renderedPercent, width, showCursor ? { cursorPercent: 50 } : undefined);
                 const progressDisplay = `[${progressBar}] ${formatPercent(renderedPercent, format)}`;
                 return formatRawOrLabeledValue(item, label, progressDisplay);
@@ -126,7 +126,7 @@ export class WeeklyFableUsageWidget implements Widget {
         };
 
         if (isUsageProgressMode(displayMode)) {
-            const width = getUsageProgressBarWidth(displayMode);
+            const width = getUsageProgressBarWidth(displayMode, context);
 
             const progressBar = makeTimerProgressBar(renderedPercent, width, getCursorOptions());
             const progressDisplay = `[${progressBar}] ${formatPercent(renderedPercent, format)}`;

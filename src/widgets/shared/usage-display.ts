@@ -25,9 +25,33 @@ export const USAGE_NO_DATA_HIDEABLE_STATE: HideableState = { key: 'no-data', lab
 
 const SLIDER_WIDTH = 10;
 
-// Same mobile tier as the Session/Weekly bars in ApiUsage, so every usage
-// label switches to its short form at the same terminal width.
+// Terminal-width tiers shared by every usage bar (ApiUsage Session/Weekly/
+// Context and the per-model usage widgets), so labels and bar widths switch
+// at the same terminal width and bars line up in one view.
 const MOBILE_WIDTH_THRESHOLD = 134;
+const MEDIUM_WIDTH_THRESHOLD = 178;
+const MOBILE_BAR_WIDTH = 4;
+const MEDIUM_BAR_WIDTH = 8;
+const DEFAULT_BAR_WIDTH = 16;
+
+export type DisplaySize = 'mobile' | 'medium' | 'full';
+
+export function getDisplaySize(context: RenderContext): DisplaySize {
+    const w = context.terminalWidth ?? 0;
+    if (w > 0 && w < MOBILE_WIDTH_THRESHOLD)
+        return 'mobile';
+    if (w >= MOBILE_WIDTH_THRESHOLD && w < MEDIUM_WIDTH_THRESHOLD)
+        return 'medium';
+    return 'full';
+}
+
+export function getBarWidth(size: DisplaySize): number {
+    if (size === 'mobile')
+        return MOBILE_BAR_WIDTH;
+    if (size === 'medium')
+        return MEDIUM_BAR_WIDTH;
+    return DEFAULT_BAR_WIDTH;
+}
 
 export function getUsageLabel(context: RenderContext, label: string, shortLabel: string): string {
     const width = context.terminalWidth ?? 0;
@@ -83,8 +107,14 @@ export function makeSliderBar(percent: number, width: number = SLIDER_WIDTH, opt
     return bar;
 }
 
-export function getUsageProgressBarWidth(mode: UsageDisplayMode): number {
-    return mode === 'progress' ? 32 : mode === 'progress-short' ? 16 : 10;
+// On narrow terminals every bar collapses to the shared tier width, so a
+// progress-mini bar is never wider than the Session/Weekly bars beside it.
+export function getUsageProgressBarWidth(mode: UsageDisplayMode, context?: RenderContext): number {
+    const modeWidth = mode === 'progress' ? 32 : mode === 'progress-short' ? 16 : 10;
+    if (!context)
+        return modeWidth;
+    const size = getDisplaySize(context);
+    return size === 'full' ? modeWidth : getBarWidth(size);
 }
 
 export function isUsageInverted(item: WidgetItem): boolean {

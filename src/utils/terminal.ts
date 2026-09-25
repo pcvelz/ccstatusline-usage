@@ -33,11 +33,15 @@ export function getPackageVersion(): string {
 }
 
 function probeTerminalWidth(): number | null {
-    // In tmux, use pane width — most accurate for the actual visible area
+    // In tmux, use pane width — most accurate for the actual visible area.
+    // Target $TMUX_PANE: without -t, tmux reports the ACTIVE pane of the
+    // attached client, so a background session renders at another pane's width.
     if (process.env.TMUX) {
+        const pane = process.env.TMUX_PANE;
+        const target = pane && /^%\d+$/.test(pane) ? ` -t '${pane}'` : '';
         try {
             const output = execSync(
-                'tmux display-message -p \'#{pane_width}\'',
+                `tmux display-message -p${target} '#{pane_width}'`,
                 { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], timeout: 2000 }
             ).trim();
             const parsed = parseInt(output, 10);

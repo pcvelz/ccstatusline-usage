@@ -14,7 +14,10 @@ const STATE_COLORS: Record<SlotWord, string> = {
     TURN: 'brightBlack',
     FLAT: 'red',
     NONE: 'brightBlack',
-    UNKNOWN: 'brightRed'
+    UNKNOWN: 'brightRed',
+    LOADING: 'yellow',
+    HOT: 'cyan',
+    IDLE: 'brightBlack'
 };
 
 const ANSI_FG: Record<string, string> = {
@@ -52,7 +55,14 @@ export class SlotStatusWidget implements Widget {
 
         const word: SlotWord = llamaData.lane?.word ?? 'NONE';
         const colored = this.colorText(word, STATE_COLORS[word]);
-        return item.rawValue ? colored : `State: ${colored}`;
+
+        // The contract's numeric priority (tier rank): rendered compactly as
+        // Pn, only when it carries real information (present and nonzero -
+        // the default tier's rank 0 is not worth the noise).
+        const priority = llamaData.lane?.priority;
+        const priorityText = typeof priority === 'number' && priority !== 0 ? ` P${priority}` : '';
+
+        return item.rawValue ? `${colored}${priorityText}` : `State: ${colored}${priorityText}`;
     }
 
     private colorText(text: string, color: string): string {
