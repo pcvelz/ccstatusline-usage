@@ -10,3 +10,8 @@ docs/WINDOWS.md
 # publishes manually via the /release skill, so this would double-publish and
 # create conflicting GitHub releases. Hardcodes upstream repo/package names too.
 .github/workflows/publish.yml
+
+# Upstream's agent-readable summary: points at the upstream npm package and at
+# docs/USAGE.md / docs/WINDOWS.md, which the fork deletes. Would send agents to
+# the upstream package instead of ccstatusline-usage.
+llms.txt

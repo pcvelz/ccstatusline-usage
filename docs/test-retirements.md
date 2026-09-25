@@ -7,6 +7,14 @@ A test file whose `expect(` count went down must be listed here by its
 backticked path with the reason (the `###` file headings count). Entries must
 be backticked: the gate matches `` `title` `` / `` `path` ``, not bare text.
 
+## v2.4.18 -> upstream merge (14 commits)
+
+- `uses h to toggle reset timer hour format in timestamp mode`: upstream #542 moved the hour-format toggle to `f` (`h` now hides placeholders); same assertion as "uses f to toggle reset timer hour format in timestamp mode".
+- `absent when fable placeholder (percent 0, no resets_at)`: semantics deliberately replaced by upstream #534 - a model-scoped 0% entry with no resets_at is real zero usage. Replaced by "treats a model-scoped weekly limit at 0% with no resets_at as real zero usage, not a placeholder".
+- `treats a placeholder fable window as conclusive when core usage fields are present`: same #534 change; replaced by "parses an unused fable quota (0%, no resets_at) as real zero usage and serves it from cache" (asserts `weeklyFableUsage: 0`, cached).
+- `widgets declaring hideable states leave the shared hide key free`: renamed upstream to "widgets declaring hideable states leave the shared hide key free in every mode", which also covers every display mode.
+- `src/utils/__tests__/usage-fetch.test.ts`: upstream carries "treats a missing fable window as conclusive when core usage fields are present" twice; the second copy used upstream's `fableUsage` field, absent in the fork, so the duplicate was dropped (the first copy keeps the assertions on `weeklyFableUsage`).
+
 ## v2.4.14 -> upstream merge, found by the widened gate
 
 The first version of the gate only saw single-quoted `it('...')` titles and

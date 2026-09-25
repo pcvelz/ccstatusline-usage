@@ -81,6 +81,7 @@ describe('WeeklyFableUsageWidget', () => {
         expectedRawInvertedTime: '57.9%',
         expectedRawTime: '42.1%',
         expectedTime: 'Fable: 42.1%',
+        expectedWholePercentTime: 'Fable: 42%',
         modifierItem: {
             id: 'weekly-fable',
             type: 'weekly-fable-usage',

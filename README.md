@@ -354,6 +354,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 - **🔗 Git widget link modes (v2.2.6)** - `Git Branch` can render clickable GitHub branch links, and `Git Root Dir` can render clickable IDE links for VS Code and Cursor.
 - **🤝 Better subagent-aware speed reporting** - Token speed calculations continue to include referenced subagent activity so displayed speeds better reflect actual concurrent work.
 
+<br />
+<details>
+<summary><b>Older updates (v2.2.12 and earlier)</b></summary>
+
 ### v2.2.9 - v2.2.12 - GitLab support, reset timers, context, compaction, and git widgets
 
 - **🦊 GitLab PR/MR support** - `Git Branch` and `Git PR/MR` now support GitHub, GitLab, and compatible self-hosted remotes, using `gh` or `glab` as appropriate.
@@ -373,10 +377,6 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 - **🏷️ Cleaner model display** - The Model widget strips trailing context suffixes like `(1M context)`; use `Context Window` when you want the total window size shown.
 - **🧹 Cleaner empty-widget separators** - Manual separators now collapse around widgets that render empty, avoiding dangling separators when hide-when-empty widgets disappear.
 - **🧱 More resilient Git helpers** - Git widgets handle missing or unusual git command output more defensively.
-
-<br />
-<details>
-<summary><b>Older updates (v2.2.8 and earlier)</b></summary>
 
 ### v2.2.8 - Git widgets, smarter picker search, and minimalist mode
 

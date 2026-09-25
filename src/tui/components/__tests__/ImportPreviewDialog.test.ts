@@ -106,6 +106,7 @@ describe('ImportPreviewDialog helpers', () => {
         const stderr = createMockStdout();
         const current: Settings = {
             ...DEFAULT_SETTINGS,
+            // Fork default is full-minus-40, so the non-default side is full.
             flexMode: 'full'
         };
         const instance = render(React.createElement(ImportPreviewDialog, {
