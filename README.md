@@ -33,6 +33,7 @@ This fork adds API-based usage widgets beyond the upstream:
 - **Reset Timer** - Time until weekly reset (when at 100% / on a charged model); otherwise time until 5-hour session window resets
 - **Chat Ref** - The name other Claude Code sessions use to address this one, resolved from the local session registry
 - **Context Window Display** - Visual bar showing context usage
+- **Cache Minutes** - Minutes left on the prompt cache (`Cache: 42 min`, `C: 42m`), TTL auto-detected from the transcript, red near expiry
 - **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace (optional Off Hours window subtracts sleep time from the expected % calc)
 - **Off Peak** - Optional widget showing peak/off-peak status with countdown timer
 - **Two-line Layout** - Session info on line 1, context on line 2
@@ -62,11 +63,11 @@ This fork adds API-based usage widgets beyond the upstream:
 
 ### Enhanced Status Line Preview
 
-The default layout, out of the box. On a narrow terminal the labels shorten automatically (`Session ID:` becomes `S:`, `Chat ref:` becomes `R:`):
+The default layout, out of the box. On a narrow terminal the labels shorten automatically (`Session ID:` becomes `S:`, `Chat ref:` becomes `R:`, `Cache:` becomes `C:`):
 
 ```
-Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | 2:03 hr | B: 72% | Model: Fable 5 | Session ID: 0109b99d... | Chat ref: my-project-a1
-  Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8% | Fable: [███████░░░] 68.0%
+Session: [████░░░░░░░░░░░] 27.0% | Weekly: [████░░░░░░░░░░░] 34.0% | Fable: [███░░░░░░░] 22.0% | 2:03 hr | B: 72% | Model: Opus 4.7 | Session ID: 0109b99d... | Chat ref: my-project-a1
+  Context: [██████░░░░░░░░░] 389k/1M (39%) | Pace: [░░░░░░█|░░░░░░░] D4/7 -8% | Cache: 42 min
 ```
 
 ![Demo](https://raw.githubusercontent.com/sirmalloc/ccstatusline/main/screenshots/demo.gif)
@@ -90,6 +91,15 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 <br />
 
 ## 🆕 Recent Updates
+
+### [v2.5.0](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.0) - Cache minutes, Fable beside Weekly, quieter Chat ref
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache minutes** - Cache Timer now shows just the minutes left (`Cache: 42 min`, `C: 42m`), no emoji or HOT, on line 2 by default; red at 5 min left on a 1h cache, 2 min on a 5m cache (`w` to change, `e` for upstream's emoji countdown).
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Exact cache expiry** - Cache Timer counts down from Claude Code's own `prompt_cache.expires_at`, falling back to the 1h/5m tier read from the transcript.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Quieter Chat ref** - hidden when it equals the session title (`session_name`), which the prompt border already shows.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Weekly Pace per model** - `s` picks the bucket Pace measures (weekly, Sonnet, Opus, Fable), and a Sonnet/Opus bucket the account never reports no longer leaves `[Timeout]` stuck. Thanks to @alexbartok ([#10](https://github.com/pcvelz/ccstatusline-usage/pull/10)).
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Default layout** - Fable moves next to Weekly on line 1; `config/default-settings.json` mirrors the defaults so a config can symlink to it.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Locale/timezone editor fix** - Enter now picks from what you just typed, even when it arrives before the screen redraws.
 
 ### [v2.4.18](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.4.18) - Session-state contract + narrow-layout fixes
 
@@ -828,6 +838,8 @@ bun run example
 - **Link** - Displays a clickable terminal hyperlink using OSC 8
 - **Claude Session ID** - Shows the current Claude Code session ID from status JSON
 - **Session Name** - Shows the session name set via `/rename` in Claude Code
+- **Chat Ref** *(ccstatusline-usage)* - Shows the address other sessions use to message this one (`Chat ref:` / `R:`); hidden when it equals the user-set session title
+- **Cache Timer** - Minutes left on the prompt cache; *(ccstatusline-usage)* shows `Cache: 42 min` / `C: 42m`, red near expiry, TTL auto-detected; emoji countdown opt-in
 - **Memory Usage** - Shows system memory usage (used/total)
 - **Battery** *(ccstatusline-usage)* - Shows battery percentage on macOS and Linux (only visible when on battery power, hidden when charging)
 - **Session Usage** - Shows daily/session API usage percentage
@@ -928,6 +940,7 @@ Widget-specific shortcuts:
 - **Block Reset Timer**: `p` cycle display mode (time/full bar/short bar)
 - **Weekly Reset Timer**: `p` cycle display mode (time/full bar/short bar)
 - **Weekly Pace**: `p` toggle pendulum bar / text label
+- **Cache Timer**: `t` cycle TTL 5m/1h (unset = auto-detect), `w` cycle warn threshold, `e` toggle emoji countdown
 - **Current Working Dir**: `h` home abbreviation, `s` segment editor, `f` fish-style path
 - **Custom Command**: `e` command, `w` max width, `t` timeout, `p` preserve ANSI colors
 - **Link**: `u` URL, `e` link text

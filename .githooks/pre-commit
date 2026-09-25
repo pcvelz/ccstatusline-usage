@@ -11,6 +11,8 @@ STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
 
 echo "$STAGED" | grep -Eq '^src/.*\.(ts|tsx|json)$' || exit 0
 
+sh scripts/wait-for-quiet-load.sh pre-commit || exit 1
+
 echo "[pre-commit] src/ changes staged - running bun test..."
 if ! bun test; then
     echo "[pre-commit] BLOCKED: bun test failed. Fix the suite before committing." >&2

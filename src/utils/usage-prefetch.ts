@@ -9,6 +9,7 @@ import { resolveProvider } from './usage/resolver';
 import type { UsageDataField } from './usage-types';
 import {
     WEEKLY_MODEL_USAGE_BUCKETS,
+    getWeeklyPaceSource,
     setUsageField
 } from './usage-types';
 
@@ -53,14 +54,30 @@ interface UsageFieldRequirement {
 
 const EMPTY_USAGE_REQUIREMENTS: UsageFieldRequirement[] = [];
 
-const USAGE_WIDGET_REQUIREMENTS: Record<string, UsageFieldRequirement[]> = {
+// Most widgets need the same fields whatever their metadata says, so a plain
+// array is enough. Weekly Pace is the exception: its `source` metadata picks
+// which weekly bucket it measures, so it resolves its fields per item.
+type UsageWidgetRequirements = UsageFieldRequirement[] | ((item: WidgetItem) => UsageFieldRequirement[]);
+
+// One shape for every source. For the overall bucket the `alternatives` entry
+// names the field it already is, so it is a no-op rather than a second path.
+function getWeeklyPaceRequirements(item: WidgetItem): UsageFieldRequirement[] {
+    const source = getWeeklyPaceSource(item.metadata?.source);
+
+    return [
+        { field: source.usageField },
+        { field: source.resetField, alternatives: ['weeklyResetAt'] }
+    ];
+}
+
+const USAGE_WIDGET_REQUIREMENTS: Record<string, UsageWidgetRequirements> = {
     'session-usage': [{ field: 'sessionUsage' }],
     'weekly-usage': [{ field: 'weeklyUsage' }],
     ...Object.fromEntries(WEEKLY_MODEL_USAGE_BUCKETS.map(bucket => [bucket.widgetType, [{ field: bucket.usageField }]])),
     'block-timer': [{ field: 'sessionResetAt', suppressFetchError: true }],
     'reset-timer': [{ field: 'sessionResetAt', suppressFetchError: true }],
     'weekly-reset-timer': [{ field: 'weeklyResetAt', suppressFetchError: true }],
-    'weekly-pace': [{ field: 'weeklyUsage' }, { field: 'weeklyResetAt' }],
+    'weekly-pace': getWeeklyPaceRequirements,
     'extra-usage-utilization': [
         { field: 'extraUsageEnabled' },
         { field: 'extraUsageUtilization' }
@@ -95,7 +112,8 @@ function getUsageFieldRequirements(lines: WidgetItem[][]): UsageFieldRequirement
 
     for (const line of lines) {
         for (const item of line) {
-            requirements.push(...(USAGE_WIDGET_REQUIREMENTS[item.type] ?? EMPTY_USAGE_REQUIREMENTS));
+            const widgetRequirements = USAGE_WIDGET_REQUIREMENTS[item.type] ?? EMPTY_USAGE_REQUIREMENTS;
+            requirements.push(...(typeof widgetRequirements === 'function' ? widgetRequirements(item) : widgetRequirements));
 
             const cursorRequirement = USAGE_CURSOR_REQUIREMENTS[item.type];
             if (cursorRequirement && isUsageCursorEnabled(item)) {

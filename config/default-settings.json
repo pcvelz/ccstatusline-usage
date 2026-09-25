@@ -1,0 +1,153 @@
+{
+  "version": 4,
+  "lines": [
+    [
+      {
+        "id": "session-usage",
+        "type": "session-usage",
+        "color": "brightBlue"
+      },
+      {
+        "id": "sep1",
+        "type": "separator"
+      },
+      {
+        "id": "weekly-usage",
+        "type": "weekly-usage",
+        "color": "brightBlue"
+      },
+      {
+        "id": "sep-fable",
+        "type": "separator"
+      },
+      {
+        "id": "weekly-fable-usage",
+        "type": "weekly-fable-usage",
+        "color": "magenta",
+        "metadata": {
+          "display": "progress-mini"
+        }
+      },
+      {
+        "id": "sep2",
+        "type": "separator"
+      },
+      {
+        "id": "reset-timer",
+        "type": "reset-timer",
+        "color": "brightBlue"
+      },
+      {
+        "id": "sep-battery",
+        "type": "separator"
+      },
+      {
+        "id": "battery",
+        "type": "battery",
+        "color": "yellow"
+      },
+      {
+        "id": "sep3",
+        "type": "separator"
+      },
+      {
+        "id": "model",
+        "type": "model",
+        "color": "magenta"
+      },
+      {
+        "id": "sep4",
+        "type": "separator"
+      },
+      {
+        "id": "session-id",
+        "type": "claude-session-id",
+        "color": "cyan"
+      },
+      {
+        "id": "sep-chatref",
+        "type": "separator"
+      },
+      {
+        "id": "chat-ref",
+        "type": "agent-address",
+        "color": "cyan"
+      }
+    ],
+    [
+      {
+        "id": "context-bar",
+        "type": "context-bar",
+        "color": "blue"
+      },
+      {
+        "id": "sep-weekly-pace",
+        "type": "separator"
+      },
+      {
+        "id": "weekly-pace",
+        "type": "weekly-pace",
+        "color": "brightBlue",
+        "metadata": {
+          "display": "pendulum"
+        }
+      },
+      {
+        "id": "sep-cache",
+        "type": "separator"
+      },
+      {
+        "id": "cache-timer",
+        "type": "cache-timer",
+        "color": "cyan"
+      },
+      {
+        "id": "sep-slot1",
+        "type": "separator"
+      },
+      {
+        "id": "slot-status",
+        "type": "slot-status",
+        "color": "green"
+      },
+      {
+        "id": "sep-slot2",
+        "type": "separator"
+      },
+      {
+        "id": "slot-throughput",
+        "type": "slot-throughput",
+        "color": "cyan"
+      }
+    ],
+    []
+  ],
+  "flexMode": "full-minus-40",
+  "compactThreshold": 60,
+  "colorLevel": 2,
+  "defaultPaddingSide": "both",
+  "inheritSeparatorColors": false,
+  "globalBold": false,
+  "gitCacheTtlSeconds": 5,
+  "terminalWidthCacheTtlSeconds": 5,
+  "customCommandCacheTtlSeconds": 0,
+  "minimalistMode": false,
+  "powerline": {
+    "enabled": false,
+    "separators": [
+      ""
+    ],
+    "separatorInvertBackground": [
+      false
+    ],
+    "startCaps": [],
+    "endCaps": [],
+    "autoAlign": false,
+    "continueThemeAcrossLines": false
+  },
+  "offHours": {
+    "enabled": false,
+    "startMinutes": 1320,
+    "endMinutes": 420
+  }
+}

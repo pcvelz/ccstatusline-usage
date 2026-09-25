@@ -53,6 +53,10 @@ interface TranscriptEntry {
         usage?: {
             cache_read_input_tokens?: number;
             cache_creation_input_tokens?: number;
+            cache_creation?: {
+                ephemeral_5m_input_tokens?: number;
+                ephemeral_1h_input_tokens?: number;
+            };
         };
     };
 }
@@ -95,7 +99,21 @@ function readFileTail(filePath: string, bytes: number): { text: string; isComple
     }
 }
 
-type TranscriptState = { isWorking: true } | { isWorking: false; lastAssistant: Date | null };
+// The TTL tier Claude Code actually wrote on this request, read from the
+// per-tier cache_creation breakdown. Undefined when the row wrote nothing
+// (pure cache read) or predates the breakdown.
+function detectTtlSeconds(entry: TranscriptEntry): number | undefined {
+    const creation = entry.message?.usage?.cache_creation;
+    if ((creation?.ephemeral_1h_input_tokens ?? 0) > 0) {
+        return 3600;
+    }
+    if ((creation?.ephemeral_5m_input_tokens ?? 0) > 0) {
+        return 300;
+    }
+    return undefined;
+}
+
+type TranscriptState = { isWorking: true; detectedTtl?: number } | { isWorking: false; lastAssistant: Date | null; detectedTtl?: number };
 
 /**
  * Find the cache state from the newest main-chain rows in the transcript tail.
@@ -131,6 +149,7 @@ function scanTailForState(tail: string): TranscriptState | null {
     // row belongs to a previous exchange and must not report HOT while the
     // scan keeps looking for the newest row with real cache activity.
     let turnFinished = false;
+    let working = false;
     for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) {
@@ -152,27 +171,33 @@ function scanTailForState(tail: string): TranscriptState | null {
                 if (entry.isApiErrorMessage !== true && hasCacheActivity(entry) && entry.timestamp) {
                     const parsed = new Date(entry.timestamp);
                     if (!Number.isNaN(parsed.getTime())) {
-                        return { isWorking: false, lastAssistant: parsed };
+                        const detectedTtl = detectTtlSeconds(entry);
+                        return working
+                            ? { isWorking: true, detectedTtl }
+                            : { isWorking: false, lastAssistant: parsed, detectedTtl };
                     }
                 }
                 continue;
             }
+            // In flight: keep scanning only to learn the TTL tier from the
+            // previous anchor, so a working turn can show the full TTL.
             if (entry.type === 'user' && !turnFinished) {
-                return { isWorking: true };
+                working = true;
             }
         } catch {
             continue;
         }
     }
-    return null;
+    return working ? { isWorking: true } : null;
 }
 
-// The configured TTL in seconds. Defaults to 5 minutes; the (t)tl keybind cycles
-// 5m/1h, and any other positive value can be set directly in settings.json.
-function getTtlSeconds(item: WidgetItem): number {
+// The configured TTL in seconds. When unset, the tier detected from the
+// transcript wins, else 5 minutes; the (t)tl keybind cycles 5m/1h, and any
+// other positive value can be set directly in settings.json.
+function getTtlSeconds(item: WidgetItem, detectedTtl?: number): number {
     const raw = item.metadata?.[TTL_METADATA_KEY];
     if (raw === undefined) {
-        return DEFAULT_TTL_SECONDS;
+        return detectedTtl ?? DEFAULT_TTL_SECONDS;
     }
     const parsed = Number.parseInt(raw, 10);
     return Number.isFinite(parsed) && parsed > SAFETY_MARGIN ? parsed : DEFAULT_TTL_SECONDS;
@@ -227,14 +252,113 @@ function getStateSymbol(item: WidgetItem, remaining: number, ttlSeconds: number)
     return getSlotSymbol(item, URGENT_SLOT);
 }
 
+// Fork default display (deliberate deviation from upstream): whole minutes
+// only, no glyph and no HOT word (mid-turn shows the full TTL, expired shows
+// COLD), `Cache: 42 min` longhand or `C: 42m` on narrow terminals, turning red
+// once the remaining time drops to the warn threshold. The threshold defaults
+// to 5 minutes on a 1h cache and 2 minutes on a 5m cache; `warnSeconds` in
+// metadata overrides it and the (w)arn keybind cycles the presets.
+// Upstream's emoji countdown is opt-in: metadata display: 'glyphs', toggled
+// with the (g)lyphs keybind.
+const DISPLAY_METADATA_KEY = 'display';
+const GLYPHS_DISPLAY = 'glyphs';
+const TOGGLE_GLYPHS_ACTION = 'toggle-glyphs';
+const WARN_METADATA_KEY = 'warnSeconds';
+const WARN_OPTIONS = [60, 120, 300, 600] as const;
+const TOGGLE_WARN_ACTION = 'toggle-warn';
+const COMPACT_WIDTH_THRESHOLD = 178;
+const ANSI_RED = '\x1b[31m';
+const ANSI_FG_RESET = '\x1b[39m';
+
+function isMinutesDisplay(item: WidgetItem): boolean {
+    return item.metadata?.[DISPLAY_METADATA_KEY] !== GLYPHS_DISPLAY;
+}
+
+function toggleGlyphs(item: WidgetItem): WidgetItem {
+    if (!isMinutesDisplay(item)) {
+        return removeMetadataKeys(item, [DISPLAY_METADATA_KEY]);
+    }
+    return {
+        ...item,
+        metadata: {
+            ...item.metadata,
+            [DISPLAY_METADATA_KEY]: GLYPHS_DISPLAY
+        }
+    };
+}
+
+function getWarnSeconds(item: WidgetItem, ttlSeconds: number): number {
+    const parsed = Number.parseInt(item.metadata?.[WARN_METADATA_KEY] ?? '', 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+    }
+    return ttlSeconds >= 3600 ? 300 : 120;
+}
+
+function cycleWarn(item: WidgetItem): WidgetItem {
+    const raw = item.metadata?.[WARN_METADATA_KEY];
+    const index = raw === undefined ? -1 : (WARN_OPTIONS as readonly number[]).indexOf(Number.parseInt(raw, 10));
+    const next = WARN_OPTIONS[index + 1];
+    if (next === undefined) {
+        return removeMetadataKeys(item, [WARN_METADATA_KEY]);
+    }
+    return {
+        ...item,
+        metadata: {
+            ...item.metadata,
+            [WARN_METADATA_KEY]: String(next)
+        }
+    };
+}
+
+function renderMinutes(item: WidgetItem, context: RenderContext, value: string, warn: boolean): string {
+    const width = context.terminalWidth ?? 0;
+    const compact = width > 0 && width < COMPACT_WIDTH_THRESHOLD;
+    const text = compact ? value.replace(' min', 'm') : value;
+    const colored = warn ? `${ANSI_RED}${text}${ANSI_FG_RESET}` : text;
+    if (item.rawValue) {
+        return colored;
+    }
+    return `${compact ? 'C: ' : 'Cache: '}${colored}`;
+}
+
+function parsePayloadTtl(ttl: string | null | undefined): number | undefined {
+    if (ttl === '1h') {
+        return 3600;
+    }
+    if (ttl === '5m') {
+        return 300;
+    }
+    return undefined;
+}
+
+// Claude Code reports its own cache expiry in the status payload
+// (prompt_cache.expires_at, unix seconds). When present it is exact, so it
+// beats the transcript estimate; undefined means "no payload data, fall back".
+function renderFromPromptCache(item: WidgetItem, context: RenderContext): string | undefined {
+    const cache = context.data?.prompt_cache;
+    const expiresAt = cache?.expires_at;
+    if (typeof expiresAt !== 'number') {
+        return undefined;
+    }
+    const ttlSeconds = parsePayloadTtl(cache?.ttl) ?? getTtlSeconds(item);
+    const remaining = expiresAt - Date.now() / 1000;
+    const warn = remaining > 0 && remaining <= getWarnSeconds(item, ttlSeconds);
+    return renderMinutes(item, context, formatMinutes(remaining), warn);
+}
+
+function formatMinutes(remaining: number): string {
+    return remaining <= 0 ? 'COLD' : `${Math.ceil(remaining / 60)} min`;
+}
+
 // Joins a glyph to its countdown; a blanked glyph collapses the leading space.
 function withGlyph(symbol: string, text: string): string {
     return symbol.length > 0 ? `${symbol} ${text}` : text;
 }
 
 export class CacheTimerWidget implements Widget {
-    getDefaultColor(): string { return 'brightCyan'; }
-    getDescription(): string { return 'Shows time remaining on the prompt cache TTL (5m by default, 1h configurable)'; }
+    getDefaultColor(): string { return 'cyan'; }
+    getDescription(): string { return 'Shows minutes left on the prompt cache (TTL auto-detected, red near expiry)'; }
     getDisplayName(): string { return 'Cache Timer'; }
     getCategory(): string { return 'Session'; }
 
@@ -244,6 +368,10 @@ export class CacheTimerWidget implements Widget {
         const ttlSeconds = getTtlSeconds(item);
         if (ttlSeconds !== DEFAULT_TTL_SECONDS) {
             modifiers.push(`ttl ${formatTtlLabel(ttlSeconds)}`);
+        }
+        const warnRaw = item.metadata?.[WARN_METADATA_KEY];
+        if (warnRaw !== undefined) {
+            modifiers.push(`warn ${formatTtlLabel(Number.parseInt(warnRaw, 10))}`);
         }
         return {
             displayText: this.getDisplayName(),
@@ -259,6 +387,12 @@ export class CacheTimerWidget implements Widget {
         if (action === TOGGLE_TTL_ACTION) {
             return cycleTtl(item);
         }
+        if (action === TOGGLE_WARN_ACTION) {
+            return cycleWarn(item);
+        }
+        if (action === TOGGLE_GLYPHS_ACTION) {
+            return toggleGlyphs(item);
+        }
 
         return null;
     }
@@ -266,28 +400,52 @@ export class CacheTimerWidget implements Widget {
     render(item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
         const hideWhenEmpty = isHidden(item, CACHE_EMPTY_HIDEABLE_STATE.key);
 
+        const minutes = isMinutesDisplay(item);
+
         if (context.isPreview) {
+            if (minutes) {
+                return renderMinutes(item, context, '42 min', false);
+            }
             return formatRawOrLabeledValue(item, 'Cache: ', withGlyph(getSlotSymbol(item, FRESH_SLOT), '4:52'));
+        }
+
+        // The number-only display never shows a word for missing data: it hides.
+        const hideEmpty = hideWhenEmpty || minutes;
+
+        if (minutes) {
+            const fromPayload = renderFromPromptCache(item, context);
+            if (fromPayload !== undefined) {
+                return fromPayload;
+            }
         }
 
         const transcriptPath = context.data?.transcript_path;
         if (!transcriptPath) {
-            return hideWhenEmpty ? null : formatRawOrLabeledValue(item, 'Cache: ', 'n/a');
+            return hideEmpty ? null : formatRawOrLabeledValue(item, 'Cache: ', 'n/a');
         }
 
         const state = getTranscriptState(transcriptPath);
 
         if (state.isWorking) {
+            if (minutes) {
+                // Mid-turn the cache was just refreshed: the full TTL is left.
+                const ttlSeconds = getTtlSeconds(item, state.detectedTtl);
+                return renderMinutes(item, context, formatMinutes(ttlSeconds - SAFETY_MARGIN), false);
+            }
             return formatRawOrLabeledValue(item, 'Cache: ', withGlyph(getSlotSymbol(item, HOT_SLOT), 'HOT'));
         }
 
         const { lastAssistant } = state;
         if (!lastAssistant) {
-            return hideWhenEmpty ? null : formatRawOrLabeledValue(item, 'Cache: ', 'n/a');
+            return hideEmpty ? null : formatRawOrLabeledValue(item, 'Cache: ', 'n/a');
         }
 
-        const ttlSeconds = getTtlSeconds(item);
+        const ttlSeconds = getTtlSeconds(item, state.detectedTtl);
         const remaining = getRemainingSeconds(lastAssistant, ttlSeconds);
+        if (minutes) {
+            const warn = remaining > 0 && remaining <= getWarnSeconds(item, ttlSeconds);
+            return renderMinutes(item, context, formatMinutes(remaining), warn);
+        }
         const glyph = getStateSymbol(item, remaining, ttlSeconds);
 
         return formatRawOrLabeledValue(item, 'Cache: ', withGlyph(glyph, formatCountdown(remaining)));
@@ -296,6 +454,8 @@ export class CacheTimerWidget implements Widget {
     getCustomKeybinds(): CustomKeybind[] {
         return [
             { key: 't', label: '(t)tl', action: TOGGLE_TTL_ACTION },
+            { key: 'w', label: '(w)arn', action: TOGGLE_WARN_ACTION },
+            { key: 'e', label: '(e)moji', action: TOGGLE_GLYPHS_ACTION },
             getSymbolKeybind()
         ];
     }

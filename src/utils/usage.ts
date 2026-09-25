@@ -12,6 +12,8 @@ export {
     resolveUsageWindowWithFallback,
     resolveWeeklyFableUsageWindow,
     resolveWeeklyOpusUsageWindow,
+    resolveWeeklyPaceResetAt,
+    resolveWeeklyPaceWindow,
     resolveWeeklySonnetUsageWindow,
     resolveWeeklyUsageWindow
 } from './usage-windows';

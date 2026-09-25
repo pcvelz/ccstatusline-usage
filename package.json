@@ -1,6 +1,6 @@
 {
   "name": "ccstatusline-usage",
-  "version": "2.4.18",
+  "version": "2.5.0",
   "bugs": {
     "url": "https://github.com/pcvelz/ccstatusline-usage/issues"
   },
@@ -24,7 +24,7 @@
   "scripts": {
     "start": "bun run src/ccstatusline.ts",
     "build": "rm -rf dist/* ; bun build src/ccstatusline.ts --target=node --splitting --format=esm --outdir=dist --target-version=14",
-    "postbuild": "bun run scripts/replace-version.ts",
+    "postbuild": "bun run scripts/replace-version.ts && bun run scripts/write-default-settings.ts",
     "example": "cat scripts/payload.example.json | bun start",
     "video:studio": "remotion studio remotion/index.ts",
     "video:still": "remotion still remotion/index.ts ccstatusline-tui-demo out/ccstatusline-tui-demo.png --frame=700 --scale=0.5",

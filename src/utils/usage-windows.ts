@@ -4,9 +4,11 @@ import { getCachedBlockMetrics } from './jsonl';
 import {
     FIVE_HOUR_BLOCK_MS,
     SEVEN_DAY_WINDOW_MS,
+    getUsageStringField,
     type UsageData,
     type UsageError,
-    type UsageWindowMetrics
+    type UsageWindowMetrics,
+    type WeeklyPaceSource
 } from './usage-types';
 
 function clamp(value: number, min: number, max: number): number {
@@ -99,6 +101,16 @@ export function resolveWeeklyOpusUsageWindow(usageData: UsageData, nowMs = Date.
 
 export function resolveWeeklyFableUsageWindow(usageData: UsageData, nowMs = Date.now()): UsageWindowMetrics | null {
     return getWeeklyUsageWindowFromResetAt(usageData.weeklyFableResetAt ?? usageData.weeklyResetAt, nowMs);
+}
+
+// Per-model weekly buckets do not always carry their own resets_at, so the
+// overall weekly reset is the fallback, matching the per-model usage widgets.
+export function resolveWeeklyPaceResetAt(usageData: UsageData, source: WeeklyPaceSource): string | undefined {
+    return getUsageStringField(usageData, source.resetField) ?? usageData.weeklyResetAt;
+}
+
+export function resolveWeeklyPaceWindow(usageData: UsageData, source: WeeklyPaceSource, nowMs = Date.now()): UsageWindowMetrics | null {
+    return getWeeklyUsageWindowFromResetAt(resolveWeeklyPaceResetAt(usageData, source), nowMs);
 }
 
 export function formatUsageDuration(durationMs: number, compact = false, useDays = true): string {

@@ -52,6 +52,8 @@ if ! bun run lint; then
     exit 1
 fi
 
+sh scripts/wait-for-quiet-load.sh pre-push || exit 1
+
 echo "[pre-push] running bun test..."
 if ! bun test; then
     echo "[pre-push] BLOCKED: tests failed - the pipeline would fail identically." >&2

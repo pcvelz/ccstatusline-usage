@@ -5,7 +5,7 @@ import type {
     WidgetEditorDisplay,
     WidgetItem
 } from '../types/Widget';
-import { getSessionAddress } from '../utils/session-registry';
+import { getSessionEntry } from '../utils/session-registry';
 
 export class AgentAddressWidget implements Widget {
     getDefaultColor(): string { return 'cyan'; }
@@ -26,8 +26,13 @@ export class AgentAddressWidget implements Widget {
             return null;
         }
 
-        const name = getSessionAddress(sessionId);
-        if (!name) {
+        const entry = getSessionEntry(sessionId);
+        const name = entry?.name;
+        // A name identical to the session title is already shown in the prompt
+        // border, so repeating it adds nothing. Only distinct refs are shown.
+        // session_name is the title from the payload; nameSource 'user' covers
+        // payloads that predate that field.
+        if (!name || name === context.data?.session_name || entry.nameSource === 'user') {
             return null;
         }
 

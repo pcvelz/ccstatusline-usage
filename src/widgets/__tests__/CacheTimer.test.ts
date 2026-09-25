@@ -14,7 +14,14 @@ import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { WidgetItem } from '../../types/Widget';
 import { CacheTimerWidget } from '../CacheTimer';
 
-const item = (extra: Partial<WidgetItem> = {}): WidgetItem => ({ id: 'cache-timer', type: 'cache-timer', ...extra });
+// Upstream's glyph countdown is opt-in in the fork (display: 'glyphs'); these
+// suites exercise it, the 'minutes display' suite covers the fork default.
+const item = (extra: Partial<WidgetItem> = {}): WidgetItem => ({
+    id: 'cache-timer',
+    type: 'cache-timer',
+    ...extra,
+    metadata: { display: 'glyphs', ...extra.metadata }
+});
 const hidden: Partial<WidgetItem> = { metadata: { hide: 'empty' } };
 
 const isoAgo = (seconds: number): string => new Date(Date.now() - seconds * 1000).toISOString();
@@ -177,6 +184,8 @@ describe('CacheTimer widget', () => {
         const widget = new CacheTimerWidget();
         expect(widget.getCustomKeybinds()).toEqual([
             { key: 't', label: '(t)tl', action: 'toggle-ttl' },
+            { key: 'w', label: '(w)arn', action: 'toggle-warn' },
+            { key: 'e', label: '(e)moji', action: 'toggle-glyphs' },
             { key: 'g', label: '(g)lyph', action: 'edit-symbol-override' }
         ]);
         expect(widget.getHideableStates().map(state => state.key)).toEqual(['empty']);
@@ -232,5 +241,89 @@ describe('CacheTimer widget', () => {
         const widget = new CacheTimerWidget();
         expect(widget.getEditorDisplay(item({ metadata: { ttlSeconds: '3600' } })).modifierText).toBe('(ttl 1h)');
         expect(widget.getEditorDisplay(item({ metadata: { ttlSeconds: '3600', hide: 'empty' } })).modifierText).toBe('(ttl 1h)');
+    });
+
+    describe('minutes display', () => {
+        const RED = '\x1b[31m';
+        const minutes = (extra: Record<string, string> = {}): WidgetItem => item({ metadata: { display: 'minutes', ...extra } });
+        const oneHour = (seconds: number): string => assistantUsage(seconds, { cache_read_input_tokens: 10, cache_creation: { ephemeral_1h_input_tokens: 5 } });
+        const fiveMin = (seconds: number): string => assistantUsage(seconds, { cache_read_input_tokens: 10, cache_creation: { ephemeral_5m_input_tokens: 5 } });
+
+        it('is the default display: no metadata renders minutes, no glyph, and hides without data', () => {
+            const widget = new CacheTimerWidget();
+            const plain: WidgetItem = { id: 'cache-timer', type: 'cache-timer' };
+            expect(widget.render(plain, transcriptContext([oneHour(600)]), DEFAULT_SETTINGS)).toBe('Cache: 50 min');
+            expect(widget.render(plain, transcriptContext([oneHour(600), pendingUser]), DEFAULT_SETTINGS)).toBe('Cache: 60 min');
+            expect(widget.render(plain, {}, DEFAULT_SETTINGS)).toBeNull();
+        });
+
+        it('prefers Claude Code prompt_cache.expires_at over the transcript', () => {
+            const widget = new CacheTimerWidget();
+            const plain: WidgetItem = { id: 'cache-timer', type: 'cache-timer' };
+            const expiresIn = (seconds: number): RenderContext => ({ data: { prompt_cache: { ttl: '1h', expires_at: Date.now() / 1000 + seconds } } });
+            expect(widget.render(plain, expiresIn(46 * 60 - 1), DEFAULT_SETTINGS)).toBe('Cache: 46 min');
+            expect(widget.render(plain, expiresIn(4 * 60), DEFAULT_SETTINGS)).toBe(`Cache: ${RED}4 min\x1b[39m`);
+            expect(widget.render(plain, expiresIn(-10), DEFAULT_SETTINGS)).toBe('Cache: COLD');
+            const fiveMin: RenderContext = { data: { prompt_cache: { ttl: '5m', expires_at: Date.now() / 1000 + 150 } } };
+            expect(widget.render(plain, fiveMin, DEFAULT_SETTINGS)).toBe('Cache: 3 min');
+        });
+
+        it('toggles the emoji countdown on and off with the e keybind', () => {
+            const widget = new CacheTimerWidget();
+            const plain: WidgetItem = { id: 'cache-timer', type: 'cache-timer' };
+            const glyphs = widget.handleEditorAction('toggle-glyphs', plain);
+            expect(glyphs?.metadata?.display).toBe('glyphs');
+            expect(widget.handleEditorAction('toggle-glyphs', glyphs ?? plain)?.metadata?.display).toBeUndefined();
+            expect(widget.getCustomKeybinds().map(k => k.key)).toContain('e');
+        });
+
+        it('detects the 1h tier and shows whole minutes longhand', () => {
+            const widget = new CacheTimerWidget();
+            expect(widget.render(minutes(), transcriptContext([oneHour(600)]), DEFAULT_SETTINGS)).toBe('Cache: 50 min');
+        });
+
+        it('switches to C: <n>m on narrow terminals', () => {
+            const widget = new CacheTimerWidget();
+            const context = { ...transcriptContext([oneHour(600)]), terminalWidth: 100 };
+            expect(widget.render(minutes(), context, DEFAULT_SETTINGS)).toBe('C: 50m');
+        });
+
+        it('turns red within 5 minutes of a 1h expiry', () => {
+            const widget = new CacheTimerWidget();
+            expect(widget.render(minutes(), transcriptContext([oneHour(3400)]), DEFAULT_SETTINGS)).toBe(`Cache: ${RED}4 min\x1b[39m`);
+        });
+
+        it('turns red within 2 minutes of a 5m expiry, not before', () => {
+            const widget = new CacheTimerWidget();
+            expect(widget.render(minutes(), transcriptContext([fiveMin(60)]), DEFAULT_SETTINGS)).toBe('Cache: 4 min');
+            expect(widget.render(minutes(), transcriptContext([fiveMin(200)]), DEFAULT_SETTINGS)).toBe(`Cache: ${RED}2 min\x1b[39m`);
+        });
+
+        it('shows the full detected TTL mid-turn instead of a word', () => {
+            const widget = new CacheTimerWidget();
+            expect(widget.render(minutes(), transcriptContext([oneHour(600), pendingUser]), DEFAULT_SETTINGS)).toBe('Cache: 60 min');
+            expect(widget.render(minutes(), transcriptContext([fiveMin(60), pendingUser]), DEFAULT_SETTINGS)).toBe('Cache: 5 min');
+        });
+
+        it('shows COLD in the regular color once expired', () => {
+            const widget = new CacheTimerWidget();
+            expect(widget.render(minutes(), transcriptContext([fiveMin(400)]), DEFAULT_SETTINGS)).toBe('Cache: COLD');
+        });
+
+        it('honours a configured warn threshold', () => {
+            const widget = new CacheTimerWidget();
+            expect(widget.render(minutes({ warnSeconds: '60' }), transcriptContext([oneHour(3400)]), DEFAULT_SETTINGS)).toBe('Cache: 4 min');
+        });
+
+        it('cycles the warn threshold through presets back to auto', () => {
+            const widget = new CacheTimerWidget();
+            let current: WidgetItem | null = minutes();
+            const seen: (string | undefined)[] = [];
+            for (let i = 0; i < 5; i++) {
+                current = widget.handleEditorAction('toggle-warn', current ?? minutes());
+                seen.push(current?.metadata?.warnSeconds);
+            }
+            expect(seen).toEqual(['60', '120', '300', '600', undefined]);
+        });
     });
 });

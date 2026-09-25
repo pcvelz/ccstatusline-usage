@@ -5,6 +5,7 @@ import {
 } from 'ink';
 import React, {
     useMemo,
+    useRef,
     useState
 } from 'react';
 
@@ -52,12 +53,23 @@ export const UsageTimezoneEditor: React.FC<WidgetEditorProps> = ({ widget, onCom
     const options = useMemo(() => getTimezoneOptions(currentTimezone), [currentTimezone]);
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(() => getInitialSelectedIndex(options, currentTimezone));
+    const queryRef = useRef(query);
+    const indexRef = useRef(selectedIndex);
+    const updateQuery = (next: string) => {
+        queryRef.current = next;
+        indexRef.current = 0;
+        setQuery(next);
+        setSelectedIndex(0);
+    };
+    const updateIndex = (next: number) => {
+        indexRef.current = next;
+        setSelectedIndex(next);
+    };
 
     const filteredOptions = filterTimezoneOptions(options, query);
     const clampedSelectedIndex = filteredOptions.length === 0
         ? 0
         : Math.min(selectedIndex, filteredOptions.length - 1);
-    const selectedOption = filteredOptions[clampedSelectedIndex];
     const visibleRange = getVisibleRange(clampedSelectedIndex, filteredOptions.length);
     const visibleOptions = filteredOptions.slice(visibleRange.start, visibleRange.end);
     const currentLabel = currentTimezone ?? 'UTC';
@@ -68,8 +80,12 @@ export const UsageTimezoneEditor: React.FC<WidgetEditorProps> = ({ widget, onCom
         }
 
         if (key.return) {
-            if (selectedOption) {
-                onComplete(setUsageTimezone(widget, selectedOption.value));
+            // Read the latest input from refs: typed text and Enter can arrive
+            // before a re-render, and the render-time selection would be stale.
+            const latest = filterTimezoneOptions(options, queryRef.current);
+            const option = latest[Math.min(indexRef.current, Math.max(latest.length - 1, 0))];
+            if (option) {
+                onComplete(setUsageTimezone(widget, option.value));
             }
             return;
         }
@@ -84,25 +100,22 @@ export const UsageTimezoneEditor: React.FC<WidgetEditorProps> = ({ widget, onCom
                 return;
             }
 
-            setSelectedIndex((previous) => {
-                const current = Math.min(previous, filteredOptions.length - 1);
-                if (key.downArrow) {
-                    return current + 1 > filteredOptions.length - 1 ? 0 : current + 1;
-                }
-                return current - 1 < 0 ? filteredOptions.length - 1 : current - 1;
-            });
+            const count = filterTimezoneOptions(options, queryRef.current).length;
+            const current = Math.min(indexRef.current, count - 1);
+            const next = key.downArrow
+                ? (current + 1 > count - 1 ? 0 : current + 1)
+                : (current - 1 < 0 ? count - 1 : current - 1);
+            updateIndex(next);
             return;
         }
 
         if (key.backspace || key.delete) {
-            setQuery(previous => previous.slice(0, -1));
-            setSelectedIndex(0);
+            updateQuery(queryRef.current.slice(0, -1));
             return;
         }
 
         if (shouldInsertInput(input, key)) {
-            setQuery(previous => previous + input);
-            setSelectedIndex(0);
+            updateQuery(queryRef.current + input);
         }
     });
 

@@ -24,7 +24,16 @@ export type RateLimitPeriod = z.infer<typeof RateLimitPeriodSchema>;
 export const StatusJSONSchema = z.looseObject({
     hook_event_name: z.string().optional(),
     session_id: z.string().optional(),
+    // The session title (set by /rename or derived by Claude Code).
+    session_name: z.string().nullable().optional(),
     transcript_path: z.string().optional(),
+    // Claude Code's own prompt-cache state: ttl is '5m' or '1h', expires_at is
+    // unix seconds. Authoritative when present; the transcript is a fallback.
+    prompt_cache: z.looseObject({
+        warm: z.boolean().nullable().optional(),
+        ttl: z.string().nullable().optional(),
+        expires_at: z.number().nullable().optional()
+    }).nullable().optional(),
     cwd: z.string().optional(),
     model: z.union([
         z.string(),

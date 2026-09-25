@@ -12,6 +12,7 @@ export interface SessionRegistryEntry {
     pid: number;
     sessionId: string;
     name?: string;
+    nameSource?: string;
 }
 
 function getSessionsDir(): string {
@@ -34,7 +35,8 @@ function tryReadEntry(filePath: string): SessionRegistryEntry | null {
         return {
             pid: parsed.pid,
             sessionId: parsed.sessionId,
-            name: typeof parsed.name === 'string' ? parsed.name : undefined
+            name: typeof parsed.name === 'string' ? parsed.name : undefined,
+            nameSource: typeof parsed.nameSource === 'string' ? parsed.nameSource : undefined
         };
     } catch {
         return null;
@@ -56,11 +58,19 @@ function tryReadEntry(filePath: string): SessionRegistryEntry | null {
  * files are skipped without aborting the scan.
  */
 export function getSessionAddress(sessionId: string): string | null {
+    return getSessionEntry(sessionId)?.name ?? null;
+}
+
+/**
+ * Returns this session's full manifest entry, using the same lookup strategy as
+ * `getSessionAddress`, or `null` when no manifest matches.
+ */
+export function getSessionEntry(sessionId: string): SessionRegistryEntry | null {
     const sessionsDir = getSessionsDir();
 
     const fastPath = tryReadEntry(path.join(sessionsDir, `${process.ppid}.json`));
     if (fastPath?.sessionId === sessionId) {
-        return fastPath.name ?? null;
+        return fastPath;
     }
 
     let files: string[];
@@ -77,7 +87,7 @@ export function getSessionAddress(sessionId: string): string | null {
 
         const entry = tryReadEntry(path.join(sessionsDir, file));
         if (entry?.sessionId === sessionId) {
-            return entry.name ?? null;
+            return entry;
         }
     }
 

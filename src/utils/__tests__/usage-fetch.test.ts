@@ -612,7 +612,8 @@ describe('fetchUsageData error handling', () => {
         } finally {
             harness.cleanup();
         }
-    });
+    // ~14 probe subprocesses: fine at 5s on an idle machine, flaky under load.
+    }, 20_000);
 
     it('treats null API per-model buckets as zero usage', () => {
         const harness = createProbeHarness();
@@ -947,7 +948,12 @@ describe('fetchUsageData error handling', () => {
                 mode: 'success',
                 nowMs,
                 pathDir: home.bin,
-                requiredFields: ['weeklySonnetUsage'],
+                // extraUsageEnabled is genuinely non-conclusive: a response
+                // without an extra_usage block says nothing about whether the
+                // account has one, so refetching can still produce it. The
+                // per-model usage fields are NOT usable here any more, see the
+                // conclusive-absence test below.
+                requiredFields: ['extraUsageEnabled'],
                 responseBody: successResponseBody
             });
 
@@ -964,6 +970,44 @@ describe('fetchUsageData error handling', () => {
                 blockedUntil: Math.floor(nowMs / 1000) + 30,
                 error: 'timeout'
             });
+        } finally {
+            harness.cleanup();
+        }
+    });
+
+    it.each([
+        { field: 'weeklySonnetUsage', name: 'Sonnet' },
+        { field: 'weeklyOpusUsage', name: 'Opus' },
+        { field: 'weeklyFableUsage', name: 'Fable' }
+    ])('releases the in-flight lock when the $name bucket is conclusively absent', ({ field }) => {
+        // A model bucket the account never used is never reported. Treating
+        // it as still-missing held the lock, so every second render returned
+        // {error: 'timeout'} and any widget that renders errors before
+        // checking its own field showed [Timeout] forever.
+        const harness = createProbeHarness();
+
+        try {
+            const home = harness.createTokenHome(`conclusive-absent-${field}`);
+            const result = harness.runProbe({
+                claudeConfigDir: home.claudeConfig,
+                home: home.home,
+                mode: 'success',
+                nowMs,
+                pathDir: home.bin,
+                requiredFields: [field],
+                responseBody: successResponseBody
+            });
+
+            const coreUsage = {
+                sessionUsage: 42,
+                sessionResetAt: '2030-01-01T00:00:00.000Z',
+                weeklyUsage: 17,
+                weeklyResetAt: '2030-01-07T00:00:00.000Z'
+            };
+
+            expect(result.first).toEqual(coreUsage);
+            expect(result.second).toEqual(coreUsage);
+            expect(result.lockContents).toBeNull();
         } finally {
             harness.cleanup();
         }

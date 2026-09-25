@@ -12,6 +12,7 @@ import type {
     WidgetItem
 } from '../../types';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
+import type { SessionRegistryEntry } from '../../utils/session-registry';
 import * as sessionRegistry from '../../utils/session-registry';
 import { AgentAddressWidget } from '../AgentAddress';
 
@@ -31,12 +32,16 @@ function render(sessionId: string | undefined, rawValue = false, isPreview = fal
     return widget.render(item, context, DEFAULT_SETTINGS);
 }
 
-let mockGetSessionAddress: { mockReturnValue: (value: string | null) => void };
+function entry(name: string, nameSource = 'derived'): SessionRegistryEntry {
+    return { pid: 1, sessionId: 'some-session-id', name, nameSource };
+}
+
+let mockGetSessionEntry: { mockReturnValue: (value: SessionRegistryEntry | null) => void };
 
 describe('AgentAddressWidget', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mockGetSessionAddress = vi.spyOn(sessionRegistry, 'getSessionAddress');
+        mockGetSessionEntry = vi.spyOn(sessionRegistry, 'getSessionEntry');
     });
 
     afterEach(() => {
@@ -60,30 +65,45 @@ describe('AgentAddressWidget', () => {
 
     it('should return null when no session_id', () => {
         const result = render(undefined);
-        expect(mockGetSessionAddress).not.toHaveBeenCalled();
+        expect(mockGetSessionEntry).not.toHaveBeenCalled();
         expect(result).toBeNull();
     });
 
     it('should return null when no registry entry matches', () => {
-        mockGetSessionAddress.mockReturnValue(null);
+        mockGetSessionEntry.mockReturnValue(null);
         const result = render('some-session-id');
         expect(result).toBeNull();
     });
 
+    it('should return null when the name equals the payload session_name, and show a distinct one', () => {
+        const widget = new AgentAddressWidget();
+        const item: WidgetItem = { id: 'agent-address', type: 'agent-address' };
+        mockGetSessionEntry.mockReturnValue(entry('my-title'));
+        expect(widget.render(item, { data: { session_id: 'some-session-id', session_name: 'my-title' } }, DEFAULT_SETTINGS)).toBeNull();
+        mockGetSessionEntry.mockReturnValue(entry('ccstatusline-usage-90'));
+        expect(widget.render(item, { data: { session_id: 'some-session-id', session_name: 'my-title' } }, DEFAULT_SETTINGS)).toBe('Chat ref: ccstatusline-usage-90');
+    });
+
+    it('should return null when the name is the user-set session title', () => {
+        mockGetSessionEntry.mockReturnValue(entry('git-stash guard ignores the session bypass - o5.5', 'user'));
+        const result = render('some-session-id', false, false, 100);
+        expect(result).toBeNull();
+    });
+
     it('should render Chat ref: <name> normally', () => {
-        mockGetSessionAddress.mockReturnValue('my-project-a1');
+        mockGetSessionEntry.mockReturnValue(entry('my-project-a1'));
         const result = render('some-session-id');
         expect(result).toBe('Chat ref: my-project-a1');
     });
 
     it('should render bare <name> in rawValue mode', () => {
-        mockGetSessionAddress.mockReturnValue('my-project-a1');
+        mockGetSessionEntry.mockReturnValue(entry('my-project-a1'));
         const result = render('some-session-id', true);
         expect(result).toBe('my-project-a1');
     });
 
     it('should render R: <name> when terminalWidth is below 192 and above 0', () => {
-        mockGetSessionAddress.mockReturnValue('my-project-a1');
+        mockGetSessionEntry.mockReturnValue(entry('my-project-a1'));
         const result = render('some-session-id', false, false, 100);
         expect(result).toBe('R: my-project-a1');
     });
