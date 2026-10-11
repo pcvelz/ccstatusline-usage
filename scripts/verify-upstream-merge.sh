@@ -224,14 +224,14 @@ fi
 # /fork-rename rewrites the upstream npm specifier (ccstatusline + "@version")
 # to ccstatusline-usage + "@version". Every tracked file counts (upstream put
 # one in remotion/ that a narrower scan missed). Tests may keep upstream strings
-# on purpose (negative matches). The pattern uses [@] so this script doesn't
-# match itself.
-UNRENAMED=$(git grep -nE 'ccstatusline[@]' "$REV" -- . ':!**/__tests__/**' 2>/dev/null || true)
-if [[ -n "$UNRENAMED" ]]; then
+# on purpose (negative matches). The matching pattern lives in
+# check-package-name.sh, which also covers registry URLs, node_modules paths
+# and global install argv, not only pkg@version.
+if UNRENAMED=$(bash scripts/check-package-name.sh "$REV" 2>&1); then
+    pass "no un-renamed upstream package specifier outside tests"
+else
     fail "un-renamed upstream package specifier - run /fork-rename, then fix what it missed by hand:"
     sed 's/^/        /' <<< "$UNRENAMED"
-else
-    pass "no un-renamed upstream package specifier outside tests"
 fi
 
 # ---------------------------------------------------------------- 13. links to deleted files
