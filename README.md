@@ -92,11 +92,23 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.5.3](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.3) - Weekly decimal, one usage fetcher, upstream sync
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Weekly decimal** - Weekly shows an estimated decimal after the API's whole percent (`W: 9.2%`), extrapolated from five-hour usage; the whole digit is always the API value.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Lag-tolerant rate fit** - each weekly step is stored as a range of session usage and one rate is fitted with a lag allowance, so step-to-step jitter no longer swings the decimal; the fit lives in `~/.cache/ccstatusline/weekly-calibration.json` and adapts to limit changes within ~40 weekly points.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **No stale Weekly** - the usage sampler refreshes the status line's usage cache and honours its rate-limit lock, so they no longer race into 429s.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache Timer emoji toggle** - moved from `e` to `o`; `e` now edits a widget's label everywhere.
+- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Upstream sync** - 69 commits: editable labels (`e`), Session Cost Rate and Extra Usage Daily Budget widgets, NO_PROXY support, terminal-output sanitizing, Git hardening.
+
 ### [v2.5.2](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.2) - One usage fetcher, no stale Weekly
+
+*Consolidated into v2.5.3.*
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **No stale Weekly** - the usage sampler now refreshes the status line's own usage cache and honours its rate-limit lock, so the two no longer race each other into 429s and the status line stops showing an old value (`W: 5%` while the API said 6%).
 
 ### [v2.5.1](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.1) - Weekly decimal with a self-calibrating rate
+
+*Consolidated into v2.5.3.*
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Weekly decimal** - Weekly shows an estimated decimal after the API's whole percent (`W: 5.6%`), interpolated from five-hour session usage. The whole digit is always the API value; the decimal never rounds it up. Toggle with the `weeklyEstimate` setting.
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Self-calibrating** - `scripts/usage-sampler.ts` (launchd, every 2 min) records each weekly step to `~/.cache/ccstatusline/weekly-calibration.json`. The rate carries across weeks and re-bases itself when Anthropic changes the limits (`rebasedAt` in that file). See `docs/weekly-calibration.md`.

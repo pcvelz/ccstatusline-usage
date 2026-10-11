@@ -298,9 +298,8 @@ function isUsableFit(fit: RateFit | null): fit is RateFit {
 // Estimator. Returns the weekly % with its fractional part, or null when the live stretch
 // has no crossing yet or no rate is available (stored, or fitted on the live window).
 //
-// The live stretch's offset is the mean of what its crossings put it at (each at the
-// middle of its reading interval), so one late or early step barely moves it. The result
-// is clamped to [API value, API value + 0.999]: the whole digit is always the API's.
+// The value advances from the live stretch's latest crossing at the fitted rate. The
+// result is clamped to [API value, API value + 0.999]: the whole digit is always the API's.
 export function estimateWeeklyDetail(
     samples: UsageSample[],
     live: Omit<UsageSample, 'ts'>,
@@ -323,7 +322,10 @@ export function estimateWeeklyDetail(
     if (!isUsableFit(fit))
         return null;
 
-    const offset = crossings.reduce((sum, c) => sum + c.level - fit.rate * (c.cLo + c.cHi) / 2, 0) / crossings.length;
+    // Anchored on the most recent crossing, at the middle of its reading interval. The rate
+    // drifts with the model mix, so a mean over older crossings lags behind the latest step.
+    const anchor = at(crossings, crossings.length - 1);
+    const offset = anchor.level - fit.rate * (anchor.cLo + anchor.cHi) / 2;
     const last = at(points, points.length - 1);
     const now = at(cum, cum.length - 1) - at(cum, liveStretch.start);
     const fraction = Math.min(Math.max(offset + fit.rate * now - last.weekly, 0), 0.999);

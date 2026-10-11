@@ -218,9 +218,9 @@ describe('estimateWeeklyPercent', () => {
 
     it('keeps accumulating across a five-hour reset', () => {
         // Block A ends at 30, block B restarts from 0 and reaches 30, then 20 more: cum 30, 30, 50, 60.
-        // Level 2 at cum 30 exactly. Level 3 in cum 50..60 (mid 55). Stored rate 1/30.
-        // Offset = mean(2 - 30/30, 3 - 55/30) = 1.08333. Live at cum 75 (block B, session 45):
-        // 1.08333 + 75/30 = 3.58333
+        // Level 2 at cum 30 exactly. Level 3 in cum 50..60 (mid 55) is the latest crossing. Stored rate 1/30.
+        // Offset anchored on the latest crossing = 3 - 55/30 = 1.16667. Live at cum 75 (block B, session 45):
+        // 1.16667 + 75/30 = 3.66667
         const samples = [
             sample(0, 1, BLOCK_A),
             sample(30, 1, BLOCK_A),
@@ -228,7 +228,7 @@ describe('estimateWeeklyPercent', () => {
             sample(20, 2, BLOCK_B),
             sample(30, 3, BLOCK_B)
         ];
-        expect(estimateWeeklyPercent(samples, live(45, 3, BLOCK_B), storedFit(1 / 30))).toBeCloseTo(3.58333, 4);
+        expect(estimateWeeklyPercent(samples, live(45, 3, BLOCK_B), storedFit(1 / 30))).toBeCloseTo(3.66667, 4);
     });
 
     it('ignores samples from a previous weekly window', () => {
@@ -261,12 +261,13 @@ describe('estimateWeeklyDetail', () => {
     });
 
     it('ignores a stored rate that is not a positive finite number', () => {
-        // Window rate 1/15 (tau 0): offset 1.5, live at cum 35: 1.5 + 35/15 - 3 = 0.83333
+        // Window rate 1/15 (tau 0). Latest crossing level 3 in cum 20..30 (mid 25):
+        // offset = 3 - 25/15 = 1.33333. Live at cum 35: 1.33333 + 35/15 = 3.66667 (fraction 0.66667 after API 3)
         const samples = [sample(0, 1), sample(10, 2), sample(20, 2), sample(30, 3)];
         const est = estimateWeeklyDetail(samples, live(35, 3), storedFit(0));
         expect(est?.rateSource).toBe('window');
         expect(est?.rate).toBeCloseTo(1 / 15, 4);
-        expect(est?.value).toBeCloseTo(3.83333, 4);
+        expect(est?.value).toBeCloseTo(3.66667, 4);
     });
 
     it('caps the stored-rate fraction below the next integer', () => {
@@ -287,10 +288,12 @@ describe('estimateWeeklyDetail', () => {
     it('falls back to the live window rate and reports it as window', () => {
         // Window crossings: level 2 in cum 0..10, level 3 in cum 20..30. Rate 1/15 (tau 0).
         const samples = [sample(0, 1), sample(10, 2), sample(20, 2), sample(30, 3)];
+        // Offset anchored on the latest crossing (level 3, cum 20..30, mid 25) = 3 - 25/15 = 1.33333.
+        // Live at cum 35: 1.33333 + 35/15 = 3.66667
         const est = estimateWeeklyDetail(samples, live(35, 3), null);
         expect(est?.rateSource).toBe('window');
         expect(est?.rate).toBeCloseTo(1 / 15, 4);
-        expect(est?.value).toBeCloseTo(3.83333, 4);
+        expect(est?.value).toBeCloseTo(3.66667, 4);
     });
 
     it('prefers the stored rate over the window rate', () => {
@@ -300,6 +303,33 @@ describe('estimateWeeklyDetail', () => {
         const est = estimateWeeklyDetail(samples, live(30, 3), storedFit(0.05));
         expect(est?.rateSource).toBe('stored');
         expect(est?.value).toBeCloseTo(3.25, 5);
+    });
+
+    it('anchors on the latest crossing, not the stretch mean', () => {
+        // One stretch. Levels 4..9 step at cum 0, 18, 34, 45, 54 and 61..62 (level 9 is the last,
+        // cLo 61, cHi 62, mid 61.5). Stored rate 0.0806 (real 2026-10-11 data).
+        // Offset anchored on the latest crossing = 9 - 0.0806 * 61.5 = 4.04310.
+        // Live at cum 65: 4.04310 + 0.0806 * 65 = 9.28210, i.e. 9 + 0.0806 * (65 - 61.5).
+        // A mean over all six crossings would sit lower and clamp to 9.0 here.
+        const samples = [
+            row(at(0), 0, 3),
+            row(at(1), 0, 4),
+            row(at(2), 18, 4),
+            row(at(3), 18, 5),
+            row(at(4), 34, 5),
+            row(at(5), 34, 6),
+            row(at(6), 45, 6),
+            row(at(7), 45, 7),
+            row(at(8), 54, 7),
+            row(at(9), 54, 8),
+            row(at(10), 61, 8),
+            row(at(11), 62, 9)
+        ];
+        const fit: RateFit = { rate: 0.0806, tau: 6.6, crossings: 6 };
+        const est = estimateWeeklyDetail(samples, live(65, 9), fit);
+        expect(est?.rateSource).toBe('stored');
+        expect(est?.value).toBeCloseTo(9 + 0.0806 * (65 - 61.5), 3);
+        expect(est?.value).toBeGreaterThan(9);
     });
 });
 

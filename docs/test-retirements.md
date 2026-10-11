@@ -7,6 +7,27 @@ A test file whose `expect(` count went down must be listed here by its
 backticked path with the reason (the `###` file headings count). Entries must
 be backticked: the gate matches `` `title` `` / `` `path` ``, not bare text.
 
+## v2.5.2 -> v2.5.3
+
+- `averages the two middle rates for an even count`: median rate replaced by the minimax crossing fit (fitRate) in 761bb45; replaced by "jittered data: the long span bounds the rate, and tau is positive".
+- `is the median of the last five rates`: median rate replaced by the minimax crossing fit (fitRate) in 761bb45; replaced by "jittered data: the long span bounds the rate, and tau is positive".
+- `rebases when the last three rates all deviate more than 25% the same way`: change-point rebase replaced by fitting only the last 40 crossings (FIT_WINDOW) in 761bb45; replaced by "caps the history at 200 crossings and fits the last 40".
+- `does not rebase when only two of the last three deviate`: change-point rebase replaced by fitting only the last 40 crossings (FIT_WINDOW) in 761bb45; replaced by "caps the history at 200 crossings and fits the last 40".
+- `does not rebase when the deviations go in mixed directions`: change-point rebase replaced by fitting only the last 40 crossings (FIT_WINDOW) in 761bb45; replaced by "caps the history at 200 crossings and fits the last 40".
+- `does not resurrect dropped observations when the full list is merged again`: mergeObservations replaced by mergeCrossings in 761bb45; replaced by "keeps stored crossings that the incoming set no longer covers (pruned samples)".
+- `dedupes by at with the existing observation winning, and sorts`: mergeObservations replaced by mergeCrossings in 761bb45; replaced by "an incoming crossing replaces a stored one with the same week and level".
+- `keeps only the last 50 observations`: change-point rebase replaced by fitting only the last 40 crossings (FIT_WINDOW) in 761bb45; replaced by "caps the history at 200 crossings and fits the last 40".
+- `is null for a missing store or fewer than two observations`: step-pair observations replaced by step crossings in 761bb45; replaced by "returns null for a missing file" (store) and "returns null with fewer than two crossings" (fit).
+- `emits a rate for a clean two-step interval`: step-pair observations replaced by step crossings in 761bb45; replaced by "exact data gives rate 0.05 with tau near zero".
+- `emits nothing when a lossy reset sits inside the interval`: step-pair observations replaced by step crossings in 761bb45; replaced by "a lossy reset starts a new stretch whose cumulative restarts at zero".
+- `emits nothing when the session span is below the minimum`: MIN_SESSION_SPAN replaced by the crossing-span check in 761bb45; replaced by "returns null when the session span is too small to trust the rate".
+- `includes an interval whose reset is not lossy and accumulates span across it`: step-pair observations replaced by step crossings in 761bb45; replaced by "keeps accumulating across a five-hour reset".
+- `interpolates between integer weekly steps using session progress`: step-pair interpolation replaced by crossing midpoints in 761bb45; replaced by "uses the crossing midpoints with a stored rate".
+- `returns null with one step, no stored rate and no observation`: step-pair observations replaced by step crossings in 761bb45; replaced by "returns null with one crossing and no stored rate".
+- `returns observations from two weekly windows, ordered by at`: step-pair observations replaced by step crossings in 761bb45; replaced by "returns crossings from two weekly windows, ordered by at".
+- `uses a stored rate when the live window has only one step`: step-pair observations replaced by step crossings in 761bb45; replaced by "uses a stored rate when the live window has only one crossing".
+- `src/utils/__tests__/weekly-calibration.test.ts`: expect() count 29 -> 21 because the median/change-point assertions went with the code they tested in 761bb45.
+
 ## v2.5.2 -> upstream merge (69 commits)
 
 - `clearAllWidgetStyling strips styling fields from every widget`: semantics deliberately changed upstream in dfa54ba (#682, keep the number format when resetting colors) - clearAllWidgetStyling now keeps `numberFormat`. Replaced by "clearAllWidgetStyling strips styling fields from every widget, keeping number formats" (asserts `numberFormat` survives on tokens-output).
