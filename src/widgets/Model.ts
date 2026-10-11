@@ -6,6 +6,9 @@ import type {
     WidgetItem
 } from '../types/Widget';
 
+import { formatRawOrLabeledValue } from './shared/raw-or-labeled';
+
+const LABEL = 'Model: ';
 const MEDIUM_THRESHOLD = 178;
 
 // Parse model ID into compact form: claude-opus-4-7 → o4.7, claude-fable-5 → f5
@@ -29,13 +32,14 @@ export class ModelWidget implements Widget {
     getDescription(): string { return 'Displays the Claude model name (e.g., Claude 3.5 Sonnet)'; }
     getDisplayName(): string { return 'Model'; }
     getCategory(): string { return 'Core'; }
+    getLabelPrefix(): string { return LABEL; }
     getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
         return { displayText: this.getDisplayName() };
     }
 
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
         if (context.isPreview) {
-            return item.rawValue ? 'Claude' : 'Model: Claude';
+            return formatRawOrLabeledValue(item, this.getLabelPrefix(), 'Claude');
         }
 
         const model = context.data?.model;
@@ -61,7 +65,7 @@ export class ModelWidget implements Widget {
         }
 
         const display = suffix ? `${cleanDisplayName}${suffix}` : cleanDisplayName;
-        return item.rawValue ? display : `Model: ${display}`;
+        return formatRawOrLabeledValue(item, this.getLabelPrefix(), display);
     }
 
     supportsRawValue(): boolean { return true; }

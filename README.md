@@ -567,9 +567,11 @@ The interactive configuration tool provides a terminal UI where you can:
 > export CLAUDE_CONFIG_DIR=/custom/path/to/.claude
 > ```
 
-> 🌐 **Usage API proxy:** Usage widgets honor the uppercase `HTTPS_PROXY` environment variable for their direct API call to Anthropic.
+> 🌐 **HTTPS proxy:** Usage and Claude Status requests honor uppercase `HTTPS_PROXY`, with exclusions from both `NO_PROXY` and `no_proxy` (comma- or space-separated; `*`, a host such as `api.anthropic.com`, or a domain such as `.anthropic.com`, optionally with `:443`). Each request has a five-second total deadline.
 
 > 🪟 **Windows Support:** PowerShell examples, installation notes, fonts, troubleshooting, WSL, and Windows Terminal configuration are in the [Windows Support](#-windows-support) section below.
+
+> 🫥 **Status line empty in one folder?** Claude Code only runs the status line command in trusted workspaces, and nested git repositories stopped inheriting trust in Claude Code 2.1.232. Check the project's `hasTrustDialogAccepted` in `~/.claude.json` under `projects`; set it to `true` (or accept the trust dialog) and start a new session.
 
 </details>
 

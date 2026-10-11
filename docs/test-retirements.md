@@ -7,6 +7,18 @@ A test file whose `expect(` count went down must be listed here by its
 backticked path with the reason (the `###` file headings count). Entries must
 be backticked: the gate matches `` `title` `` / `` `path` ``, not bare text.
 
+## v2.5.2 -> upstream merge (69 commits)
+
+- `clearAllWidgetStyling strips styling fields from every widget`: semantics deliberately changed upstream in dfa54ba (#682, keep the number format when resetting colors) - clearAllWidgetStyling now keeps `numberFormat`. Replaced by "clearAllWidgetStyling strips styling fields from every widget, keeping number formats" (asserts `numberFormat` survives on tokens-output).
+- `wraps to last position when moving widget up from first position`: reworded upstream in 5c92391 (#689, move wrap); same wrap assertion. Replaced by "wraps to last position when moving widget up from first position, keeping the others in order" (fixture and expected order of the other widgets changed).
+- `wraps to first position when moving widget down from last position`: reworded upstream in 5c92391 (#689, move wrap); same wrap assertion. Replaced by "wraps to first position when moving widget down from last position, keeping the others in order" (fixture and expected order of the other widgets changed).
+- `should render no git when branch lookup is empty`: reworded upstream in fa9bb7e (#679, detached HEAD); the lookup now also mocks an empty commit lookup. Replaced by "should render no git when branch and commit lookups are empty".
+- `toggles the emoji countdown on and off with the e keybind`: fork deviation - the fork moves the emoji toggle from `e` to `o` because upstream reserves `e` for edit-label. Replaced by "toggles the emoji countdown on and off with the o keybind" (asserts the custom keybind is `o`).
+- `installStatusLine should warn and recover when existing settings are invalid`: semantics deliberately replaced upstream in 475e401 (#627, keep unreadable Claude settings instead of overwriting them) - install now aborts without touching the file and writes no `.bak` or `.orig`. Replaced by "installStatusLine should abort without touching existing settings that cannot be parsed".
+- `falls back to tput cols when ancestor probing fails`: semantics deliberately removed upstream in 12fdad4 (#683, drop tput's made-up width) - there is no tput fallback any more. Replaced by "returns null rather than a terminfo default when no ancestor has a terminal" (asserts tput is never called).
+- `returns null when ancestor and fallback probes fail`: same 12fdad4 (#683) removal of the tput fallback. Replaced by "returns null when ancestor probes fail" (same ps and stty stubs, without the tput stub).
+- `src/utils/__tests__/terminal.test.ts`: expect() count 46 -> 45. The two tput-fallback tests held 4 expects (3 + 1); their replacements hold 3 (2 in the terminfo-default test, 1 in the ancestor-probes-fail test). Net -1, caused by the 12fdad4 (#683) removal above.
+
 ## v2.5.0 -> v2.5.1
 
 - `extracts session and weekly usage from rate_limits`: semantics deliberately replaced in a56a58e - weekly usage now comes from the API, not the status-line payload (the payload's seven_day value was stale). Replaced by "extracts session usage and weekly reset from rate_limits, not weekly usage" (asserts `weeklyUsage` undefined, reset kept).

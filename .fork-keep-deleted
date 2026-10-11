@@ -15,3 +15,7 @@ docs/WINDOWS.md
 # docs/USAGE.md / docs/WINDOWS.md, which the fork deletes. Would send agents to
 # the upstream package instead of ccstatusline-usage.
 llms.txt
+
+# Upstream's Fable widget. The fork ships its own WeeklyFableUsage.ts (type
+# weekly-fable-usage); upstream's file is unregistered here and would be dead code.
+src/widgets/FableWeeklyUsage.ts

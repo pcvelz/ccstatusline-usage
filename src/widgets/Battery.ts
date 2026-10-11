@@ -18,7 +18,7 @@ function getMacBatteryInfo(): { percent: number; charging: boolean } | null {
         if (!percentStr || !stateStr) {
             return null;
         }
-        const percent = parseInt(percentStr, 10);
+        const percent = Number.parseInt(percentStr, 10);
         const state = stateStr.toLowerCase();
         const charging = state !== 'discharging';
         return { percent, charging };
@@ -31,8 +31,8 @@ function getLinuxBatteryInfo(): { percent: number; charging: boolean } | null {
     try {
         const capacity = readFileSync('/sys/class/power_supply/BAT0/capacity', 'utf-8').trim();
         const status = readFileSync('/sys/class/power_supply/BAT0/status', 'utf-8').trim().toLowerCase();
-        const percent = parseInt(capacity, 10);
-        if (isNaN(percent)) {
+        const percent = Number.parseInt(capacity, 10);
+        if (Number.isNaN(percent)) {
             return null;
         }
         const charging = status !== 'discharging';

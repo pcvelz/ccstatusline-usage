@@ -10,14 +10,13 @@ import {
 } from 'vitest';
 
 import { DEFAULT_SETTINGS } from '../../../types/Settings';
+import { waitFor } from '../../__tests__/helpers/wait-for-ink';
 import {
     TerminalWidthMenu,
     buildTerminalWidthItems,
     getTerminalWidthSelectionIndex,
     validateCompactThresholdInput
 } from '../TerminalWidthMenu';
-
-import { flushInk } from './ink-test-utils';
 
 class MockTtyStream extends PassThrough {
     isTTY = true;
@@ -130,30 +129,36 @@ describe('TerminalWidthMenu helpers', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('▶  Full width always');
+            });
+            stdout.clearOutput();
             stdin.write('\u001B[B');
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('▶  Full width minus 40');
+            });
+            stdout.clearOutput();
             stdin.write('\u001B[B');
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('▶  Full width until compact');
+            });
             stdin.write('\r');
-            await flushInk();
-
-            expect(stdout.getOutput()).toContain('Enter compact threshold (1-99):');
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Enter compact threshold (1-99):');
+            });
 
             stdout.clearOutput();
 
             stdin.write('\r');
-            await flushInk();
+            await waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+                    flexMode: 'full-until-compact',
+                    compactThreshold: 60
+                }));
+                expect(stdout.getOutput()).toContain('▶  Full width until compact');
+            });
 
-            expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
-                flexMode: 'full-until-compact',
-                compactThreshold: 60
-            }));
-
-            const output = stdout.getOutput();
-
-            expect(output).toContain('▶  Full width until compact');
-            expect(output).not.toContain('▶  Full width always');
+            expect(stdout.getOutput()).not.toContain('▶  Full width always');
         } finally {
             instance.unmount();
             instance.cleanup();

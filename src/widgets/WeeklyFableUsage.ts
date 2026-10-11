@@ -23,7 +23,6 @@ import {
     USAGE_NO_DATA_HIDEABLE_STATE,
     cycleUsageDisplayMode,
     getUsageDisplayMode,
-    getUsageDisplayModifierText,
     getUsageLabel,
     getUsagePercentCustomKeybinds,
     getUsageProgressBarWidth,
@@ -35,6 +34,7 @@ import {
     toggleUsageCursor,
     toggleUsageInverted
 } from './shared/usage-display';
+import { getUsagePercentWidgetEditorDisplay } from './shared/usage-percent-widget';
 
 const LABEL = 'Fable: ';
 const SHORT_LABEL = 'F: ';
@@ -46,10 +46,7 @@ export class WeeklyFableUsageWidget implements Widget {
     getCategory(): string { return 'Usage'; }
 
     getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
-        return {
-            displayText: this.getDisplayName(),
-            modifierText: getUsageDisplayModifierText(item, { showUsageDirection: true })
-        };
+        return getUsagePercentWidgetEditorDisplay('fable-weekly', item);
     }
 
     getHideableStates(): HideableState[] {

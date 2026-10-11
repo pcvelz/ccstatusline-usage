@@ -497,6 +497,27 @@ describe('usage prefetch', () => {
         ]);
     });
 
+    it('fetches the extra usage state, limit and spend for the Daily Budget widget', async () => {
+        mockFetchUsage.mockResolvedValue({
+            extraUsageEnabled: true,
+            extraUsageLimit: 50000,
+            extraUsageUsed: 12345
+        });
+
+        const lines = makeLines([{ id: '1', type: 'extra-usage-daily-budget' }]);
+
+        const usageData = await prefetchUsageDataIfNeeded(lines, {});
+
+        expect(usageData).toEqual({
+            extraUsageEnabled: true,
+            extraUsageLimit: 50000,
+            extraUsageUsed: 12345
+        });
+        expect(mockFetchUsage.mock.calls).toEqual([
+            [{ requiredFields: ['extraUsageEnabled', 'extraUsageLimit', 'extraUsageUsed'] }]
+        ]);
+    });
+
     it('preserves API errors when extra usage fields are missing', async () => {
         mockFetchUsage.mockResolvedValue({ error: 'no-credentials' });
 

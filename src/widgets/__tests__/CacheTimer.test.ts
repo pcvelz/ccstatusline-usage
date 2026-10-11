@@ -1,6 +1,6 @@
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import {
     afterEach,
     beforeEach,
@@ -31,6 +31,17 @@ const sidechain = (type: string, seconds: number): string => JSON.stringify({ ty
 const apiError = (seconds: number): string => JSON.stringify({ type: 'assistant', timestamp: isoAgo(seconds), isApiErrorMessage: true });
 const assistantUsage = (seconds: number, usage: object): string => JSON.stringify({ type: 'assistant', timestamp: isoAgo(seconds), message: { usage } });
 const noCacheUsage = { cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+// Synthetic user-role rows Claude Code writes without sending a request:
+// Esc-interrupt markers and local slash-command bookkeeping.
+const userText = (text: string): string => JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } });
+const userString = (content: string, extra: object = {}): string => JSON.stringify({ type: 'user', message: { role: 'user', content }, ...extra });
+const interrupted = userText('[Request interrupted by user]');
+const interruptedToolUse = userText('[Request interrupted by user for tool use]');
+const commandCaveat = userString('<local-command-caveat>Caveat: synthetic</local-command-caveat>', { isMeta: true });
+const localCommand = userString('<command-name>/cost</command-name>\n<command-message>cost</command-message>\n<command-args></command-args>');
+const localStdout = userString('<local-command-stdout>synthetic output</local-command-stdout>');
+const promptCommand = userString('<command-message>review</command-message>\n<command-name>/review</command-name>');
+const promptExpansion = userString('Expanded command prompt', { isMeta: true });
 
 describe('CacheTimer widget', () => {
     let tmpDir: string;
@@ -145,6 +156,27 @@ describe('CacheTimer widget', () => {
         expect(widget.render(item(), transcriptContext([assistant(400), pendingUser, apiError(5)]), DEFAULT_SETTINGS)).toBe('Cache: ❄️ COLD');
     });
 
+    it('does not report HOT after a turn interrupted with Esc', () => {
+        const widget = new CacheTimerWidget();
+        expect(widget.render(item(), transcriptContext([assistant(400), pendingUser, interrupted]), DEFAULT_SETTINGS)).toBe('Cache: ❄️ COLD');
+        expect(widget.render(item(), transcriptContext([assistant(400), pendingUser, interruptedToolUse]), DEFAULT_SETTINGS)).toBe('Cache: ❄️ COLD');
+        expect(widget.render(item(), transcriptContext([pendingUser, interrupted]), DEFAULT_SETTINGS)).toBe('Cache: n/a');
+    });
+
+    it('does not report HOT after a local slash command', () => {
+        const widget = new CacheTimerWidget();
+        expect(widget.render(item(), transcriptContext([assistant(400), commandCaveat, localCommand, localStdout]), DEFAULT_SETTINGS)).toBe('Cache: ❄️ COLD');
+        // Some local commands record no stdout row at all.
+        expect(widget.render(item(), transcriptContext([assistant(400), commandCaveat, localCommand]), DEFAULT_SETTINGS)).toBe('Cache: ❄️ COLD');
+    });
+
+    it('still reports HOT for a prompt slash command that is sent to the model', () => {
+        const widget = new CacheTimerWidget();
+        expect(widget.render(item(), transcriptContext([assistant(60), promptCommand, promptExpansion]), DEFAULT_SETTINGS)).toBe('Cache: 🔥 HOT');
+        // A new prompt after an interrupt is in flight again.
+        expect(widget.render(item(), transcriptContext([assistant(60), interrupted, pendingUser]), DEFAULT_SETTINGS)).toBe('Cache: 🔥 HOT');
+    });
+
     it('starts the countdown from rows with cache reads or cache writes', () => {
         const widget = new CacheTimerWidget();
         expect(widget.render(item(), transcriptContext([assistantUsage(10, { cache_read_input_tokens: 1234 })]), DEFAULT_SETTINGS)).toMatch(/^Cache: 🟢 \d+:\d{2}$/);
@@ -185,7 +217,7 @@ describe('CacheTimer widget', () => {
         expect(widget.getCustomKeybinds()).toEqual([
             { key: 't', label: '(t)tl', action: 'toggle-ttl' },
             { key: 'w', label: '(w)arn', action: 'toggle-warn' },
-            { key: 'e', label: '(e)moji', action: 'toggle-glyphs' },
+            { key: 'o', label: 'em(o)ji', action: 'toggle-glyphs' },
             { key: 'g', label: '(g)lyph', action: 'edit-symbol-override' }
         ]);
         expect(widget.getHideableStates().map(state => state.key)).toEqual(['empty']);
@@ -268,13 +300,13 @@ describe('CacheTimer widget', () => {
             expect(widget.render(plain, fiveMin, DEFAULT_SETTINGS)).toBe('Cache: 3 min');
         });
 
-        it('toggles the emoji countdown on and off with the e keybind', () => {
+        it('toggles the emoji countdown on and off with the o keybind', () => {
             const widget = new CacheTimerWidget();
             const plain: WidgetItem = { id: 'cache-timer', type: 'cache-timer' };
             const glyphs = widget.handleEditorAction('toggle-glyphs', plain);
             expect(glyphs?.metadata?.display).toBe('glyphs');
             expect(widget.handleEditorAction('toggle-glyphs', glyphs ?? plain)?.metadata?.display).toBeUndefined();
-            expect(widget.getCustomKeybinds().map(k => k.key)).toContain('e');
+            expect(widget.getCustomKeybinds().map(k => k.key)).toContain('o');
         });
 
         it('detects the 1h tier and shows whole minutes longhand', () => {

@@ -6,18 +6,23 @@ import type {
     WidgetItem
 } from '../types/Widget';
 
+import { formatRawOrLabeledValue } from './shared/raw-or-labeled';
+
+const LABEL = 'Session ID: ';
+
 export class ClaudeSessionIdWidget implements Widget {
     getDefaultColor(): string { return 'cyan'; }
     getDescription(): string { return 'Shows the current Claude Code session ID reported in status JSON'; }
     getDisplayName(): string { return 'Claude Session ID'; }
     getCategory(): string { return 'Core'; }
+    getLabelPrefix(): string { return LABEL; }
     getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
         return { displayText: this.getDisplayName() };
     }
 
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
         if (context.isPreview) {
-            return item.rawValue ? 'preview-session-id' : 'Session ID: preview-session-id';
+            return formatRawOrLabeledValue(item, this.getLabelPrefix(), 'preview-session-id');
         }
 
         const sessionId = context.data?.session_id;
@@ -30,7 +35,7 @@ export class ClaudeSessionIdWidget implements Widget {
             return `S: ${sessionId.slice(0, 8)}`;
         }
 
-        return item.rawValue ? sessionId : `Session ID: ${sessionId}`;
+        return formatRawOrLabeledValue(item, this.getLabelPrefix(), sessionId);
     }
 
     supportsRawValue(): boolean { return true; }

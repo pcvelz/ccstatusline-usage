@@ -11,13 +11,8 @@ import {
 } from 'vitest';
 
 import { DEFAULT_SETTINGS } from '../../../types/Settings';
+import { waitFor } from '../../__tests__/helpers/wait-for-ink';
 import { GlobalOverridesMenu } from '../GlobalOverridesMenu';
-
-import {
-    flushInk,
-    waitFor,
-    waitForOutput
-} from './ink-test-utils';
 
 class MockTtyStream extends PassThrough {
     isTTY = true;
@@ -93,9 +88,10 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
-            expect(stdout.getOutput()).toContain('Minimalist Mode:');
-            expect(stdout.getOutput()).toContain('✗ Disabled');
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Minimalist Mode:');
+                expect(stdout.getOutput()).toContain('✗ Disabled');
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -127,17 +123,19 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Minimalist Mode:');
+            });
             stdout.clearOutput();
             stdin.write('n');
-            await flushInk();
-
-            const numberRows = stripAnsi(stdout.getOutput())
+            const numberRows = () => stripAnsi(stdout.getOutput())
                 .split('\n')
                 .filter(line => /(?:token|speed|percent|memory|cost): precise/.test(line));
-            const colonColumns = new Set(numberRows.map(line => line.indexOf(':')));
+            await waitFor(() => {
+                expect(numberRows()).toHaveLength(5);
+            });
 
-            expect(numberRows).toHaveLength(5);
+            const colonColumns = new Set(numberRows().map(line => line.indexOf(':')));
             expect(colonColumns.size).toBe(1);
         } finally {
             instance.unmount();
@@ -172,11 +170,13 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Minimalist Mode:');
+            });
             stdin.write('m');
-            await flushInk();
-
-            expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ minimalistMode: true }));
+            await waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ minimalistMode: true }));
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -210,11 +210,13 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Minimalist Mode:');
+            });
             stdin.write('m');
-            await flushInk();
-
-            expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ minimalistMode: false }));
+            await waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ minimalistMode: false }));
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -248,9 +250,10 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
-            expect(stdout.getOutput()).toContain('Padding Side:');
-            expect(stdout.getOutput()).toContain('Both');
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Padding Side:');
+                expect(stdout.getOutput()).toContain('Both');
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -288,11 +291,13 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Minimalist Mode:');
+            });
             stdin.write('d');
-            await flushInk();
-
-            expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ defaultPaddingSide: expected }));
+            await waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ defaultPaddingSide: expected }));
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -326,10 +331,10 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
-            const output = stdout.getOutput();
-            expect(output).toContain('Override FG Color:');
-            expect(output).toContain('(f) cycle, (g) gradient, (x) clear');
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Override FG Color:');
+                expect(stdout.getOutput()).toContain('(f) cycle, (g) gradient, (x) clear');
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -363,17 +368,18 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Minimalist Mode:');
+            });
             stdin.write('g');
-            await waitForOutput(() => stdout.getOutput(), 'Select Gradient - Override FG Color');
-            // The text is on screen before the selector has attached its input
-            // handler; settle once more so the Enter below is not dropped.
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Select Gradient - Override FG Color');
+            });
 
             stdin.write('\r');
-            await waitFor(() => onUpdate.mock.calls.length > 0, { message: 'onUpdate was never called' });
-
-            expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ overrideForegroundColor: 'gradient:atlas' }));
+            await waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ overrideForegroundColor: 'gradient:atlas' }));
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -407,11 +413,13 @@ describe('GlobalOverridesMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Minimalist Mode:');
+            });
             stdin.write('x');
-            await flushInk();
-
-            expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ overrideForegroundColor: undefined }));
+            await waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ overrideForegroundColor: undefined }));
+            });
         } finally {
             instance.unmount();
             instance.cleanup();

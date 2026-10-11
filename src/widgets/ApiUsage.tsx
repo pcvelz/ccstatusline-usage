@@ -369,7 +369,7 @@ export class ContextBarWidget implements Widget {
             used = context.tokenMetrics.contextLength;
         }
 
-        if (isNaN(total) || isNaN(used))
+        if (Number.isNaN(total) || Number.isNaN(used))
             return null;
 
         const percent = total > 0 ? (used / total) * 100 : 0;

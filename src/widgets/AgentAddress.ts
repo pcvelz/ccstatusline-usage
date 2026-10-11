@@ -32,7 +32,10 @@ export class AgentAddressWidget implements Widget {
         // border, so repeating it adds nothing. Only distinct refs are shown.
         // session_name is the title from the payload; nameSource 'user' covers
         // payloads that predate that field.
-        if (!name || name === context.data?.session_name || entry.nameSource === 'user') {
+        if (!name || entry.nameSource === 'user') {
+            return null;
+        }
+        if (name === context.data?.session_name) {
             return null;
         }
 

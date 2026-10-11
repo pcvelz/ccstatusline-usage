@@ -9,12 +9,8 @@ import {
     vi
 } from 'vitest';
 
+import { waitFor } from '../../__tests__/helpers/wait-for-ink';
 import { InstallMenu } from '../InstallMenu';
-
-import {
-    flushInk,
-    waitForOutput
-} from './ink-test-utils';
 
 const ALL_AVAILABLE = {
     npm: true,
@@ -41,7 +37,10 @@ class MockTtyStream extends PassThrough {
     }
 }
 
-interface CapturedWriteStream extends NodeJS.WriteStream { getOutput: () => string }
+interface CapturedWriteStream extends NodeJS.WriteStream {
+    clearOutput: () => void;
+    getOutput: () => string;
+}
 
 function createMockStdin(): NodeJS.ReadStream {
     return new MockTtyStream() as unknown as NodeJS.ReadStream;
@@ -56,6 +55,9 @@ function createMockStdout(): CapturedWriteStream {
     });
 
     return Object.assign(stream as unknown as NodeJS.WriteStream, {
+        clearOutput() {
+            chunks.length = 0;
+        },
         getOutput() {
             return stripAnsi(chunks.join(''));
         }
@@ -87,12 +89,14 @@ describe('InstallMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Select update style');
+            });
 
             stdin.write('\u001B');
-            await flushInk();
-
-            expect(onCancel).toHaveBeenCalledTimes(1);
+            await waitFor(() => {
+                expect(onCancel).toHaveBeenCalledTimes(1);
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -125,12 +129,12 @@ describe('InstallMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Auto-update');
+                expect(stdout.getOutput()).toContain('Pinned global install');
+            });
 
-            const output = stdout.getOutput();
-            expect(output).toContain('Auto-update');
-            expect(output).toContain('Pinned global install');
-            expect(output.toLowerCase()).not.toContain('recommended');
+            expect(stdout.getOutput().toLowerCase()).not.toContain('recommended');
         } finally {
             instance.unmount();
             instance.cleanup();
@@ -163,11 +167,13 @@ describe('InstallMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('▶  Pinned global install');
+                expect(stdout.getOutput()).toContain('Auto-update');
+            });
 
             const output = stdout.getOutput();
             expect(output.indexOf('Pinned global install')).toBeLessThan(output.indexOf('Auto-update'));
-            expect(output).toContain('▶  Pinned global install');
             expect(output).not.toContain('▶  Auto-update');
         } finally {
             instance.unmount();
@@ -206,9 +212,14 @@ describe('InstallMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Select update style');
+            });
             stdin.write('\r');
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('npm install -g ccstatusline-usage@2.2.13');
+                expect(stdout.getOutput()).toContain('bun add -g ccstatusline-usage@2.2.13');
+            });
 
             const output = stdout.getOutput();
             expect(output).toContain('npm install -g ccstatusline-usage@2.2.13');
@@ -248,17 +259,21 @@ describe('InstallMenu', () => {
         );
 
         try {
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Select update style');
+            });
             stdin.write('\r');
-            await waitForOutput(() => stdout.getOutput(), 'Select package manager');
-            // Rendered text precedes the child's input handler being attached.
-            await flushInk();
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Select package manager');
+            });
 
+            stdout.clearOutput();
             stdin.write('\u001B');
-            await waitForOutput(() => stdout.getOutput(), 'Select update style');
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Select update style');
+            });
 
             expect(onCancel).not.toHaveBeenCalled();
-            expect(stdout.getOutput()).toContain('Select update style');
         } finally {
             instance.unmount();
             instance.cleanup();
