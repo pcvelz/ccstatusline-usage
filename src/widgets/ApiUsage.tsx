@@ -19,6 +19,7 @@ import {
     resolveWeeklyUsageWindow
 } from '../utils/usage';
 import { resolveProvider } from '../utils/usage/resolver';
+import { readWeeklyEstimate } from '../utils/weekly-estimate';
 
 import {
     LOCALE_EDITOR_ACTION,
@@ -182,7 +183,7 @@ export class WeeklyUsageWidget implements Widget {
         return { displayText: this.getDisplayName() };
     }
 
-    render(_item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
+    render(_item: WidgetItem, context: RenderContext, settings: Settings): string | null {
         if (context.isPreview)
             return 'Weekly: [██░░░░░░░░░░░░░] 12%';
 
@@ -209,7 +210,16 @@ export class WeeklyUsageWidget implements Widget {
             return formatSplitUsageBar('Weekly', 'W', extraPercent, size, extraUsed, extraLimit);
         }
 
-        return formatUsageBar('Weekly', 'W', data.weeklyUsage, size);
+        // The whole-number digit is always the existing weekly source. The estimator adds only
+        // the digit after the comma, and only when its whole part agrees with that source.
+        const estimate = settings.weeklyEstimate && Number.isInteger(data.weeklyUsage)
+            ? readWeeklyEstimate(data.weeklyUsage)
+            : null;
+        // Truncate, never round: the whole digit must stay the API value, so 5.96 shows 5.9, not 6.0.
+        const weeklyPercent = estimate !== null && Math.floor(estimate) === data.weeklyUsage
+            ? Math.floor(estimate * 10) / 10
+            : data.weeklyUsage;
+        return formatUsageBar('Weekly', 'W', weeklyPercent, size);
     }
 
     supportsRawValue(): boolean { return false; }

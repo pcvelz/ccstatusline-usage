@@ -95,7 +95,7 @@ describe('usage prefetch', () => {
         expect(mockFetchUsage.mock.calls.length).toBe(0);
     });
 
-    it('uses rate_limits from StatusJSON instead of fetching from API', async () => {
+    it('uses session rate_limits from StatusJSON without fetching from API', async () => {
         const lines = makeLines(
             [{ id: '1', type: 'session-usage' }]
         );
@@ -108,7 +108,7 @@ describe('usage prefetch', () => {
         });
 
         expect(usageData?.sessionUsage).toBe(42);
-        expect(usageData?.weeklyUsage).toBe(15);
+        expect(usageData?.weeklyUsage).toBeUndefined();
         expect(mockFetchUsage.mock.calls.length).toBe(0);
     });
 
@@ -318,7 +318,6 @@ describe('usage prefetch', () => {
 
         expect(usageData).toEqual({
             sessionUsage: 42,
-            weeklyUsage: 15,
             weeklyResetAt: epochToIso(1774540000)
         });
         expect(mockFetchUsage.mock.calls).toEqual([
@@ -523,6 +522,8 @@ describe('usage prefetch', () => {
     });
 
     it('does not require per-model buckets when only the all-models weekly widget is present', async () => {
+        mockFetchUsage.mockResolvedValue({ weeklyUsage: 15 });
+
         const lines = makeLines(
             [{ id: '1', type: 'weekly-usage' }]
         );
@@ -535,7 +536,7 @@ describe('usage prefetch', () => {
         });
 
         expect(usageData?.weeklyUsage).toBe(15);
-        expect(mockFetchUsage.mock.calls.length).toBe(0);
+        expect(mockFetchUsage.mock.calls.length).toBe(1);
     });
 
     it('fetches scoped API usage when requested per-model stdin buckets are null', async () => {
@@ -670,7 +671,7 @@ describe('usage prefetch', () => {
 });
 
 describe('extractUsageDataFromRateLimits', () => {
-    it('extracts session and weekly usage from rate_limits', () => {
+    it('extracts session usage and weekly reset from rate_limits, not weekly usage', () => {
         const result = extractUsageDataFromRateLimits({
             five_hour: { used_percentage: 42, resets_at: 1774020000 },
             seven_day: { used_percentage: 15, resets_at: 1774540000 }
@@ -678,7 +679,8 @@ describe('extractUsageDataFromRateLimits', () => {
 
         expect(result).not.toBeNull();
         expect(result?.sessionUsage).toBe(42);
-        expect(result?.weeklyUsage).toBe(15);
+        expect(result?.weeklyUsage).toBeUndefined();
+        expect(result?.weeklyResetAt).toBe(epochToIso(1774540000));
     });
 
     it('converts epoch seconds to ISO strings for resets_at', () => {
@@ -721,7 +723,8 @@ describe('extractUsageDataFromRateLimits', () => {
 
         expect(result).not.toBeNull();
         expect(result?.sessionUsage).toBeUndefined();
-        expect(result?.weeklyUsage).toBe(10);
+        expect(result?.weeklyUsage).toBeUndefined();
+        expect(result?.weeklyResetAt).toBe(epochToIso(1774540000));
     });
 
     it('treats used_percentage of 0 as valid data', () => {

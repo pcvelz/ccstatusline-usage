@@ -92,6 +92,12 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.5.1](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.1) - Weekly decimal with a self-calibrating rate
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Weekly decimal** - Weekly shows an estimated decimal after the API's whole percent (`W: 5.6%`), interpolated from five-hour session usage. The whole digit is always the API value; the decimal never rounds it up. Toggle with the `weeklyEstimate` setting.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Self-calibrating** - `scripts/usage-sampler.ts` (launchd, every 2 min) records each weekly step to `~/.cache/ccstatusline/weekly-calibration.json`. The rate carries across weeks and re-bases itself when Anthropic changes the limits (`rebasedAt` in that file). See `docs/weekly-calibration.md`.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Weekly from the API** - the weekly % comes from the usage API instead of the status-line payload, whose `seven_day` value lagged behind.
+
 ### [v2.5.0](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.0) - Cache minutes, Fable beside Weekly, quieter Chat ref
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache minutes** - Cache Timer now shows just the minutes left (`Cache: 42 min`, `C: 42m`), no emoji or HOT, on line 2 by default; red at 5 min left on a 1h cache, 2 min on a 5m cache (`w` to change, `e` for upstream's emoji countdown).

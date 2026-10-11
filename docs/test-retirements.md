@@ -7,6 +7,11 @@ A test file whose `expect(` count went down must be listed here by its
 backticked path with the reason (the `###` file headings count). Entries must
 be backticked: the gate matches `` `title` `` / `` `path` ``, not bare text.
 
+## v2.5.0 -> v2.5.1
+
+- `extracts session and weekly usage from rate_limits`: semantics deliberately replaced in a56a58e - weekly usage now comes from the API, not the status-line payload (the payload's seven_day value was stale). Replaced by "extracts session usage and weekly reset from rate_limits, not weekly usage" (asserts `weeklyUsage` undefined, reset kept).
+- `uses rate_limits from StatusJSON instead of fetching from API`: same a56a58e change; replaced by "uses session rate_limits from StatusJSON without fetching from API" (asserts session 42, `weeklyUsage` undefined, no fetch).
+
 ## v2.4.18 -> upstream merge (14 commits)
 
 - `uses h to toggle reset timer hour format in timestamp mode`: upstream #542 moved the hour-format toggle to `f` (`h` now hides placeholders); same assertion as "uses f to toggle reset timer hour format in timestamp mode".

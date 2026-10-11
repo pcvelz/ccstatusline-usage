@@ -118,6 +118,9 @@ export const SettingsSchema = z.object({
     terminalWidthCacheTtlSeconds: z.number().min(0).max(300).default(5),
     customCommandCacheTtlSeconds: z.number().min(0).max(60).default(0),
     minimalistMode: z.boolean().default(false),
+    // Adds the decimal part to the Weekly widget, estimated from the fractional
+    // five-hour session %. Off shows the integer the API reports.
+    weeklyEstimate: z.boolean().default(true),
     powerline: PowerlineConfigSchema.default({
         enabled: false,
         separators: ['\uE0B0'],

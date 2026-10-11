@@ -210,10 +210,12 @@ export function extractUsageDataFromRateLimits(rateLimits: StatusJSON['rate_limi
     // usage-fetch.test.ts, so this lookup is safe despite the untyped index.
     const rateLimitBuckets = rateLimits as unknown as Record<string, RateLimitPeriod | null | undefined>;
 
+    // Weekly USAGE is NOT taken from the payload: a session rendered from a stale payload
+    // carries a stale seven_day value. The API is the weekly usage source, the same one the
+    // usage sampler records. The reset time is still read from the payload.
     const usageData: UsageData = {
         sessionUsage: rateLimits.five_hour?.used_percentage ?? undefined,
         sessionResetAt: epochSecondsToIsoString(rateLimits.five_hour?.resets_at),
-        weeklyUsage: rateLimits.seven_day?.used_percentage ?? undefined,
         weeklyResetAt: epochSecondsToIsoString(rateLimits.seven_day?.resets_at)
         // Note: rate_limits does not include extra_usage data (extraUsageEnabled, etc.).
         // Those fields are only available via the API fetch path.

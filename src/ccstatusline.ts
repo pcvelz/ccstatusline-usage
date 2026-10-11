@@ -24,6 +24,7 @@ import { handleHookInput } from './utils/hook-handler';
 import { getTranscriptAnalysis } from './utils/jsonl';
 import { prefetchLlamaSwapData } from './utils/llama-swap-prefetch';
 import { advanceGlobalPowerlineThemeIndex } from './utils/powerline-theme-index';
+import { saveRateLimitSnapshot } from './utils/rate-limit-snapshot';
 import {
     buildConfigWarningBadge,
     calculateMaxWidthsFromPreRendered,
@@ -103,6 +104,8 @@ async function ensureWindowsUtf8CodePage() {
 }
 
 async function renderMultipleLines(data: StatusJSON) {
+    saveRateLimitSnapshot(data.rate_limits);
+
     const settings = await loadSettings();
     const configError = getConfigLoadError();
 

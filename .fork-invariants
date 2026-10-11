@@ -13,6 +13,9 @@ src/utils/claude-settings.ts ccstatusline-usage
 # API usage widgets and their registrations
 src/widgets/ApiUsage.tsx export class SessionUsageWidget
 src/widgets/ApiUsage.tsx export class WeeklyUsageWidget
+src/widgets/ApiUsage.tsx readWeeklyEstimate(data.weeklyUsage)
+src/utils/weekly-estimate.ts currentRate(readCalibration())
+src/types/Settings.ts weeklyEstimate: z.boolean()
 src/widgets/ApiUsage.tsx export class ResetTimerWidget
 src/widgets/ApiUsage.tsx export class ContextBarWidget
 src/widgets/index.ts ContextBarWidget

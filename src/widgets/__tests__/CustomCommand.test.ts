@@ -77,6 +77,7 @@ describe('CustomCommandWidget', () => {
         terminalWidthCacheTtlSeconds: 5,
         customCommandCacheTtlSeconds: 0,
         minimalistMode: false,
+        weeklyEstimate: true,
         powerline: {
             enabled: false,
             separators: [],
