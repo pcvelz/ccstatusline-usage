@@ -25,7 +25,7 @@ const { execFileSync: realExecFileSync } = require('node:child_process') as { ex
 
 interface UsageProbeResult {
     first: Record<string, unknown>;
-    second: Record<string, unknown>;
+    second: Record<string, unknown> | null;
     lockExists: boolean;
     cacheExists: boolean;
     requestCount: number;
@@ -43,6 +43,7 @@ interface TokenHome {
 
 interface ProbeOptions {
     claudeConfigDir?: string;
+    entrypoint?: 'fetchFreshUsageData';
     home: string;
     httpsProxy?: string;
     lowercaseHttpsProxy?: string;
@@ -58,7 +59,7 @@ interface ProbeOptions {
 function createProbeHarness() {
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-usage-test-'));
     const probeScriptPath = path.join(tempRoot, 'probe-usage.mjs');
-    const usageModulePath = fileURLToPath(new URL('../usage.ts', import.meta.url));
+    const usageModulePath = fileURLToPath(new URL('../usage-fetch.ts', import.meta.url));
     const usageModuleUrl = pathToFileURL(usageModulePath).href;
 
     const probeScript = `
@@ -144,7 +145,7 @@ https.request = (...args) => {
     return request;
 };
 
-const { fetchUsageData } = await import(${JSON.stringify(usageModuleUrl)});
+const { fetchUsageData, fetchFreshUsageData } = await import(${JSON.stringify(usageModuleUrl)});
 
 const lockFile = path.join(os.homedir(), '.cache', 'ccstatusline', 'usage.lock');
 const cacheFile = path.join(os.homedir(), '.cache', 'ccstatusline', 'usage.json');
@@ -152,8 +153,14 @@ const nowMs = Number(process.env.TEST_NOW_MS || Date.now());
 const requiredFields = JSON.parse(process.env.TEST_REQUIRED_FIELDS_JSON || '[]');
 Date.now = () => nowMs;
 
-const first = await fetchUsageData({ requiredFields });
-const second = await fetchUsageData({ requiredFields });
+let first;
+let second = null;
+if (process.env.TEST_ENTRYPOINT === 'fetchFreshUsageData') {
+    first = await fetchFreshUsageData();
+} else {
+    first = await fetchUsageData({ requiredFields });
+    second = await fetchUsageData({ requiredFields });
+}
 process.stdout.write(JSON.stringify({
     first,
     second,
@@ -215,6 +222,7 @@ process.stdout.write(JSON.stringify({
             USERPROFILE: options.home,
             PATH: options.pathDir ?? '/nonexistent',
             TEST_REQUIRED_FIELDS_JSON: JSON.stringify(options.requiredFields ?? []),
+            TEST_ENTRYPOINT: options.entrypoint ?? 'fetchUsageData',
             TEST_NOW_MS: String(options.nowMs),
             TEST_REQUEST_MODE: options.mode ?? 'success',
             TEST_RESPONSE_BODY: options.responseBody ?? '',
@@ -2318,5 +2326,203 @@ describe('parseUsageApiResponse limits[] fallback (#503)', () => {
             weeklyUsage: 0,
             weeklyResetAt: '2030-07-07T00:00:00.000Z'
         });
+    });
+});
+
+// The sampler's entry point: it always wants a live reading, but must still
+// share the one API budget (usage.lock) and the one cache (usage.json).
+describe('fetchFreshUsageData', () => {
+    const nowMs = 2200000000000;
+    const nowSeconds = Math.floor(nowMs / 1000);
+    const fresh = 'fetchFreshUsageData' as const;
+    const weeklySixResponseBody = JSON.stringify({
+        five_hour: {
+            utilization: 42,
+            resets_at: '2030-01-01T00:00:00.000Z'
+        },
+        seven_day: {
+            utilization: 6,
+            resets_at: '2030-01-07T00:00:00.000Z'
+        }
+    });
+    const rateLimitedResponseBody = JSON.stringify({
+        error: {
+            message: 'Rate limited. Please try again later.',
+            type: 'rate_limit_error'
+        }
+    });
+    const weeklySixUsage = {
+        sessionUsage: 42,
+        sessionResetAt: '2030-01-01T00:00:00.000Z',
+        weeklyUsage: 6,
+        weeklyResetAt: '2030-01-07T00:00:00.000Z'
+    };
+    const testTokenHash = createHash('sha256').update('test-token').digest('hex').slice(0, 16);
+
+    it('writes the cache with the token fingerprint, clears the lock, and returns the parsed usage on success', () => {
+        const harness = createProbeHarness();
+
+        try {
+            const home = harness.createTokenHome('fresh-success');
+            const result = harness.runProbe({
+                claudeConfigDir: home.claudeConfig,
+                entrypoint: fresh,
+                home: home.home,
+                mode: 'success',
+                nowMs,
+                pathDir: home.bin,
+                responseBody: weeklySixResponseBody
+            });
+
+            expect(result.first).toEqual({ kind: 'success', data: weeklySixUsage });
+            expect(result.requestCount).toBe(1);
+            expect(result.lockExists).toBe(false);
+
+            const cache = JSON.parse(fs.readFileSync(path.join(home.home, '.cache', 'ccstatusline', 'usage.json'), 'utf8')) as Record<string, unknown>;
+            expect(cache.weeklyUsage).toBe(6);
+            expect(cache.tokenHash).toBe(testTokenHash);
+        } finally {
+            harness.cleanup();
+        }
+    });
+
+    it('does not short-circuit on a fresh cache: one request, and the cache ends at the API value', () => {
+        const harness = createProbeHarness();
+
+        try {
+            const home = harness.createTokenHome('fresh-no-shortcircuit');
+            // Stale-5-vs-6: the cache is well inside CACHE_MAX_AGE but behind the API.
+            const { cacheFile, mtimeMs } = seedUsageCache(home.home, {
+                sessionUsage: 42,
+                weeklyUsage: 5,
+                tokenHash: testTokenHash
+            });
+
+            const result = harness.runProbe({
+                claudeConfigDir: home.claudeConfig,
+                entrypoint: fresh,
+                home: home.home,
+                mode: 'success',
+                nowMs: mtimeMs + 5000,
+                pathDir: home.bin,
+                responseBody: weeklySixResponseBody
+            });
+
+            expect(result.requestCount).toBe(1);
+            expect(result.first).toEqual({ kind: 'success', data: weeklySixUsage });
+            const cache = JSON.parse(fs.readFileSync(cacheFile, 'utf8')) as Record<string, unknown>;
+            expect(cache.weeklyUsage).toBe(6);
+        } finally {
+            harness.cleanup();
+        }
+    });
+
+    it('returns locked without a request while a rate-limit lock is active, and leaves the lock untouched', () => {
+        const harness = createProbeHarness();
+
+        try {
+            const home = harness.createTokenHome('fresh-locked');
+            const cacheDir = path.join(home.home, '.cache', 'ccstatusline');
+            fs.mkdirSync(cacheDir, { recursive: true });
+            const lockContents = JSON.stringify({ blockedUntil: nowSeconds + 3600, error: 'rate-limited' });
+            fs.writeFileSync(path.join(cacheDir, 'usage.lock'), lockContents);
+
+            const result = harness.runProbe({
+                claudeConfigDir: home.claudeConfig,
+                entrypoint: fresh,
+                home: home.home,
+                mode: 'unexpected',
+                nowMs,
+                pathDir: home.bin
+            });
+
+            expect(result.first).toEqual({ kind: 'locked', error: 'rate-limited', blockedUntil: nowSeconds + 3600 });
+            expect(result.requestCount).toBe(0);
+            expect(result.lockContents).toBe(lockContents);
+        } finally {
+            harness.cleanup();
+        }
+    });
+
+    it('turns a 429 into a rate-limited error and writes the Retry-After backoff to the lock', () => {
+        const harness = createProbeHarness();
+
+        try {
+            const home = harness.createTokenHome('fresh-429');
+            const result = harness.runProbe({
+                claudeConfigDir: home.claudeConfig,
+                entrypoint: fresh,
+                home: home.home,
+                mode: 'status',
+                nowMs,
+                pathDir: home.bin,
+                responseBody: rateLimitedResponseBody,
+                responseHeaders: { 'retry-after': '3600' },
+                statusCode: 429
+            });
+
+            expect(result.first).toEqual({ kind: 'error', error: 'rate-limited' });
+            expect(result.requestCount).toBe(1);
+            expect(parseLockContents(result.lockContents)).toEqual({
+                blockedUntil: nowSeconds + 3600,
+                error: 'rate-limited'
+            });
+        } finally {
+            harness.cleanup();
+        }
+    });
+
+    it('lets the status line serve the sampler-refreshed cache with no request of its own', () => {
+        const harness = createProbeHarness();
+
+        try {
+            const home = harness.createTokenHome('fresh-then-status-line');
+            const sampler = harness.runProbe({
+                claudeConfigDir: home.claudeConfig,
+                entrypoint: fresh,
+                home: home.home,
+                mode: 'success',
+                nowMs,
+                pathDir: home.bin,
+                responseBody: weeklySixResponseBody
+            });
+            expect(sampler.requestCount).toBe(1);
+
+            const cacheMtimeMs = fs.statSync(path.join(home.home, '.cache', 'ccstatusline', 'usage.json')).mtimeMs;
+            const statusLine = harness.runProbe({
+                claudeConfigDir: home.claudeConfig,
+                home: home.home,
+                mode: 'unexpected',
+                nowMs: cacheMtimeMs + 10000,
+                pathDir: home.bin,
+                requiredFields: ['weeklyUsage']
+            });
+
+            expect(statusLine.first).toEqual(weeklySixUsage);
+            expect(statusLine.second).toEqual(weeklySixUsage);
+            expect(statusLine.requestCount).toBe(0);
+        } finally {
+            harness.cleanup();
+        }
+    });
+
+    it('returns no-credentials without a request when no token is available', () => {
+        const harness = createProbeHarness();
+
+        try {
+            const home = harness.createEmptyHome('fresh-no-credentials');
+            const result = harness.runProbe({
+                entrypoint: fresh,
+                home: home.home,
+                mode: 'unexpected',
+                nowMs
+            });
+
+            expect(result.first).toEqual({ kind: 'error', error: 'no-credentials' });
+            expect(result.requestCount).toBe(0);
+            expect(result.lockExists).toBe(false);
+        } finally {
+            harness.cleanup();
+        }
     });
 });

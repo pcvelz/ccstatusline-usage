@@ -92,6 +92,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.5.2](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.2) - One usage fetcher, no stale Weekly
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **No stale Weekly** - the usage sampler now refreshes the status line's own usage cache and honours its rate-limit lock, so the two no longer race each other into 429s and the status line stops showing an old value (`W: 5%` while the API said 6%).
+
 ### [v2.5.1](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.1) - Weekly decimal with a self-calibrating rate
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Weekly decimal** - Weekly shows an estimated decimal after the API's whole percent (`W: 5.6%`), interpolated from five-hour session usage. The whole digit is always the API value; the decimal never rounds it up. Toggle with the `weeklyEstimate` setting.

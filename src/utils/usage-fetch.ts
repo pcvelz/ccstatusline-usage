@@ -387,6 +387,15 @@ function cacheUsageData(data: UsageData, now: number): UsageData {
     return data;
 }
 
+function writeUsageCache(usageData: UsageData, cacheIdentity: UsageCacheIdentity | null): void {
+    try {
+        ensureCacheDirExists();
+        fs.writeFileSync(CACHE_FILE, JSON.stringify({ ...usageData, tokenHash: cacheIdentity?.preferredHash }));
+    } catch {
+        // Ignore cache write errors
+    }
+}
+
 function hasRequiredUsageField(data: UsageData, field: UsageDataField): boolean {
     if (data[field] !== undefined) {
         return true;
@@ -889,13 +898,7 @@ export async function fetchUsageData(options: FetchUsageDataOptions = {}): Promi
             return getStaleUsageOrError('parse-error', now, cacheIdentity, LOCK_MAX_AGE, requiredFields);
         }
 
-        // Save to cache
-        try {
-            ensureCacheDirExists();
-            fs.writeFileSync(CACHE_FILE, JSON.stringify({ ...usageData, tokenHash: cacheIdentity?.preferredHash }));
-        } catch {
-            // Ignore cache write errors
-        }
+        writeUsageCache(usageData, cacheIdentity);
 
         // Clear the in-flight lock written above only once this response satisfies
         // the caller's requested fields. Incomplete 200 responses are cached but
@@ -908,5 +911,58 @@ export async function fetchUsageData(options: FetchUsageDataOptions = {}): Promi
     } catch {
         writeUsageLock(now + LOCK_MAX_AGE, 'parse-error');
         return getStaleUsageOrError('parse-error', now, cacheIdentity, LOCK_MAX_AGE, requiredFields);
+    }
+}
+
+export type FreshUsageResult
+    = { kind: 'success'; data: UsageData }
+        | { kind: 'locked'; error: UsageError; blockedUntil: number }
+        | { kind: 'error'; error: UsageError };
+
+// The sampler and the status line share one API budget and one cache, so the
+// status line never needs its own fetch while the sampler runs. This entry point
+// skips the CACHE_MAX_AGE short-circuit (it wants a live reading every tick) but
+// honours the same usage.lock and writes the same usage.json as fetchUsageData.
+export async function fetchFreshUsageData(): Promise<FreshUsageResult> {
+    const now = Math.floor(Date.now() / 1000);
+
+    const credentials = getUsageCredentials();
+    if (!credentials) {
+        return { kind: 'error', error: 'no-credentials' };
+    }
+    const cacheIdentity = getUsageCacheIdentity(credentials);
+
+    const activeLock = readActiveUsageLock(now);
+    if (activeLock) {
+        return { kind: 'locked', error: activeLock.error, blockedUntil: activeLock.blockedUntil };
+    }
+
+    writeUsageLock(now + LOCK_MAX_AGE, 'timeout');
+
+    try {
+        const response = await fetchFromUsageApi(credentials.accessToken);
+
+        if (response.kind === 'rate-limited') {
+            writeUsageLock(now + response.retryAfterSeconds, 'rate-limited');
+            return { kind: 'error', error: 'rate-limited' };
+        }
+
+        if (response.kind === 'error') {
+            return { kind: 'error', error: 'api-error' };
+        }
+
+        const usageData = parseUsageApiResponse(response.body);
+        if (!usageData || (usageData.sessionUsage === undefined && usageData.weeklyUsage === undefined)) {
+            writeUsageLock(now + LOCK_MAX_AGE, 'parse-error');
+            return { kind: 'error', error: 'parse-error' };
+        }
+
+        writeUsageCache(usageData, cacheIdentity);
+        clearUsageLock();
+        cacheUsageData(usageData, now);
+        return { kind: 'success', data: usageData };
+    } catch {
+        writeUsageLock(now + LOCK_MAX_AGE, 'parse-error');
+        return { kind: 'error', error: 'parse-error' };
     }
 }

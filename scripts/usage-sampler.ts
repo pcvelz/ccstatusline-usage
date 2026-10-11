@@ -3,10 +3,12 @@
 // One API call per run: records the weekly and five-hour usage from /api/oauth/usage
 // to ~/.cache/ccstatusline/usage-samples.jsonl. Meant to run every 120s from launchd.
 //
-// Calls the API directly (no shared cache), so every run is a fresh value. Singleton:
-// a PID lock makes an overlapping tick exit at once. After each sample the calibration
-// store (weekly-calibration.json) is rebuilt from the sample file. This script is the only
-// writer of both files; the render path only reads them.
+// Every run takes a fresh reading through fetchFreshUsageData, which shares the usage.lock
+// rate-limit budget and refreshes the shared usage.json cache. The status line therefore
+// never fetches on its own while the sampler runs, so the two cannot race for one budget.
+// Singleton: a PID lock makes an overlapping tick exit at once. After each sample the
+// calibration store (weekly-calibration.json) is rebuilt from the sample file. This script
+// is the only writer of both files; the render path only reads them.
 
 import {
     appendFileSync,
@@ -16,14 +18,10 @@ import {
     rmSync,
     writeFileSync
 } from 'fs';
-import https from 'https';
 import { join } from 'path';
 
 import { CACHE_DIR } from '../src/utils/rate-limit-snapshot';
-import {
-    getUsageToken,
-    parseUsageApiResponse
-} from '../src/utils/usage-fetch';
+import { fetchFreshUsageData } from '../src/utils/usage-fetch';
 import {
     mergeObservations,
     pruneSamples,
@@ -37,7 +35,6 @@ import {
 } from '../src/utils/weekly-estimate';
 
 const LOCK_FILE = join(CACHE_DIR, 'usage-sampler.pid');
-const TIMEOUT_MS = 10_000;
 // Above this the sample file is pruned to the retention window. 14 days of 2-min rows is
 // ~1.7 MB, so the cap sits well above it: a prune runs every few days, not every tick.
 const MAX_SAMPLE_FILE_BYTES = 4 * 1024 * 1024;
@@ -81,35 +78,6 @@ function releaseLock(): void {
     }
 }
 
-// Returns the raw body, or throws with the HTTP status / network error
-function fetchUsageBody(token: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const request = https.request({
-            hostname: 'api.anthropic.com',
-            path: '/api/oauth/usage',
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'anthropic-beta': 'oauth-2025-04-20'
-            },
-            timeout: TIMEOUT_MS
-        }, (response) => {
-            let body = '';
-            response.setEncoding('utf8');
-            response.on('data', (chunk: string) => { body += chunk; });
-            response.on('end', () => {
-                if (response.statusCode === 200)
-                    resolve(body);
-                else
-                    reject(new Error(`HTTP ${response.statusCode}`));
-            });
-        });
-        request.on('error', reject);
-        request.on('timeout', () => request.destroy(new Error('timeout')));
-        request.end();
-    });
-}
-
 // Prunes the sample file past the size cap, then rebuilds the calibration store from it.
 // Best-effort: a failure here must never break sampling.
 function recalibrate(): void {
@@ -139,15 +107,20 @@ async function main(): Promise<void> {
     process.on('exit', releaseLock);
 
     const ts = new Date().toISOString();
-    const token = getUsageToken();
-    if (!token) {
-        appendFileSync(USAGE_SAMPLE_FILE, `${JSON.stringify({ ts, error: 'no-credentials' })}\n`);
-        return;
-    }
 
     try {
-        const parsed = parseUsageApiResponse(await fetchUsageBody(token));
-        if (parsed?.weeklyUsage === undefined) {
+        const result = await fetchFreshUsageData();
+        // A locked result means no API call was made this tick (the shared backoff is active)
+        if (result.kind === 'locked') {
+            appendFileSync(USAGE_SAMPLE_FILE, `${JSON.stringify({ ts, error: `locked:${result.error}` })}\n`);
+            return;
+        }
+        if (result.kind === 'error') {
+            appendFileSync(USAGE_SAMPLE_FILE, `${JSON.stringify({ ts, error: result.error })}\n`);
+            return;
+        }
+        const parsed = result.data;
+        if (parsed.weeklyUsage === undefined) {
             appendFileSync(USAGE_SAMPLE_FILE, `${JSON.stringify({ ts, error: 'parse-error' })}\n`);
             return;
         }
