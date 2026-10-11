@@ -157,7 +157,7 @@ function renderMenu(state: UpdateCheckerState): RenderedMenu {
 const NPM_UPDATE: UpdateAction = {
     id: 'npm-global',
     packageManager: 'npm',
-    command: 'npm install -g ccstatusline@2.3.0',
+    command: 'npm install -g ccstatusline-usage@2.3.0',
     version: '2.3.0',
     available: true
 };
@@ -165,7 +165,7 @@ const NPM_UPDATE: UpdateAction = {
 const BUN_UPDATE: UpdateAction = {
     id: 'bun-global',
     packageManager: 'bun',
-    command: 'bun add -g ccstatusline@2.3.0',
+    command: 'bun add -g ccstatusline-usage@2.3.0',
     version: '2.3.0',
     available: true
 };
@@ -372,7 +372,7 @@ describe('UpdateCheckerMenu', () => {
                 expect(output).toMatch(/^Current: 2\.2\.13$/m);
                 expect(output).toMatch(/^Latest: 2\.3\.0$/m);
                 expect(output).toMatch(/^Install: Pinned global install via npm 2\.2\.13$/m);
-                expect(output).toMatch(/^▶ {2}Run npm install -g ccstatusline@2\.3\.0$/m);
+                expect(output).toMatch(/^▶ {2}Run npm install -g ccstatusline-usage@2\.3\.0$/m);
                 expect(output).toMatch(/^ {3}Check again$/m);
                 expect(output).toMatch(/^ {3}← Back$/m);
                 expect(output).not.toContain('No manual hook change is needed.');
@@ -383,7 +383,7 @@ describe('UpdateCheckerMenu', () => {
                 expect(menu.onRunAction).toHaveBeenCalledWith({
                     id: 'npm-global',
                     packageManager: 'npm',
-                    command: 'npm install -g ccstatusline@2.3.0',
+                    command: 'npm install -g ccstatusline-usage@2.3.0',
                     version: '2.3.0',
                     available: true
                 });
@@ -399,7 +399,7 @@ describe('UpdateCheckerMenu', () => {
 
             try {
                 await waitFor(() => {
-                    expect(menu.stdout.getOutput()).toContain('▶  Run npm install -g ccstatusline@2.3.0');
+                    expect(menu.stdout.getOutput()).toContain('▶  Run npm install -g ccstatusline-usage@2.3.0');
                 });
 
                 await menu.press(DOWN, () => {
@@ -434,8 +434,8 @@ describe('UpdateCheckerMenu', () => {
                 });
                 const output = menu.stdout.getOutput();
                 expect(output).toMatch(/^Install: Self-managed\/global install$/m);
-                expect(output).toMatch(/^ {3}Run npm install -g ccstatusline@2\.3\.0 \(npm not installed\)$/m);
-                expect(output).toMatch(/^▶ {2}Run bun add -g ccstatusline@2\.3\.0$/m);
+                expect(output).toMatch(/^ {3}Run npm install -g ccstatusline-usage@2\.3\.0 \(npm not installed\)$/m);
+                expect(output).toMatch(/^▶ {2}Run bun add -g ccstatusline-usage@2\.3\.0$/m);
 
                 await menu.press(ENTER, () => {
                     expect(menu.onRunAction).toHaveBeenCalledTimes(1);
@@ -443,7 +443,7 @@ describe('UpdateCheckerMenu', () => {
                 expect(menu.onRunAction).toHaveBeenCalledWith({
                     id: 'bun-global',
                     packageManager: 'bun',
-                    command: 'bun add -g ccstatusline@2.3.0',
+                    command: 'bun add -g ccstatusline-usage@2.3.0',
                     version: '2.3.0',
                     available: true
                 });
@@ -463,8 +463,8 @@ describe('UpdateCheckerMenu', () => {
                     expect(menu.stdout.getOutput()).toContain('An update is available.');
                 });
                 const output = menu.stdout.getOutput();
-                expect(output).toMatch(/^ {3}Run npm install -g ccstatusline@2\.3\.0 \(npm not installed\)$/m);
-                expect(output).toMatch(/^ {3}Run bun add -g ccstatusline@2\.3\.0 \(bun not installed\)$/m);
+                expect(output).toMatch(/^ {3}Run npm install -g ccstatusline-usage@2\.3\.0 \(npm not installed\)$/m);
+                expect(output).toMatch(/^ {3}Run bun add -g ccstatusline-usage@2\.3\.0 \(bun not installed\)$/m);
                 expect(output).toMatch(/^▶ {2}Check again$/m);
 
                 await menu.press(ENTER, () => {
@@ -480,7 +480,7 @@ describe('UpdateCheckerMenu', () => {
             const menu = renderMenu(updateAvailable(
                 { method: 'auto-update', packageManager: 'bun' },
                 [],
-                'bunx -y ccstatusline@latest'
+                'bunx -y ccstatusline-usage@latest'
             ));
 
             try {
@@ -491,7 +491,7 @@ describe('UpdateCheckerMenu', () => {
                 expect(output).toMatch(/^Install: Auto-update via bun$/m);
                 expect(output).toMatch(/^No manual hook change is needed\. Claude Code already runs @latest\.$/m);
                 expect(output).toMatch(/^The next @latest invocation will resolve the latest package\.$/m);
-                expect(output).toMatch(/^Launch command for a fresh TUI: bunx -y ccstatusline@latest$/m);
+                expect(output).toMatch(/^Launch command for a fresh TUI: bunx -y ccstatusline-usage@latest$/m);
                 expect(output).not.toContain('Run ');
                 expect(output).toMatch(/^▶ {2}Check again$/m);
                 expect(output).toMatch(/^ {3}← Back$/m);

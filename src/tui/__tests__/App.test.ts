@@ -397,7 +397,7 @@ describe('App after a global update run from the TUI', () => {
             actions: [{
                 id: 'npm-global',
                 packageManager: 'npm',
-                command: 'npm install -g ccstatusline@99.0.0',
+                command: 'npm install -g ccstatusline-usage@99.0.0',
                 version: '99.0.0',
                 available: true
             }]

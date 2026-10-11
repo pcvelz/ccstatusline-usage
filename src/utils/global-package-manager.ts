@@ -4,7 +4,10 @@ import {
 } from 'node:child_process';
 import * as fs from 'node:fs';
 
-import type { PackageCommandAvailability } from './claude-settings';
+import {
+    PACKAGE_NAME,
+    type PackageCommandAvailability
+} from './claude-settings';
 import {
     getCommandResolutionPaths,
     getExpectedGlobalBinDir,
@@ -188,7 +191,7 @@ function getNpmGlobalPackageVersion(platform: NodeJS.Platform): string | null {
         }).trim();
 
         return rootDir
-            ? readPackageVersion(appendPathSegment(appendPathSegment(rootDir, 'ccstatusline'), 'package.json'))
+            ? readPackageVersion(appendPathSegment(appendPathSegment(rootDir, PACKAGE_NAME), 'package.json'))
             : null;
     } catch {
         return null;
@@ -219,7 +222,7 @@ function getBunGlobalPackageVersion(binDir: string | null): string | null {
                     ),
                     'node_modules'
                 ),
-                'ccstatusline'
+                PACKAGE_NAME
             ),
             'package.json'
         )
@@ -357,8 +360,8 @@ export function runGlobalPackageUninstall(
 ): Promise<void> {
     const executable = getPackageManagerExecutable(packageManager, platform);
     const args = packageManager === 'npm'
-        ? ['uninstall', '-g', 'ccstatusline']
-        : ['remove', '-g', 'ccstatusline'];
+        ? ['uninstall', '-g', PACKAGE_NAME]
+        : ['remove', '-g', PACKAGE_NAME];
 
     return new Promise((resolve, reject) => {
         execFile(

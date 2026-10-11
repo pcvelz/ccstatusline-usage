@@ -9,12 +9,13 @@
 # Package identity
 package.json "name": "ccstatusline-usage"
 src/utils/claude-settings.ts ccstatusline-usage
+src/utils/claude-settings.ts export const PACKAGE_NAME = 'ccstatusline-usage';
 
 # API usage widgets and their registrations
 src/widgets/ApiUsage.tsx export class SessionUsageWidget
 src/widgets/ApiUsage.tsx export class WeeklyUsageWidget
 src/widgets/ApiUsage.tsx readWeeklyEstimate(data.weeklyUsage)
-src/utils/weekly-estimate.ts currentRate(readCalibration())
+src/utils/weekly-estimate.ts readCalibration()?.fit ?? null
 src/types/Settings.ts weeklyEstimate: z.boolean()
 src/widgets/ApiUsage.tsx export class ResetTimerWidget
 src/widgets/ApiUsage.tsx export class ContextBarWidget

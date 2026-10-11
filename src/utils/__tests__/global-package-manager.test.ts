@@ -72,10 +72,10 @@ describe('global package manager inspection', () => {
             'bun pm bin -g': '/Users/alice/.bun/bin\n'
         });
         vi.spyOn(fs, 'existsSync').mockImplementation(filePath => (
-            filePath === '/Users/alice/.bun/install/global/node_modules/ccstatusline/package.json'
+            filePath === '/Users/alice/.bun/install/global/node_modules/ccstatusline-usage/package.json'
         ));
         vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
-            if (filePath === '/Users/alice/.bun/install/global/node_modules/ccstatusline/package.json') {
+            if (filePath === '/Users/alice/.bun/install/global/node_modules/ccstatusline-usage/package.json') {
                 return '{"version":"2.2.13"}';
             }
 
@@ -110,10 +110,10 @@ describe('global package manager inspection', () => {
             'bun pm bin -g': '/Users/alice/.bun/bin\n'
         });
         vi.spyOn(fs, 'existsSync').mockImplementation(filePath => (
-            filePath === '/Users/alice/.bun/install/global/node_modules/ccstatusline/package.json'
+            filePath === '/Users/alice/.bun/install/global/node_modules/ccstatusline-usage/package.json'
         ));
         vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
-            if (filePath === '/Users/alice/.bun/install/global/node_modules/ccstatusline/package.json') {
+            if (filePath === '/Users/alice/.bun/install/global/node_modules/ccstatusline-usage/package.json') {
                 return '{"version":"2.2.14"}';
             }
 
@@ -145,10 +145,10 @@ describe('global package manager inspection', () => {
             'npm.cmd root -g': 'C:\\Users\\Alice\\AppData\\Roaming\\npm\\node_modules\r\n'
         });
         vi.spyOn(fs, 'existsSync').mockImplementation(filePath => (
-            filePath === 'C:\\Users\\Alice\\AppData\\Roaming\\npm\\node_modules\\ccstatusline\\package.json'
+            filePath === 'C:\\Users\\Alice\\AppData\\Roaming\\npm\\node_modules\\ccstatusline-usage\\package.json'
         ));
         vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => {
-            if (filePath === 'C:\\Users\\Alice\\AppData\\Roaming\\npm\\node_modules\\ccstatusline\\package.json') {
+            if (filePath === 'C:\\Users\\Alice\\AppData\\Roaming\\npm\\node_modules\\ccstatusline-usage\\package.json') {
                 return '{"version":"2.2.13"}';
             }
 
@@ -188,7 +188,20 @@ describe('global package manager inspection', () => {
         await runGlobalPackageUninstall('npm', { platform: 'win32' });
 
         expect(execFileSpy.mock.calls[0]?.[0]).toBe('npm.cmd');
-        expect(execFileSpy.mock.calls[0]?.[1]).toEqual(['uninstall', '-g', 'ccstatusline']);
+        // Fork deviation: the published package is ccstatusline-usage (upstream uses ccstatusline).
+        expect(execFileSpy.mock.calls[0]?.[1]).toEqual(['uninstall', '-g', 'ccstatusline-usage']);
         expect(execFileSpy.mock.calls[0]?.[2]).toEqual(expect.objectContaining({ shell: true }));
+    });
+
+    it('removes the ccstatusline-usage package with bun remove -g', async () => {
+        const execFileSpy = vi.spyOn(childProcess, 'execFile').mockImplementation(((...args: unknown[]) => {
+            const callback = args[3] as (error: Error | null) => void;
+            callback(null);
+            return {};
+        }) as typeof childProcess.execFile);
+
+        await runGlobalPackageUninstall('bun', { platform: 'darwin' });
+
+        expect(execFileSpy.mock.calls[0]?.[1]).toEqual(['remove', '-g', 'ccstatusline-usage']);
     });
 });

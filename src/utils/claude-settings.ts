@@ -28,6 +28,9 @@ const writeFile = fs.promises.writeFile;
 const stat = fs.promises.stat;
 const unlink = fs.promises.unlink;
 
+// Fork deviation: the npm package is ccstatusline-usage. The binary is still named ccstatusline.
+export const PACKAGE_NAME = 'ccstatusline-usage';
+
 export const CCSTATUSLINE_COMMANDS = {
     AUTO_NPX: 'npx -y ccstatusline-usage@latest',
     AUTO_BUNX: 'bunx -y ccstatusline-usage@latest',

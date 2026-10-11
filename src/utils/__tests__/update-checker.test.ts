@@ -1,4 +1,5 @@
 import * as childProcess from 'node:child_process';
+import * as https from 'node:https';
 import {
     afterEach,
     describe,
@@ -10,8 +11,10 @@ import {
 import { CCSTATUSLINE_COMMANDS } from '../claude-settings';
 import { initConfigPath } from '../config';
 import {
+    NPM_REGISTRY_LATEST_URL,
     buildUpdateCheckResult,
     checkForUpdates,
+    fetchLatestNpmVersion,
     runGlobalPackageInstall,
     type UpdateCheckResult
 } from '../update-checker';
@@ -57,6 +60,28 @@ describe('update checker', () => {
 
         expect(result.status).toBe('update-available');
         expect((result as UpdateCheckResult & { status: 'update-available' }).actions).toHaveLength(2);
+    });
+
+    // Fork deviation: the registry lookup must target the published fork package, not upstream's ccstatusline.
+    it('queries the ccstatusline-usage package on the npm registry', () => {
+        expect(NPM_REGISTRY_LATEST_URL).toBe('https://registry.npmjs.org/ccstatusline-usage/latest');
+    });
+
+    it('identifies the request as ccstatusline-usage', () => {
+        const requestSpy = vi.spyOn(https, 'request').mockImplementation((() => ({
+            setTimeout: vi.fn(),
+            on: vi.fn(),
+            end: vi.fn(),
+            destroy: vi.fn()
+        })) as unknown as typeof https.request);
+
+        fetchLatestNpmVersion(1000).catch(() => undefined);
+
+        const [url, options] = requestSpy.mock.calls[0] ?? [];
+        const headers = (options as { headers?: Record<string, string> } | undefined)?.headers;
+
+        expect(url).toBe('https://registry.npmjs.org/ccstatusline-usage/latest');
+        expect(headers?.['User-Agent']).toBe('ccstatusline-usage');
     });
 
     it('returns registry failure when the registry request fails', async () => {
