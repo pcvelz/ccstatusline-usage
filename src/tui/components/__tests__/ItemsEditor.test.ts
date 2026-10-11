@@ -289,15 +289,21 @@ describe('ItemsEditor', () => {
             stdin.write('e');
             await flushInk();
 
-            // One macrotask apart: separate keypresses, but no re-render between them
+            // Wait for each key's visible effect: Ink drops a key that arrives
+            // while React is re-attaching its input listener after a redraw
             stdin.write('\x7f');
-            await new Promise(resolve => setImmediate(resolve));
+            await waitFor(() => {
+                expect(stripAnsi(stdout.getOutput())).toContain('"Model: " (default');
+            });
             stdin.write('\x7f');
-            await flushInk();
+            await waitFor(() => {
+                expect(stripAnsi(stdout.getOutput())).toContain('"Model " (default');
+            });
             stdout.clearOutput();
             stdin.write('\r');
-            await flushInk();
-            expect(stripAnsi(stdout.getOutput())).toContain('1. Model (label: "Model")');
+            await waitFor(() => {
+                expect(stripAnsi(stdout.getOutput())).toContain('1. Model (label: "Model")');
+            });
         } finally {
             instance.unmount();
             instance.cleanup();
