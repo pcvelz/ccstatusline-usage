@@ -92,6 +92,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.5.4](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.4) - Update checker targets the fork's package
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fork package name** - the update checker, global install version lookup and global uninstall now use `ccstatusline-usage` instead of upstream's `ccstatusline`.
+
 ### [v2.5.3](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.3) - Weekly decimal, one usage fetcher, upstream sync
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Weekly decimal** - Weekly shows an estimated decimal after the API's whole percent (`W: 9.2%`), extrapolated from five-hour usage; the whole digit is always the API value.
