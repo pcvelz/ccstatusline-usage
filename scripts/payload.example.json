@@ -4,8 +4,8 @@
   "transcript_path": "/path/to/transcript.json",
   "cwd": "/current/working/directory",
   "model": {
-    "id": "claude-opus-4-7[1m]",
-    "display_name": "Opus 4.7 (1M context)"
+    "id": "claude-opus-5-5[1m]",
+    "display_name": "Opus 5.5 (1M context)"
   },
   "workspace": {
     "current_dir": "/current/working/directory",
