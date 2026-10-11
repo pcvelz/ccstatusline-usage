@@ -141,7 +141,9 @@ function detectTtlSeconds(entry: TranscriptEntry): number | undefined {
     return undefined;
 }
 
-type TranscriptState = { isWorking: true; detectedTtl?: number } | { isWorking: false; lastAssistant: Date | null; detectedTtl?: number };
+// workingSince is the earliest unanswered user row's timestamp: that request is
+// the one that last touched the cache, so the in-flight countdown decays from it.
+type TranscriptState = { isWorking: true; detectedTtl?: number; workingSince?: Date } | { isWorking: false; lastAssistant: Date | null; detectedTtl?: number };
 
 /**
  * Find the cache state from the newest main-chain rows in the transcript tail.
@@ -179,6 +181,7 @@ function scanTailForState(tail: string): TranscriptState | null {
     // scan keeps looking for the newest row with real cache activity.
     let turnFinished = false;
     let working = false;
+    let workingSince: Date | undefined;
     for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) {
@@ -202,7 +205,7 @@ function scanTailForState(tail: string): TranscriptState | null {
                     if (!Number.isNaN(parsed.getTime())) {
                         const detectedTtl = detectTtlSeconds(entry);
                         return working
-                            ? { isWorking: true, detectedTtl }
+                            ? { isWorking: true, detectedTtl, workingSince }
                             : { isWorking: false, lastAssistant: parsed, detectedTtl };
                     }
                 }
@@ -219,13 +222,19 @@ function scanTailForState(tail: string): TranscriptState | null {
                 // previous anchor, so a working turn can show the full TTL.
                 if (!turnFinished) {
                     working = true;
+                    // Lines are scanned newest-first, so keep the earliest unanswered row.
+                    const started = entry.timestamp ? new Date(entry.timestamp) : null;
+                    if (started && !Number.isNaN(started.getTime())
+                        && (workingSince === undefined || started.getTime() < workingSince.getTime())) {
+                        workingSince = started;
+                    }
                 }
             }
         } catch {
             continue;
         }
     }
-    return working ? { isWorking: true } : null;
+    return working ? { isWorking: true, workingSince } : null;
 }
 
 // The configured TTL in seconds. When unset, the tier detected from the
@@ -289,8 +298,15 @@ function getStateSymbol(item: WidgetItem, remaining: number, ttlSeconds: number)
     return getSlotSymbol(item, URGENT_SLOT);
 }
 
+// Glyph display of a countdown: the drain-state glyph followed by the remaining time or COLD.
+function renderGlyphCountdown(item: WidgetItem, label: string, remaining: number, ttlSeconds: number): string {
+    const glyph = getStateSymbol(item, remaining, ttlSeconds);
+    return formatRawOrLabeledValue(item, label, withGlyph(glyph, formatCountdown(remaining)));
+}
+
 // Fork default display (deliberate deviation from upstream): whole minutes
-// only, no glyph and no HOT word (mid-turn shows the full TTL, expired shows
+// only, no glyph and no HOT word (mid-turn decays from the first unanswered
+// user row, full TTL only when that row has no timestamp; expired shows
 // COLD), `Cache: 42 min` longhand or `C: 42m` on narrow terminals, turning red
 // once the remaining time drops to the warn threshold. The threshold defaults
 // to 5 minutes on a 1h cache and 2 minutes on a 5m cache; `warnSeconds` in
@@ -466,9 +482,24 @@ export class CacheTimerWidget implements Widget {
 
         if (state.isWorking) {
             if (minutes) {
-                // Mid-turn the cache was just refreshed: the full TTL is left.
                 const ttlSeconds = getTtlSeconds(item, state.detectedTtl);
-                return renderMinutes(item, context, formatMinutes(ttlSeconds - SAFETY_MARGIN), false);
+                // Without a timestamp the request time is unknown: the full TTL is left.
+                if (!state.workingSince) {
+                    return renderMinutes(item, context, formatMinutes(ttlSeconds - SAFETY_MARGIN), false);
+                }
+                // The in-flight request touched the cache at workingSince, so the countdown decays from it.
+                const remaining = getRemainingSeconds(state.workingSince, ttlSeconds);
+                const warn = remaining > 0 && remaining <= getWarnSeconds(item, ttlSeconds);
+                return renderMinutes(item, context, formatMinutes(remaining), warn);
+            }
+            // Glyph display: HOT while the cache is still warm. Once the request's
+            // cache window has expired, show COLD like the anchor path does.
+            if (state.workingSince) {
+                const ttlSeconds = getTtlSeconds(item, state.detectedTtl);
+                const remaining = getRemainingSeconds(state.workingSince, ttlSeconds);
+                if (remaining <= 0) {
+                    return renderGlyphCountdown(item, this.getLabelPrefix(), remaining, ttlSeconds);
+                }
             }
             return formatRawOrLabeledValue(item, this.getLabelPrefix(), withGlyph(getSlotSymbol(item, HOT_SLOT), 'HOT'));
         }
@@ -484,9 +515,8 @@ export class CacheTimerWidget implements Widget {
             const warn = remaining > 0 && remaining <= getWarnSeconds(item, ttlSeconds);
             return renderMinutes(item, context, formatMinutes(remaining), warn);
         }
-        const glyph = getStateSymbol(item, remaining, ttlSeconds);
 
-        return formatRawOrLabeledValue(item, this.getLabelPrefix(), withGlyph(glyph, formatCountdown(remaining)));
+        return renderGlyphCountdown(item, this.getLabelPrefix(), remaining, ttlSeconds);
     }
 
     getCustomKeybinds(): CustomKeybind[] {

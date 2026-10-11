@@ -92,6 +92,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.5.5](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.5) - Cache Timer no longer freezes at the full TTL
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache Timer decay** - a session whose transcript ends in an unanswered user row (Stop-hook feedback, a task notification, a restored session) no longer shows a frozen `C: 60m`; the countdown decays from the first unanswered row and reaches `COLD`. Glyph mode keeps `HOT` while the cache is warm and shows `COLD` once it expires.
+
 ### [v2.5.4](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.4) - Update checker targets the fork's package
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fork package name** - the update checker, global install version lookup and global uninstall now use `ccstatusline-usage` instead of upstream's `ccstatusline`.

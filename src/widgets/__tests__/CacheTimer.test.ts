@@ -27,6 +27,7 @@ const hidden: Partial<WidgetItem> = { metadata: { hide: 'empty' } };
 const isoAgo = (seconds: number): string => new Date(Date.now() - seconds * 1000).toISOString();
 const assistant = (seconds: number): string => JSON.stringify({ type: 'assistant', timestamp: isoAgo(seconds) });
 const pendingUser = JSON.stringify({ type: 'user' });
+const userAt = (seconds: number): string => JSON.stringify({ type: 'user', timestamp: isoAgo(seconds), message: { role: 'user', content: 'x' } });
 const sidechain = (type: string, seconds: number): string => JSON.stringify({ type, timestamp: isoAgo(seconds), isSidechain: true });
 const apiError = (seconds: number): string => JSON.stringify({ type: 'assistant', timestamp: isoAgo(seconds), isApiErrorMessage: true });
 const assistantUsage = (seconds: number, usage: object): string => JSON.stringify({ type: 'assistant', timestamp: isoAgo(seconds), message: { usage } });
@@ -89,6 +90,17 @@ describe('CacheTimer widget', () => {
         const context = transcriptContext([assistant(60), pendingUser]);
         expect(widget.render(item(), context, DEFAULT_SETTINGS)).toBe('Cache: 🔥 HOT');
         expect(widget.render(item(hidden), context, DEFAULT_SETTINGS)).toBe('Cache: 🔥 HOT');
+    });
+
+    it('decays the glyph-mode in-flight countdown from the first unanswered user row', () => {
+        const widget = new CacheTimerWidget();
+        const oneHourCache = (seconds: number): string => assistantUsage(seconds, { cache_read_input_tokens: 10, cache_creation: { ephemeral_1h_input_tokens: 5 } });
+        // Cache written 2h30m ago; the request that opened the turn came 5 minutes later.
+        expect(widget.render(item(), transcriptContext([oneHourCache(9000), userAt(8700)]), DEFAULT_SETTINGS)).toBe('Cache: ❄️ COLD');
+        // One minute after that request the 1h cache is still warm, so the turn reads HOT.
+        expect(widget.render(item(), transcriptContext([oneHourCache(360), userAt(60)]), DEFAULT_SETTINGS)).toBe('Cache: 🔥 HOT');
+        // Without a timestamp the request time is unknown, so the turn stays HOT.
+        expect(widget.render(item(), transcriptContext([oneHourCache(4200), pendingUser]), DEFAULT_SETTINGS)).toBe('Cache: 🔥 HOT');
     });
 
     const buckets = [
@@ -335,6 +347,26 @@ describe('CacheTimer widget', () => {
             const widget = new CacheTimerWidget();
             expect(widget.render(minutes(), transcriptContext([oneHour(600), pendingUser]), DEFAULT_SETTINGS)).toBe('Cache: 60 min');
             expect(widget.render(minutes(), transcriptContext([fiveMin(60), pendingUser]), DEFAULT_SETTINGS)).toBe('Cache: 5 min');
+        });
+
+        it('decays the mid-turn countdown from the first unanswered user row', () => {
+            const widget = new CacheTimerWidget();
+            // Cache written 2h30m ago; the request that opened the turn came 5 minutes later.
+            expect(widget.render(minutes(), transcriptContext([oneHour(9000), userAt(8700)]), DEFAULT_SETTINGS)).toBe('Cache: COLD');
+            // 10 minutes after that request, about 50 minutes of the 1h TTL remain.
+            expect(widget.render(minutes(), transcriptContext([oneHour(900), userAt(600)]), DEFAULT_SETTINGS)).toBe('Cache: 50 min');
+        });
+
+        it('measures the mid-turn decay from the earliest of several stacked user rows', () => {
+            const widget = new CacheTimerWidget();
+            // Anchor at T0 (70 min ago); user rows at T0+5min and T0+40min. The first one
+            // touched the cache, so 65 min have elapsed since it and the countdown is COLD.
+            expect(widget.render(minutes(), transcriptContext([oneHour(4200), userAt(3900), userAt(1800)]), DEFAULT_SETTINGS)).toBe('Cache: COLD');
+        });
+
+        it('keeps the flat full TTL mid-turn when the user row has no timestamp', () => {
+            const widget = new CacheTimerWidget();
+            expect(widget.render(minutes(), transcriptContext([oneHour(4200), pendingUser]), DEFAULT_SETTINGS)).toBe('Cache: 60 min');
         });
 
         it('shows COLD in the regular color once expired', () => {
