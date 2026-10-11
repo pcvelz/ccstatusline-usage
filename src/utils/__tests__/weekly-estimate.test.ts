@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
 import {
     describe,
     expect,
@@ -7,10 +9,13 @@ import {
 import {
     estimateWeeklyDetail,
     estimateWeeklyPercent,
-    extractObservations,
+    extractCrossings,
+    fitRate,
     isUsageSample,
     parseSampleLines,
-    type UsageSample
+    type RateFit,
+    type UsageSample,
+    type WeeklyCrossing
 } from '../weekly-estimate';
 
 const MIN = 60_000;
@@ -35,6 +40,16 @@ function row(ts: string, session: number, weekly: number, sessionResetAt = BLOCK
 
 function live(session: number, weekly: number, sessionResetAt = BLOCK_A, weeklyResetAt = WEEK): Omit<UsageSample, 'ts'> {
     return { session, sessionResetAt, weekly, weeklyResetAt };
+}
+
+// A stored calibration fit with the given rate (zero lag, so the rate is used as given)
+function storedFit(rate: number): RateFit {
+    return { rate, tau: 0, crossings: 2 };
+}
+
+// A crossing in the WEEK window; `ts` is its reading time
+function crossing(level: number, cLo: number, cHi: number, stretch = 'S', ts = at(0)): WeeklyCrossing {
+    return { stretch, weeklyResetAt: WEEK, at: ts, level, cLo, cHi };
 }
 
 describe('isUsageSample / parseSampleLines', () => {
@@ -64,55 +79,49 @@ describe('isUsageSample / parseSampleLines', () => {
     });
 });
 
-describe('extractObservations', () => {
-    it('emits a rate for a clean two-step interval', () => {
-        // Steps at session 10 (3 -> 4) and session 30 (4 -> 5): one step pair, span 20
+describe('extractCrossings', () => {
+    it('emits one crossing per level with the cumulative session interval', () => {
+        // Session cum 0, 10, 20, 30. Weekly 3 -> 4 between cum 0 and 10; 4 -> 5 between cum 20 and 30
         const samples = [
             row(at(0), 0, 3),
             row(at(10), 10, 4),
             row(at(20), 20, 4),
             row(at(30), 30, 5)
         ];
-        const observations = extractObservations(samples);
-        expect(observations).toHaveLength(1);
-        expect(observations[0]).toMatchObject({
-            at: at(30),
-            weeklyResetAt: WEEK,
-            fromWeekly: 4,
-            toWeekly: 5,
-            sessionSpan: 20
-        });
-        expect(observations[0]?.rate).toBeCloseTo(1 / 20, 10);
+        expect(extractCrossings(samples)).toEqual([
+            { stretch: at(0), weeklyResetAt: WEEK, at: at(10), level: 4, cLo: 0, cHi: 10 },
+            { stretch: at(0), weeklyResetAt: WEEK, at: at(30), level: 5, cLo: 20, cHi: 30 }
+        ]);
     });
 
-    it('emits nothing when a lossy reset sits inside the interval', () => {
-        // The last block-A sample is 80 min before block A ends, so the tail was never seen
+    it('a two-level jump yields both levels over the same interval', () => {
+        // Weekly 5 -> 7 inside one reading interval (cum 0 to 10): levels 6 and 7
+        const samples = [row(at(0), 0, 5), row(at(10), 10, 7)];
+        expect(extractCrossings(samples)).toEqual([
+            { stretch: at(0), weeklyResetAt: WEEK, at: at(10), level: 6, cLo: 0, cHi: 10 },
+            { stretch: at(0), weeklyResetAt: WEEK, at: at(10), level: 7, cLo: 0, cHi: 10 }
+        ]);
+    });
+
+    it('a lossy reset starts a new stretch whose cumulative restarts at zero', () => {
+        // Block A ends at 19:40 (at(100)); its last sample is at(20), 80 min early: lossy.
+        // Stretch 1: level 4 between cum 0 and 10.
+        // Stretch 2 (starts at(105), cum 0 at its first sample): block B reset to 0, then 20 -> cum 20 -> 40.
+        // Level 5 between stretch-relative cum 0 and 20.
         const samples = [
             row(at(0), 0, 3),
             row(at(10), 10, 4),
-            row(at(20), 30, 4),
+            row(at(20), 20, 4),
             row(at(105), 0, 4, BLOCK_B),
             row(at(115), 20, 5, BLOCK_B)
         ];
-        expect(extractObservations(samples)).toEqual([]);
+        expect(extractCrossings(samples)).toEqual([
+            { stretch: at(0), weeklyResetAt: WEEK, at: at(10), level: 4, cLo: 0, cHi: 10 },
+            { stretch: at(105), weeklyResetAt: WEEK, at: at(115), level: 5, cLo: 0, cHi: 20 }
+        ]);
     });
 
-    it('includes an interval whose reset is not lossy and accumulates span across it', () => {
-        // Last block-A sample is 3 min before block A ends: not lossy. Session 15 + reset (0) + 10 = 25
-        const samples = [
-            row(at(0), 0, 3),
-            row(at(10), 10, 4),
-            row(at(97), 25, 4),
-            row(at(102), 0, 4, BLOCK_B),
-            row(at(115), 10, 5, BLOCK_B)
-        ];
-        const observations = extractObservations(samples);
-        expect(observations).toHaveLength(1);
-        expect(observations[0]).toMatchObject({ at: at(115), fromWeekly: 4, toWeekly: 5, sessionSpan: 25 });
-        expect(observations[0]?.rate).toBeCloseTo(1 / 25, 10);
-    });
-
-    it('returns observations from two weekly windows, ordered by at', () => {
+    it('returns crossings from two weekly windows, ordered by at', () => {
         const window1 = [
             row(at(0), 0, 3),
             row(at(10), 10, 4),
@@ -125,18 +134,54 @@ describe('extractObservations', () => {
             row(at(220), 20, 2, BLOCK_B, WEEK2),
             row(at(230), 30, 3, BLOCK_B, WEEK2)
         ];
-        const observations = extractObservations([...window2, ...window1]);
-        expect(observations.map(o => o.at)).toEqual([at(30), at(230)]);
-        expect(observations.map(o => o.weeklyResetAt)).toEqual([WEEK, WEEK2]);
+        const crossings = extractCrossings([...window2, ...window1]);
+        expect(crossings.map(c => c.at)).toEqual([at(10), at(30), at(210), at(230)]);
+        expect(crossings.map(c => c.weeklyResetAt)).toEqual([WEEK, WEEK, WEEK2, WEEK2]);
+    });
+});
+
+describe('fitRate', () => {
+    it('exact data gives rate 0.05 with tau near zero', () => {
+        // Level 1 at cum 10, level 2 at 30, level 3 at 50: every pair spans 20 per level
+        const fit = fitRate([crossing(1, 10, 10), crossing(2, 30, 30), crossing(3, 50, 50)]);
+        expect(fit).not.toBeNull();
+        expect(fit?.rate).toBeCloseTo(0.05, 6);
+        expect(fit?.tau).toBeLessThan(1e-6);
+        expect(fit?.crossings).toBe(3);
     });
 
-    it('emits nothing when the session span is below the minimum', () => {
-        const samples = [
-            row(at(0), 0, 3),
-            row(at(10), 2, 4),
-            row(at(20), 4, 5)
-        ];
-        expect(extractObservations(samples)).toEqual([]);
+    it('jittered data: the long span bounds the rate, and tau is positive', () => {
+        // Levels 1..4 at cum 0, 22, 38, 45 (like the real 4 -> 5 -> 6 -> 7 steps).
+        // Pair rates (levels / span): 1/22, 2/38, 3/45, 1/16, 2/23, 1/7. The shortest span
+        // (3 -> 4, span 7) and the longest reach a common rate only once tau = 4:
+        // lower bound 1/(7 + 2*4) = 1/15 = upper bound 2/(38 - 2*4). So tau = 4, rate = 1/15.
+        const fit = fitRate([crossing(1, 0, 0), crossing(2, 22, 22), crossing(3, 38, 38), crossing(4, 45, 45)]);
+        expect(fit).not.toBeNull();
+        const tau = fit?.tau ?? 0;
+        const rate = fit?.rate ?? 0;
+        expect(tau).toBeGreaterThan(0);
+        expect(tau).toBeCloseTo(4, 4);
+        expect(rate).toBeCloseTo(1 / 15, 4);
+        // Long-span bound (levels 1 -> 4, span 45) widened by tau
+        expect(rate).toBeGreaterThanOrEqual(3 / (45 + 2 * tau));
+        expect(rate).toBeLessThanOrEqual(3 / (45 - 2 * tau));
+        // Between the shortest and longest pair rates
+        expect(rate).toBeGreaterThan(1 / 22);
+        expect(rate).toBeLessThan(1 / 7);
+    });
+
+    it('returns null with fewer than two crossings', () => {
+        expect(fitRate([])).toBeNull();
+        expect(fitRate([crossing(1, 0, 0)])).toBeNull();
+    });
+
+    it('returns null when the crossings sit in different stretches', () => {
+        expect(fitRate([crossing(1, 0, 0, 'A'), crossing(2, 30, 30, 'B')])).toBeNull();
+    });
+
+    it('returns null for a two-level jump only, which bounds the rate from below but not above', () => {
+        // Both levels inside cum 0..10: the spans give a lower bound (1/210 at tau 100) and no upper bound
+        expect(fitRate([crossing(6, 0, 10), crossing(7, 0, 10)])).toBeNull();
     });
 });
 
@@ -151,11 +196,11 @@ describe('estimateWeeklyPercent', () => {
         expect(estimateWeeklyPercent(samples, live(12, 4))).toBeNull();
     });
 
-    it('interpolates between integer weekly steps using session progress', () => {
-        // Steps at cum 10 (3 -> 4) and cum 30 (4 -> 5). Rate = 1 / 20. Live at cum 35:
-        // 5 + (35 - 30) / 20 = 5.25
+    it('uses the crossing midpoints with a stored rate', () => {
+        // Crossings: level 4 in cum 0..10 (mid 5), level 5 in cum 20..30 (mid 25). Rate 0.05.
+        // Offset = mean(4 - 0.05 * 5, 5 - 0.05 * 25) = 3.75. Live at cum 35: 3.75 + 1.75 = 5.5
         const samples = [sample(0, 3), sample(10, 4), sample(20, 4), sample(30, 5)];
-        expect(estimateWeeklyPercent(samples, live(35, 5))).toBeCloseTo(5.25, 5);
+        expect(estimateWeeklyPercent(samples, live(35, 5), storedFit(0.05))).toBeCloseTo(5.5, 5);
     });
 
     it('needs two real steps before it calibrates without a stored rate', () => {
@@ -164,17 +209,18 @@ describe('estimateWeeklyPercent', () => {
     });
 
     it('caps the fraction below the next integer', () => {
-        // Steps at cum 0 -> 10 (1 -> 2) and cum 20 (2 -> 3); rate 1/10. Live far past the step.
-        const samples = [sample(0, 1), sample(10, 2), sample(20, 3)];
+        // Crossings: level 2 in cum 0..10, level 3 in cum 20..30. Window rate 1/15 (tau 0).
+        // Live far past the last step: the fraction hits the 0.999 cap.
+        const samples = [sample(0, 1), sample(10, 2), sample(20, 2), sample(30, 3)];
         const est = estimateWeeklyPercent(samples, live(500, 3));
-        expect(est).toBeGreaterThanOrEqual(3);
-        expect(est).toBeLessThan(4);
+        expect(est).toBeCloseTo(3.999, 5);
     });
 
     it('keeps accumulating across a five-hour reset', () => {
-        // Block A ends at 30, block B restarts from 0 and reaches 20: cum = 50
-        // Step 1 -> 2 at cum 30 (block A ends at 30, block B starts). Step 2 -> 3 at cum 60.
-        // Rate 1/30. Live at cum 75: 3 + 15 / 30 = 3.5
+        // Block A ends at 30, block B restarts from 0 and reaches 30, then 20 more: cum 30, 30, 50, 60.
+        // Level 2 at cum 30 exactly. Level 3 in cum 50..60 (mid 55). Stored rate 1/30.
+        // Offset = mean(2 - 30/30, 3 - 55/30) = 1.08333. Live at cum 75 (block B, session 45):
+        // 1.08333 + 75/30 = 3.58333
         const samples = [
             sample(0, 1, BLOCK_A),
             sample(30, 1, BLOCK_A),
@@ -182,7 +228,7 @@ describe('estimateWeeklyPercent', () => {
             sample(20, 2, BLOCK_B),
             sample(30, 3, BLOCK_B)
         ];
-        expect(estimateWeeklyPercent(samples, live(45, 3, BLOCK_B))).toBeCloseTo(3.5, 5);
+        expect(estimateWeeklyPercent(samples, live(45, 3, BLOCK_B), storedFit(1 / 30))).toBeCloseTo(3.58333, 4);
     });
 
     it('ignores samples from a previous weekly window', () => {
@@ -193,48 +239,105 @@ describe('estimateWeeklyPercent', () => {
 });
 
 describe('estimateWeeklyDetail', () => {
-    it('uses a stored rate when the live window has only one step', () => {
-        // Step at cum 10 (3 -> 4), live at cum 15: 4 + 0.05 * 5 = 4.25
+    it('uses a stored rate when the live window has only one crossing', () => {
+        // Level 4 in cum 0..10 (mid 5): offset = 4 - 0.05 * 5 = 3.75. Live at cum 15: 3.75 + 0.75 = 4.5
         const samples = [sample(0, 3), sample(10, 4)];
-        const est = estimateWeeklyDetail(samples, live(15, 4), 0.05);
-        expect(est?.value).toBeCloseTo(4.25, 5);
+        const est = estimateWeeklyDetail(samples, live(15, 4), storedFit(0.05));
+        expect(est?.value).toBeCloseTo(4.5, 5);
         expect(est?.rateSource).toBe('stored');
         expect(est?.rate).toBe(0.05);
     });
 
-    it('returns null with one step, no stored rate and no observation', () => {
+    it('returns null with one crossing and no stored rate', () => {
         const samples = [sample(0, 3), sample(10, 4)];
         expect(estimateWeeklyDetail(samples, live(15, 4), null)).toBeNull();
     });
 
+    it('returns null when the live stretch has no crossing', () => {
+        // Block A ends 80 min after the last block-A sample (lossy), so the live reading starts a
+        // new stretch at block B with no weekly step in it
+        const samples = [row(at(0), 0, 3), row(at(10), 10, 4)];
+        expect(estimateWeeklyDetail(samples, live(5, 4, BLOCK_B), storedFit(0.05))).toBeNull();
+    });
+
     it('ignores a stored rate that is not a positive finite number', () => {
-        const samples = [sample(0, 1), sample(10, 2), sample(20, 3)];
-        const est = estimateWeeklyDetail(samples, live(22, 3), 0);
+        // Window rate 1/15 (tau 0): offset 1.5, live at cum 35: 1.5 + 35/15 - 3 = 0.83333
+        const samples = [sample(0, 1), sample(10, 2), sample(20, 2), sample(30, 3)];
+        const est = estimateWeeklyDetail(samples, live(35, 3), storedFit(0));
         expect(est?.rateSource).toBe('window');
-        expect(est?.rate).toBeCloseTo(0.1, 10);
+        expect(est?.rate).toBeCloseTo(1 / 15, 4);
+        expect(est?.value).toBeCloseTo(3.83333, 4);
     });
 
     it('caps the stored-rate fraction below the next integer', () => {
-        // Anchor at cum 20 (step 2 -> 3). Stored rate 0.05 * 480 = 24, capped at 0.999
+        // Offset = mean(2 - 0.05 * 5, 3 - 0.05 * 15) = 2.0. Live at cum 500 hits the 0.999 cap
         const samples = [sample(0, 1), sample(10, 2), sample(20, 3)];
-        const est = estimateWeeklyDetail(samples, live(500, 3), 0.05);
+        const est = estimateWeeklyDetail(samples, live(500, 3), storedFit(0.05));
         expect(est?.value).toBeCloseTo(3.999, 5);
     });
 
+    it('clamps the fraction at zero so the value never drops below the API weekly', () => {
+        // Level 5 in cum 0..10 (mid 5), level 6 at cum 10 (live step). Stored rate 0.05.
+        // Offset = mean(5 - 0.25, 6 - 0.5) = 5.125. Live cum 10: 5.125 + 0.5 - 6 = -0.375 -> clamped to 0
+        const samples = [row(at(0), 0, 4), row(at(10), 10, 5)];
+        const est = estimateWeeklyDetail(samples, live(10, 6), storedFit(0.05));
+        expect(est?.value).toBe(6);
+    });
+
     it('falls back to the live window rate and reports it as window', () => {
-        // Pair (cum 10, cum 20) gives rate 1/10; live at cum 22: 3 + 0.2 = 3.2
-        const samples = [sample(0, 1), sample(10, 2), sample(20, 3)];
-        const est = estimateWeeklyDetail(samples, live(22, 3), null);
+        // Window crossings: level 2 in cum 0..10, level 3 in cum 20..30. Rate 1/15 (tau 0).
+        const samples = [sample(0, 1), sample(10, 2), sample(20, 2), sample(30, 3)];
+        const est = estimateWeeklyDetail(samples, live(35, 3), null);
         expect(est?.rateSource).toBe('window');
-        expect(est?.rate).toBeCloseTo(0.1, 10);
-        expect(est?.value).toBeCloseTo(3.2, 5);
+        expect(est?.rate).toBeCloseTo(1 / 15, 4);
+        expect(est?.value).toBeCloseTo(3.83333, 4);
     });
 
     it('prefers the stored rate over the window rate', () => {
-        // Stored 0.2 * 2 session % since the anchor = 3.4
-        const samples = [sample(0, 1), sample(10, 2), sample(20, 3)];
-        const est = estimateWeeklyDetail(samples, live(22, 3), 0.2);
+        // Stored 0.05: offset 1.75, live at cum 30: 1.75 + 1.5 - 3 = 0.25 -> 3.25.
+        // The window rate 1/15 would give 3.5.
+        const samples = [sample(0, 1), sample(10, 2), sample(20, 2), sample(30, 3)];
+        const est = estimateWeeklyDetail(samples, live(30, 3), storedFit(0.05));
         expect(est?.rateSource).toBe('stored');
-        expect(est?.value).toBeCloseTo(3.4, 5);
+        expect(est?.value).toBeCloseTo(3.25, 5);
+    });
+});
+
+const FIXTURE = fileURLToPath(new URL('./fixtures/usage-samples-2026-10-11.jsonl', import.meta.url));
+
+// The live reading that stands for the sample at index i
+function liveOf(s: UsageSample): Omit<UsageSample, 'ts'> {
+    return { session: s.session, sessionResetAt: s.sessionResetAt, weekly: s.weekly, weeklyResetAt: s.weeklyResetAt };
+}
+
+describe('real sample fixture (weekly reset 2026-10-17T13:00)', () => {
+    const samples = parseSampleLines(readFileSync(FIXTURE, 'utf8'));
+
+    it('extracts crossings for levels 4, 5, 6 and 7', () => {
+        const levels = extractCrossings(samples).map(c => c.level);
+        expect(levels).toEqual(expect.arrayContaining([4, 5, 6, 7]));
+    });
+
+    it('fits a finite rate between 1/25 and 1/5 with tau >= 0', () => {
+        const fit = fitRate(extractCrossings(samples));
+        expect(fit).not.toBeNull();
+        expect(Number.isFinite(fit?.rate)).toBe(true);
+        expect(fit?.rate).toBeGreaterThan(1 / 25);
+        expect(fit?.rate).toBeLessThan(1 / 5);
+        expect(fit?.tau).toBeGreaterThanOrEqual(0);
+    });
+
+    it('estimates just before the 6 -> 7 step at >= 6 and < 7', () => {
+        // Replay: the last reading before weekly became 7 is the live reading; history is everything before it
+        const step = samples.findIndex(s => s.weekly === 7);
+        expect(step).toBeGreaterThan(0);
+        const last = samples[step - 1];
+        expect(last).toBeDefined();
+        if (last === undefined)
+            return;
+        const est = estimateWeeklyPercent(samples.slice(0, step - 1), liveOf(last), null);
+        expect(est).not.toBeNull();
+        expect(est).toBeGreaterThanOrEqual(6);
+        expect(est).toBeLessThan(7);
     });
 });

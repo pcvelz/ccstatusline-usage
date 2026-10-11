@@ -23,14 +23,14 @@ import { join } from 'path';
 import { CACHE_DIR } from '../src/utils/rate-limit-snapshot';
 import { fetchFreshUsageData } from '../src/utils/usage-fetch';
 import {
-    mergeObservations,
+    mergeCrossings,
     pruneSamples,
     readCalibration,
     writeCalibration
 } from '../src/utils/weekly-calibration';
 import {
     USAGE_SAMPLE_FILE,
-    extractObservations,
+    extractCrossings,
     parseSampleLines
 } from '../src/utils/weekly-estimate';
 
@@ -90,7 +90,7 @@ function recalibrate(): void {
             writeFileSync(tmp, text);
             renameSync(tmp, USAGE_SAMPLE_FILE);
         }
-        const store = mergeObservations(readCalibration(), extractObservations(parseSampleLines(text)), new Date());
+        const store = mergeCrossings(readCalibration(), extractCrossings(parseSampleLines(text)), new Date());
         writeCalibration(store);
     } catch {
         // Ignore calibration errors

@@ -9,6 +9,11 @@
 
 STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
 
+# git exports GIT_INDEX_FILE (and GIT_DIR etc.) to hooks. Tests that run git in temp
+# repos would inherit them and write into this commit's index, so drop them for every
+# command below. The hook's own `git diff --cached` calls run before this point.
+unset GIT_INDEX_FILE GIT_DIR GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+
 echo "$STAGED" | grep -Eq '^src/.*\.(ts|tsx|json)$' || exit 0
 
 sh scripts/wait-for-quiet-load.sh pre-commit || exit 1

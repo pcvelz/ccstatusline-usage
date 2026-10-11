@@ -46,6 +46,11 @@ if git rev-parse -q --verify upstream/main >/dev/null 2>&1; then
 fi
 [ "$MERGE_STATUS" -eq 0 ] || exit 1
 
+# git exports GIT_INDEX_FILE (and GIT_DIR etc.) to hooks. Tests that run git in temp
+# repos would inherit them and write into this commit's index, so drop them for every
+# command below. The git calls above run before this point.
+unset GIT_INDEX_FILE GIT_DIR GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+
 echo "[pre-push] running CI criteria: bun run lint (tsc + eslint)..."
 if ! bun run lint; then
     echo "[pre-push] BLOCKED: lint/type check failed - the pipeline would fail identically." >&2

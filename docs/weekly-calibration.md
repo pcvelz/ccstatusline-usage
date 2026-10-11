@@ -1,80 +1,59 @@
 # Weekly calibration
 
-The status line shows the weekly % with a decimal. The API value is an integer, so the
-decimal is an estimate:
+The API reports the weekly % as an integer. The status line adds a decimal estimated from the
+five-hour session %.
 
-    weekly = last integer step + rate * session % since that step   (capped below the next integer)
+## Model
 
-`rate` is weekly % per five-hour session %: the ratio of the two Anthropic limits.
+    W = offset + rate * C        rate = five-hour limit / weekly limit
 
-## Files
+- `W` is the true weekly %, `C` the cumulative session % within one weekly window.
+- The API reports floor(W).
+- Each weekly level crossed is known only to lie between two session readings. That interval
+  is a crossing: `[cLo, cHi]` is the session % before and at the step, relative to the first
+  sample of the stretch.
+- A stretch is a run of samples with no lossy five-hour reset (a reset whose previous sample
+  was more than 6 min before the block ended). Inside a stretch nothing is lost, so crossings
+  of one stretch share one offset. Crossings of different stretches never mix.
 
-Both live under `~/.cache/ccstatusline/`.
+## Fitting the rate
 
-| File | Contents | Written by |
-|------|----------|------------|
-| `usage-samples.jsonl` | One row per sampler tick (about 2 min): weekly and five-hour usage, or an `{ts, error}` row | `scripts/usage-sampler.ts` only |
-| `weekly-calibration.json` | Derived store: the last 50 step observations, plus drift metadata | `scripts/usage-sampler.ts` only |
+The weekly counter trails the session counter by a varying amount, so step-to-step rates
+disagree. `fitRate` (src/utils/weekly-estimate.ts) is a minimax fit:
 
-- The render path only reads. It never writes either file.
-- Both files are written atomically (write `*.tmp`, then rename), because status lines read concurrently.
-- The calibration store is derived. Deleting it is safe: the next successful tick rebuilds it from the sample file.
-- When the sample file grows past 1 MiB, the sampler prunes it to the last 14 days.
+- Find the smallest lag `tau` (session %) such that every pair of same-stretch crossings
+  allows one common rate. Each crossing may sit up to `tau` outside its interval.
+- The rate is the midpoint of the feasible range at that `tau`.
+- `rate * tau` is the error bar of the decimal.
+- Long spans pin the rate. Short jitter only raises `tau`.
 
-## Observations
+## Store (version 2)
 
-An observation is one pair of consecutive integer weekly steps inside one weekly window:
+`~/.cache/ccstatusline/weekly-calibration.json`, written only by `scripts/usage-sampler.ts`.
 
-- `sessionSpan` is the session % used between the two steps. A five-hour reset adds its
-  post-reset usage, so the span accumulates across resets.
-- `rate` is (weekly gain) / `sessionSpan`.
-- Skipped when `sessionSpan` is below 5 session %. Too little usage makes the rate noise.
-- Skipped when a **lossy reset** sits between the steps. A reset is lossy when the last sample
-  before it was taken more than 6 min before its five-hour block ended: the usage in that gap was
-  never sampled. A reset whose last sample is within 6 min of the block end is not lossy.
+- `crossings`: keyed by weekly reset (rounded to the minute) and level, so one crossing per
+  level per week. The newest 200 are kept.
+- `fit`: `fitRate` over the last 40 crossings. A limit change therefore works through within
+  about 40 weekly points.
+- Written atomically (`*.tmp`, then rename). The render path only reads it.
+- Deleting it is safe. The sampler rebuilds it from `usage-samples.jsonl`. A missing, corrupt
+  or v1 file reads as no store.
 
-## Which rate the estimate uses
+## Live estimate
 
-1. The stored rate: the median of the last 5 observation rates (needs at least 2 observations).
-2. Otherwise the last observation in the live weekly window (the old two-step behaviour).
-3. Otherwise no estimate: the status line shows the integer only.
+Computed on each render from the sample tail plus the live snapshot:
 
-## Drift and limit changes
+1. Take the live weekly window and its last stretch. No crossing there means no estimate.
+2. `offset` = mean over the stretch's crossings of `level - rate * (cLo + cHi) / 2`.
+3. `now` = session % used since the stretch started, including the live five-hour value.
+4. Value = `offset + rate * now`, clamped to `[API value, API value + 0.999]`, so the whole
+   digit always matches the API.
 
-Anthropic can change the limits, which changes the rate. Each merge runs a change-point check on
-the sorted observations:
-
-- Take the last 3 rates. If all three deviate from the median of the 5 rates before them by
-  more than 25%, in the same direction, that is a change point.
-- Mixed directions are noise and do not count.
-- On a change point the older observations are dropped and `rebasedAt` is set to the merge time.
-  `rebasedAt` is the visible trace of a limit change.
-- The sample file still holds the dropped steps, so every tick re-extracts them. `rebaseCutoff`
-  (the time of the first surviving observation) makes the merge ignore anything at or before it,
-  so the dropped observations never come back.
-
-## Store format (version 1)
-
-```json
-{
-  "version": 1,
-  "observations": [
-    { "at": "2026-10-10T19:37:00.000Z", "weeklyResetAt": "2026-10-17T13:00:00.000+00:00",
-      "fromWeekly": 4, "toWeekly": 5, "sessionSpan": 25, "rate": 0.04 }
-  ],
-  "rebasedAt": null,
-  "rebaseCutoff": null,
-  "updatedAt": "2026-10-10T20:00:00.000Z"
-}
-```
-
-- A missing, corrupt, or unknown-version file reads as no store. The estimate then falls back to
-  the window rate.
-- Observations are deduplicated by `at` (the stored copy wins) and sorted; the newest 50 are kept.
+The rate is the stored fit when present. Otherwise `fitRate` runs on the live window.
 
 ## Inspecting
 
 ```bash
-cat ~/.cache/ccstatusline/weekly-calibration.json | jq '{rebasedAt, rebaseCutoff, n: (.observations | length)}'
+cat ~/.cache/ccstatusline/weekly-calibration.json | jq '{version, n: (.crossings | length), fit: .fit}'
 tail -3 ~/.cache/ccstatusline/usage-samples.jsonl
 ```

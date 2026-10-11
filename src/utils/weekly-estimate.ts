@@ -10,10 +10,7 @@ import {
     CACHE_DIR,
     readRateLimitSnapshot
 } from './rate-limit-snapshot';
-import {
-    currentRate,
-    readCalibration
-} from './weekly-calibration';
+import { readCalibration } from './weekly-calibration';
 
 // One usage sample per sampler tick (scripts/usage-sampler.ts). `session` is the five-hour %
 // and `weekly` the integer weekly %, both from the API. Only the live point uses the
@@ -26,21 +23,43 @@ export interface UsageSample {
     weeklyResetAt: string | null;
 }
 
-// One calibrated weekly step pair: the session usage between two consecutive weekly steps
-// and the weekly % it bought. Persisted by weekly-calibration.ts.
-export interface StepObservation {
-    at: string;
+// Model. Both percentages divide the same weighted usage by a limit, so within one week
+// the true weekly value grows linearly with the cumulative five-hour session %:
+//
+//     W = offset + rate * C,   rate = five-hour limit / weekly limit
+//
+// The API reports floor(W). Each weekly level crossed is therefore known only to lie
+// between two session readings, and the weekly counter trails the session counter by a
+// varying amount. The rate is fitted to those crossing intervals with a lag allowance
+// (see fitRate); the decimal shown is the fit evaluated at the current session usage.
+
+// One weekly level crossed: the true weekly value reached `level` while the cumulative
+// session % of its stretch was between cLo (the reading before the step) and cHi (the
+// reading at the step). cLo/cHi are relative to the stretch's first sample, so crossings of
+// one stretch share an offset and crossings of different stretches never mix.
+export interface WeeklyCrossing {
+    stretch: string;
     weeklyResetAt: string;
-    fromWeekly: number;
-    toWeekly: number;
-    sessionSpan: number;
+    at: string;
+    level: number;
+    cLo: number;
+    cHi: number;
+}
+
+export interface RateFit {
+    // Weekly % per session % (the five-hour limit over the weekly limit)
     rate: number;
+    // Smallest lag, in session %, that makes every crossing agree on one rate. It absorbs
+    // whole-percent rounding and the weekly counter trailing the session counter, and is
+    // the estimate's error bar: the decimal is good to about rate * tau.
+    tau: number;
+    crossings: number;
 }
 
 export interface WeeklyEstimate {
     value: number;
-    // Weekly % per session % (the calibrated rate)
     rate: number;
+    tau: number;
     rateSource: 'stored' | 'window';
 }
 
@@ -48,8 +67,6 @@ export const USAGE_SAMPLE_FILE = join(CACHE_DIR, 'usage-samples.jsonl');
 
 // A snapshot older than this no longer describes the live session
 const SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000;
-// Session % that must elapse between two steps before their rate is trusted
-const MIN_SESSION_SPAN = 5;
 // A reset whose previous sample was taken more than this before its block ended missed usage
 const LOSSY_RESET_MS = 6 * 60 * 1000;
 // Tail of the sample file read per render (~3 days of 2-min samples)
@@ -145,16 +162,6 @@ function toPoints(samples: UsageSample[]): Point[] {
     return points;
 }
 
-// Indices where the weekly value changed since the previous point
-function stepIndices(points: Point[]): number[] {
-    const steps: number[] = [];
-    for (let i = 1; i < points.length; i++) {
-        if (at(points, i).weekly !== at(points, i - 1).weekly)
-            steps.push(i);
-    }
-    return steps;
-}
-
 // Cumulative session % across the window. A reset point contributes its whole
 // session value: the block restarted from ~0.
 function cumulate(points: Point[]): number[] {
@@ -168,35 +175,53 @@ function cumulate(points: Point[]): number[] {
     return cum;
 }
 
-// One observation per pair of consecutive steps. A pair is skipped when a lossy reset sits
-// between its steps (usage was never sampled) or when too little session usage separates them.
-function observationsFromPoints(points: Point[], cum: number[]): StepObservation[] {
-    const steps = stepIndices(points);
-    const observations: StepObservation[] = [];
-    for (let k = 1; k < steps.length; k++) {
-        const prevStep = at(steps, k - 1);
-        const step = at(steps, k);
-        if (points.slice(prevStep + 1, step + 1).some(p => p.lossy))
-            continue;
-        const from = at(points, prevStep);
-        const to = at(points, step);
-        const sessionSpan = at(cum, step) - at(cum, prevStep);
-        if (sessionSpan < MIN_SESSION_SPAN || to.weekly <= from.weekly)
-            continue;
-        observations.push({
-            at: to.ts,
-            weeklyResetAt: to.weeklyResetAt,
-            fromWeekly: from.weekly,
-            toWeekly: to.weekly,
-            sessionSpan,
-            rate: (to.weekly - from.weekly) / sessionSpan
-        });
+// Index ranges of a weekly window with no lossy reset inside. Cumulative session
+// differences are only trustworthy within one stretch.
+function stretches(points: Point[]): { start: number; end: number }[] {
+    if (points.length === 0)
+        return [];
+    const result: { start: number; end: number }[] = [];
+    let start = 0;
+    for (let i = 1; i < points.length; i++) {
+        if (at(points, i).lossy) {
+            result.push({ start, end: i - 1 });
+            start = i;
+        }
     }
-    return observations;
+    result.push({ start, end: points.length - 1 });
+    return result;
 }
 
-// Observations from every weekly window in the samples, ordered by at
-export function extractObservations(samples: UsageSample[]): StepObservation[] {
+// Every level crossed in one stretch. A reading that jumps two levels (5 -> 7) crossed
+// both inside the same reading interval.
+function stretchCrossings(points: Point[], cum: number[], start: number, end: number): WeeklyCrossing[] {
+    const stretch = at(points, start).ts;
+    const base = at(cum, start);
+    const crossings: WeeklyCrossing[] = [];
+    for (let i = start + 1; i <= end; i++) {
+        const prev = at(points, i - 1);
+        const p = at(points, i);
+        for (let level = prev.weekly + 1; level <= p.weekly; level++) {
+            crossings.push({
+                stretch,
+                weeklyResetAt: p.weeklyResetAt,
+                at: p.ts,
+                level,
+                cLo: at(cum, i - 1) - base,
+                cHi: at(cum, i) - base
+            });
+        }
+    }
+    return crossings;
+}
+
+function crossingsFromPoints(points: Point[]): WeeklyCrossing[] {
+    const cum = cumulate(points);
+    return stretches(points).flatMap(s => stretchCrossings(points, cum, s.start, s.end));
+}
+
+// Crossings from every weekly window in the samples, ordered by at
+export function extractCrossings(samples: UsageSample[]): WeeklyCrossing[] {
     const windows = new Map<number, UsageSample[]>();
     for (const s of samples) {
         const key = timeKey(s.weeklyResetAt);
@@ -206,57 +231,112 @@ export function extractObservations(samples: UsageSample[]): StepObservation[] {
         group.push(s);
         windows.set(key, group);
     }
-    const observations: StepObservation[] = [];
-    for (const group of windows.values()) {
-        const points = toPoints(group);
-        observations.push(...observationsFromPoints(points, cumulate(points)));
+    const crossings: WeeklyCrossing[] = [];
+    for (const group of windows.values())
+        crossings.push(...crossingsFromPoints(toPoints(group)));
+    return crossings.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+}
+
+// The rate range that every pair of same-stretch crossings allows when each crossing may
+// sit up to tau session % outside its reading interval. Empty (lo > hi) when tau is too
+// small for the data; lo is 0 when no pair exists.
+function rateRange(crossings: WeeklyCrossing[], tau: number): { lo: number; hi: number } {
+    let lo = 0;
+    let hi = Infinity;
+    for (let i = 0; i < crossings.length; i++) {
+        const a = at(crossings, i);
+        for (let j = i + 1; j < crossings.length; j++) {
+            const b = at(crossings, j);
+            if (a.stretch !== b.stretch || a.level === b.level)
+                continue;
+            const [low, high] = a.level < b.level ? [a, b] : [b, a];
+            const levels = high.level - low.level;
+            const spanMax = high.cHi - low.cLo + 2 * tau;
+            const spanMin = high.cLo - low.cHi - 2 * tau;
+            if (spanMax <= 0)
+                return { lo: 1, hi: 0 };
+            lo = Math.max(lo, levels / spanMax);
+            if (spanMin > 0)
+                hi = Math.min(hi, levels / spanMin);
+        }
     }
-    return observations.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+    return { lo, hi };
 }
 
-function isUsableRate(rate: number | null): rate is number {
-    return rate !== null && Number.isFinite(rate) && rate > 0;
+// Upper bound of the lag search, in session %. Feasibility only grows with tau, so the
+// bisection below finds the smallest feasible tau to within MAX_TAU / 2^TAU_STEPS.
+const MAX_TAU = 100;
+const TAU_STEPS = 40;
+
+// Minimax fit: the smallest tau at which one rate explains every crossing, and that rate.
+// Long spans pin the rate; step-to-step jitter only raises tau. Null when no pair of
+// crossings in one stretch bounds the rate from both sides.
+export function fitRate(crossings: WeeklyCrossing[]): RateFit | null {
+    if (rateRange(crossings, MAX_TAU).lo <= 0)
+        return null;
+    let lowTau = 0;
+    let highTau = MAX_TAU;
+    for (let k = 0; k < TAU_STEPS; k++) {
+        const mid = (lowTau + highTau) / 2;
+        const range = rateRange(crossings, mid);
+        if (range.lo <= range.hi)
+            highTau = mid;
+        else
+            lowTau = mid;
+    }
+    const range = rateRange(crossings, highTau);
+    // No pair spans enough session usage to cap the rate (e.g. only a two-level jump)
+    if (!Number.isFinite(range.hi))
+        return null;
+    return { rate: (range.lo + range.hi) / 2, tau: highTau, crossings: crossings.length };
 }
 
-// Estimator. Returns the weekly % with its fractional part, or null when the window
-// has no integer step yet or no rate is available (stored or measured in this window).
+function isUsableFit(fit: RateFit | null): fit is RateFit {
+    return fit !== null && Number.isFinite(fit.rate) && fit.rate > 0;
+}
+
+// Estimator. Returns the weekly % with its fractional part, or null when the live stretch
+// has no crossing yet or no rate is available (stored, or fitted on the live window).
 //
-// Model: the weekly API value is the floor of a true value that grows with the
-// cumulative five-hour session %. The rate is the stored calibrated rate when there is one,
-// otherwise the last observation in the live window. Between integer steps the value
-// advances by rate * (session % since the last step), capped below the next integer.
+// The live stretch's offset is the mean of what its crossings put it at (each at the
+// middle of its reading interval), so one late or early step barely moves it. The result
+// is clamped to [API value, API value + 0.999]: the whole digit is always the API's.
 export function estimateWeeklyDetail(
     samples: UsageSample[],
     live: Omit<UsageSample, 'ts'>,
-    storedRate: number | null = null
+    stored: RateFit | null = null
 ): WeeklyEstimate | null {
     const liveKey = timeKey(live.weeklyResetAt);
     const window = [...samples, { ts: '', ...live }].filter(s => timeKey(s.weeklyResetAt) === liveKey);
     const points = toPoints(window);
+    const liveStretch = stretches(points).at(-1);
+    if (liveStretch === undefined)
+        return null;
+
     const cum = cumulate(points);
-
-    // The estimate advances from the last integer step in the live window
-    const anchor = stepIndices(points).at(-1);
-    if (anchor === undefined)
+    const crossings = stretchCrossings(points, cum, liveStretch.start, liveStretch.end);
+    if (crossings.length === 0)
         return null;
 
-    const useStored = isUsableRate(storedRate);
-    const windowRate = observationsFromPoints(points, cum).at(-1)?.rate ?? null;
-    const rate = useStored ? storedRate : windowRate;
-    if (rate === null)
+    const useStored = isUsableFit(stored);
+    const fit = useStored ? stored : fitRate(crossingsFromPoints(points));
+    if (!isUsableFit(fit))
         return null;
 
+    const offset = crossings.reduce((sum, c) => sum + c.level - fit.rate * (c.cLo + c.cHi) / 2, 0) / crossings.length;
     const last = at(points, points.length - 1);
-    const sinceAnchor = at(cum, cum.length - 1) - at(cum, anchor);
+    const now = at(cum, cum.length - 1) - at(cum, liveStretch.start);
+    const fraction = Math.min(Math.max(offset + fit.rate * now - last.weekly, 0), 0.999);
     return {
-        value: last.weekly + Math.min(rate * sinceAnchor, 0.999),
-        rate,
+        value: last.weekly + fraction,
+        rate: fit.rate,
+        tau: fit.tau,
         rateSource: useStored ? 'stored' : 'window'
     };
 }
 
-export function estimateWeeklyPercent(samples: UsageSample[], live: Omit<UsageSample, 'ts'>, storedRate: number | null = null): number | null {
-    return estimateWeeklyDetail(samples, live, storedRate)?.value ?? null;
+export function estimateWeeklyPercent(samples: UsageSample[], live: Omit<UsageSample, 'ts'>, stored: RateFit | null = null): number | null {
+    return estimateWeeklyDetail(samples, live, stored)?.value ?? null;
 }
 
 function readSampleTail(): UsageSample[] {
@@ -299,5 +379,5 @@ export function readWeeklyEstimate(weekly: number, now: Date = new Date()): numb
         sessionResetAt: snapshot.fiveHourResetsAt,
         weekly,
         weeklyResetAt
-    }, currentRate(readCalibration()));
+    }, readCalibration()?.fit ?? null);
 }

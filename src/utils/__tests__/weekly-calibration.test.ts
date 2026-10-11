@@ -15,109 +15,61 @@ import {
 } from 'vitest';
 
 import {
-    currentRate,
-    mergeObservations,
+    mergeCrossings,
     pruneSamples,
     readCalibration,
     writeCalibration
 } from '../weekly-calibration';
-import type { StepObservation } from '../weekly-estimate';
+import {
+    fitRate,
+    type WeeklyCrossing
+} from '../weekly-estimate';
 
 const MIN = 60_000;
 const WEEK = '2026-10-17T13:00:00.000+00:00';
 const START = Date.parse('2026-10-10T00:00:00.000Z');
-
-// Observation i, one minute apart, with the given rate
-function obs(i: number, rate: number): StepObservation {
-    return {
-        at: new Date(START + i * MIN).toISOString(),
-        weeklyResetAt: WEEK,
-        fromWeekly: 3,
-        toWeekly: 4,
-        sessionSpan: 1 / rate,
-        rate
-    };
-}
-
-function range(from: number, to: number, rate: number): StepObservation[] {
-    const out: StepObservation[] = [];
-    for (let i = from; i < to; i++)
-        out.push(obs(i, rate));
-    return out;
-}
-
 const NOW = new Date('2026-10-10T12:00:00.000Z');
 
-describe('mergeObservations', () => {
-    it('dedupes by at with the existing observation winning, and sorts', () => {
-        const first = mergeObservations(null, [obs(1, 0.05)], NOW);
-        const merged = mergeObservations(first, [obs(1, 0.09), obs(0, 0.05)], NOW);
-        expect(merged.observations.map(o => o.at)).toEqual([obs(0, 0).at, obs(1, 0).at]);
-        expect(merged.observations[1]?.rate).toBe(0.05);
+// Crossing at `minute` after START; cum positions are relative to the stretch 'S'
+function crossing(level: number, cLo: number, cHi: number, minute = level, weeklyResetAt = WEEK): WeeklyCrossing {
+    return { stretch: 'S', weeklyResetAt, at: new Date(START + minute * MIN).toISOString(), level, cLo, cHi };
+}
+
+describe('mergeCrossings', () => {
+    it('an incoming crossing replaces a stored one with the same week and level', () => {
+        const stored = mergeCrossings(null, [crossing(3, 0, 10, 1), crossing(2, 0, 5, 0)], NOW);
+        const merged = mergeCrossings(stored, [crossing(3, 5, 15, 1)], NOW);
+        expect(merged.crossings).toEqual([crossing(2, 0, 5, 0), crossing(3, 5, 15, 1)]);
     });
 
-    it('keeps only the last 50 observations', () => {
-        const merged = mergeObservations(null, range(0, 60, 0.05), NOW);
-        expect(merged.observations).toHaveLength(50);
-        expect(merged.observations[0]?.at).toBe(obs(10, 0).at);
-        expect(merged.observations[49]?.at).toBe(obs(59, 0).at);
-        expect(merged.version).toBe(1);
-        expect(merged.updatedAt).toBe(NOW.toISOString());
-    });
-});
-
-describe('currentRate', () => {
-    it('is null for a missing store or fewer than two observations', () => {
-        expect(currentRate(null)).toBeNull();
-        expect(currentRate(mergeObservations(null, [obs(0, 0.05)], NOW))).toBeNull();
+    it('keeps stored crossings that the incoming set no longer covers (pruned samples)', () => {
+        const stored = mergeCrossings(null, [crossing(2, 0, 5, 0), crossing(3, 5, 10, 1)], NOW);
+        const merged = mergeCrossings(stored, [], NOW);
+        expect(merged.crossings).toEqual(stored.crossings);
     });
 
-    it('is the median of the last five rates', () => {
-        // Older outliers (0.10) must fall outside the window. The tail does not drift, so no change point.
-        const rates = [0.10, 0.10, 0.05, 0.04, 0.06, 0.05, 0.04];
-        const store = mergeObservations(null, rates.map((r, i) => obs(i, r)), NOW);
-        // Last five: 0.05, 0.04, 0.06, 0.05, 0.04 -> median 0.05
-        expect(currentRate(store)).toBeCloseTo(0.05, 10);
+    it('matches a week by its reset minute, so a jittered reset time replaces the same crossing', () => {
+        const stored = mergeCrossings(null, [crossing(3, 0, 10, 1)], NOW);
+        const merged = mergeCrossings(stored, [crossing(3, 5, 15, 1, '2026-10-17T13:00:00.429+00:00')], NOW);
+        expect(merged.crossings).toHaveLength(1);
+        expect(merged.crossings[0]?.cLo).toBe(5);
     });
 
-    it('averages the two middle rates for an even count', () => {
-        const store = mergeObservations(null, [obs(0, 0.02), obs(1, 0.04)], NOW);
-        expect(currentRate(store)).toBeCloseTo(0.03, 10);
-    });
-});
-
-describe('change point', () => {
-    // Base rate 0.05, then a real limit change to 0.03 (40% below base).
-    // Note: 0.04 is only 20% below 0.05, so it cannot trigger the 25% rule.
-    const base = range(0, 5, 0.05);
-    const recent = range(5, 8, 0.03);
-
-    it('rebases when the last three rates all deviate more than 25% the same way', () => {
-        const store = mergeObservations(null, [...base, ...recent], NOW);
-        expect(store.observations).toHaveLength(3);
-        expect(currentRate(store)).toBeCloseTo(0.03, 10);
-        expect(store.rebasedAt).toBe(NOW.toISOString());
-        expect(store.rebaseCutoff).toBe(obs(5, 0).at);
+    it('caps the history at 200 crossings and fits the last 40', () => {
+        // Level i+1 at cum 10 * (i+1) in one stretch: every pair spans 10 per level, so the rate is 0.1
+        const incoming = Array.from({ length: 250 }, (_, i) => crossing(i + 1, 10 * (i + 1), 10 * (i + 1), i));
+        const merged = mergeCrossings(null, incoming, NOW);
+        expect(merged.crossings).toHaveLength(200);
+        expect(merged.crossings[0]?.level).toBe(51);
+        expect(merged.crossings.at(-1)?.level).toBe(250);
+        expect(merged.fit).toEqual(fitRate(incoming.slice(-40)));
+        expect(merged.fit?.crossings).toBe(40);
+        expect(merged.fit?.rate).toBeCloseTo(0.1, 6);
     });
 
-    it('does not resurrect dropped observations when the full list is merged again', () => {
-        const rebased = mergeObservations(null, [...base, ...recent], NOW);
-        const later = new Date('2026-10-10T13:00:00.000Z');
-        const again = mergeObservations(rebased, [...base, ...recent], later);
-        expect(again.observations.map(o => o.at)).toEqual(recent.map(o => o.at));
-        expect(again.rebasedAt).toBe(NOW.toISOString());
-    });
-
-    it('does not rebase when only two of the last three deviate', () => {
-        const store = mergeObservations(null, [...base, obs(5, 0.03), obs(6, 0.03), obs(7, 0.05)], NOW);
-        expect(store.rebasedAt).toBeNull();
-        expect(store.observations).toHaveLength(8);
-    });
-
-    it('does not rebase when the deviations go in mixed directions', () => {
-        const store = mergeObservations(null, [...base, obs(5, 0.03), obs(6, 0.07), obs(7, 0.03)], NOW);
-        expect(store.rebasedAt).toBeNull();
-        expect(store.observations).toHaveLength(8);
+    it('stamps version 2 and updatedAt', () => {
+        const merged = mergeCrossings(null, [], NOW);
+        expect(merged).toEqual({ version: 2, crossings: [], fit: null, updatedAt: NOW.toISOString() });
     });
 });
 
@@ -143,14 +95,22 @@ describe('readCalibration / writeCalibration', () => {
     });
 
     it('returns null for an unknown schema version', () => {
-        const file = join(dir, 'v2.json');
-        writeFileSync(file, JSON.stringify({ version: 2, observations: [], rebasedAt: null, rebaseCutoff: null, updatedAt: NOW.toISOString() }));
+        const file = join(dir, 'v3.json');
+        writeFileSync(file, JSON.stringify({ version: 3, crossings: [], fit: null, updatedAt: NOW.toISOString() }));
+        expect(readCalibration(file)).toBeNull();
+    });
+
+    it('returns null for a v1 observation store', () => {
+        const file = join(dir, 'v1.json');
+        writeFileSync(file, JSON.stringify({ version: 1, observations: [] }));
         expect(readCalibration(file)).toBeNull();
     });
 
     it('round-trips a store and leaves no tmp file behind', () => {
         const file = join(dir, 'weekly-calibration.json');
-        const store = mergeObservations(null, [obs(0, 0.05), obs(1, 0.06)], NOW);
+        // Two exact crossings in one stretch give a fit (rate 1/30), so the fit field round-trips too
+        const store = mergeCrossings(null, [crossing(2, 30, 30, 1), crossing(3, 60, 60, 2)], NOW);
+        expect(store.fit).not.toBeNull();
         writeCalibration(store, file);
         expect(readCalibration(file)).toEqual(store);
         expect(existsSync(`${file}.tmp`)).toBe(false);
@@ -158,8 +118,8 @@ describe('readCalibration / writeCalibration', () => {
 
     it('creates a missing directory', () => {
         const file = join(dir, 'nested', 'deeper', 'weekly-calibration.json');
-        writeCalibration(mergeObservations(null, [obs(0, 0.05)], NOW), file);
-        expect(readCalibration(file)?.observations).toHaveLength(1);
+        writeCalibration(mergeCrossings(null, [crossing(1, 0, 0)], NOW), file);
+        expect(readCalibration(file)?.crossings).toHaveLength(1);
     });
 });
 
