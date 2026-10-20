@@ -92,6 +92,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.5.6](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.6) - Cache timer stays COLD after a resume
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache timer** - a row Claude Code appends on `--resume` no longer restarts the countdown; an in-flight turn now decays from its API request, so a restored session shows `Cache: COLD` instead of a fresh 60 min
+
 ### [v2.5.5](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.5) - Cache Timer no longer freezes at the full TTL
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache Timer decay** - a session whose transcript ends in an unanswered user row (Stop-hook feedback, a task notification, a restored session) no longer shows a frozen `C: 60m`; the countdown decays from the first unanswered row and reaches `COLD`. Glyph mode keeps `HOT` while the cache is warm and shows `COLD` once it expires.

@@ -287,6 +287,42 @@ describe('CacheTimer widget', () => {
         expect(widget.getEditorDisplay(item({ metadata: { ttlSeconds: '3600', hide: 'empty' } })).modifierText).toBe('(ttl 1h)');
     });
 
+    describe('api-request anchoring', () => {
+        // Claude Code writes an api-request row right before every real API call.
+        const apiRequest = (seconds: number): string => JSON.stringify({ type: 'api-request', timestamp: isoAgo(seconds) });
+        const oneHourWrite = (seconds: number): string => assistantUsage(seconds, { cache_read_input_tokens: 10, cache_creation: { ephemeral_1h_input_tokens: 5 } });
+        // The row --resume appends for a background task that died with the previous process: no request is sent.
+        const taskNotification = (seconds: number): string => userString('<task-notification>\n<task-id>bhxobjd9u</task-id>\n</task-notification>', { timestamp: isoAgo(seconds) });
+        const minutesItem = (): WidgetItem => item({ metadata: { display: 'minutes' } });
+
+        it('reports COLD when a resume appends a user row without an API request', () => {
+            const widget = new CacheTimerWidget();
+            // The last real reply wrote a 1h cache 79 min ago; the resume row came 19 min ago.
+            const context = transcriptContext([apiRequest(4745), oneHourWrite(4740), taskNotification(1140)]);
+
+            expect(widget.render(minutesItem(), context, DEFAULT_SETTINGS)).toBe('Cache: COLD');
+            expect(widget.render(item(), context, DEFAULT_SETTINGS)).toBe('Cache: ❄️ COLD');
+        });
+
+        it('anchors the working countdown on the API request, not the earlier user row', () => {
+            const widget = new CacheTimerWidget();
+            // After the resume row, a real prompt went out 35 s ago; its request is the only thing that refreshed the cache.
+            const context = transcriptContext([
+                apiRequest(4745), oneHourWrite(4740), taskNotification(1140), userAt(36), apiRequest(35)
+            ]);
+            expect(widget.render(minutesItem(), context, DEFAULT_SETTINGS)).toBe('Cache: 60 min');
+            expect(widget.render(item(), context, DEFAULT_SETTINGS)).toBe('Cache: 🔥 HOT');
+        });
+
+        it('keeps the unanswered user row driving the countdown in transcripts without API requests', () => {
+            const widget = new CacheTimerWidget();
+            // Legacy format: no api-request rows at all, so the 19-min-old user row starts the countdown.
+            const context = transcriptContext([oneHourWrite(4740), taskNotification(1140)]);
+            expect(widget.render(minutesItem(), context, DEFAULT_SETTINGS)).toBe('Cache: 41 min');
+            expect(widget.render(item(), context, DEFAULT_SETTINGS)).toBe('Cache: 🔥 HOT');
+        });
+    });
+
     describe('minutes display', () => {
         const RED = '\x1b[31m';
         const minutes = (extra: Record<string, string> = {}): WidgetItem => item({ metadata: { display: 'minutes', ...extra } });

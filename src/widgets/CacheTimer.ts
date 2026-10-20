@@ -141,18 +141,21 @@ function detectTtlSeconds(entry: TranscriptEntry): number | undefined {
     return undefined;
 }
 
-// workingSince is the earliest unanswered user row's timestamp: that request is
+// workingSince is the earliest in-flight request's timestamp: that request is
 // the one that last touched the cache, so the in-flight countdown decays from it.
 type TranscriptState = { isWorking: true; detectedTtl?: number; workingSince?: Date } | { isWorking: false; lastAssistant: Date | null; detectedTtl?: number };
 
 /**
  * Find the cache state from the newest main-chain rows in the transcript tail.
- * A trailing user-role row (a prompt or a tool result, both recorded as role
- * 'user' by Claude Code) means a turn is in flight and the cache is being
- * refreshed, so report { isWorking: true }. Interrupt markers and local
- * slash-command rows are the exception: nothing is sent for them, so like an
- * assistant row they end the turn. Once the turn has ended, the countdown anchors on the newest assistant row whose request
- * actually read or wrote the cache.
+ * Claude Code writes an api-request row right before every API call, so an
+ * api-request with no reply after it means a request is in flight and the
+ * cache is being refreshed: report { isWorking: true }. A user-role row (a
+ * prompt or a tool result) only counts in transcripts with no api-request rows
+ * at all (older Claude Code): a row appended on --resume sends nothing, so it
+ * must not restart the countdown. Interrupt markers and local slash-command
+ * rows end the turn without a request. Once the turn has ended, the countdown
+ * anchors on the newest assistant row whose request actually read or wrote the
+ * cache.
  * The tail read grows until a relevant record fits in view, so a trailing
  * record larger than the initial read still resolves to a state.
  */
@@ -172,16 +175,31 @@ function getTranscriptState(transcriptPath: string): TranscriptState {
     }
 }
 
+// Keeps the earliest parseable timestamp; a row without one leaves it unchanged.
+function keepEarliest(current: Date | undefined, timestamp: string | undefined): Date | undefined {
+    const parsed = timestamp ? new Date(timestamp) : undefined;
+    if (parsed === undefined || Number.isNaN(parsed.getTime())) {
+        return current;
+    }
+    return current === undefined || parsed.getTime() < current.getTime() ? parsed : current;
+}
+
 // Scan the tail's lines newest-first for the state; null means no relevant
-// record was found (so a larger tail may still surface one).
+// record was found (so a larger tail may still surface one). The whole tail is
+// scanned, not just up to the newest anchor, because whether the transcript has
+// api-request rows at all decides which rows count as in flight.
 function scanTailForState(tail: string): TranscriptState | null {
     const lines = tail.split('\n').reverse();
-    // Set once an assistant row is seen: the turn is over, so any older user
-    // row belongs to a previous exchange and must not report HOT while the
-    // scan keeps looking for the newest row with real cache activity.
+    // Set once an assistant row is seen: the turn is over, so any older row
+    // belongs to a previous exchange and must not report HOT.
     let turnFinished = false;
-    let working = false;
-    let workingSince: Date | undefined;
+    // The newest assistant row whose request read or wrote the cache.
+    let anchor: { lastAssistant: Date; detectedTtl?: number } | undefined;
+    let sawApiRequest = false;
+    let requestWorking = false;
+    let requestSince: Date | undefined;
+    let userWorking = false;
+    let userSince: Date | undefined;
     for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) {
@@ -194,19 +212,26 @@ function scanTailForState(tail: string): TranscriptState | null {
             if (entry.isSidechain === true) {
                 continue;
             }
+            // Written right before each real API call, so an unanswered one is
+            // a request in flight. Lines are scanned newest-first, so keep the earliest.
+            if (entry.type === 'api-request') {
+                sawApiRequest = true;
+                if (!turnFinished) {
+                    requestWorking = true;
+                    requestSince = keepEarliest(requestSince, entry.timestamp);
+                }
+                continue;
+            }
             if (entry.type === 'assistant') {
                 turnFinished = true;
                 // Synthetic API-error rows and requests with no cache reads
                 // or writes (caching disabled or unsupported) refreshed
                 // nothing: they end the in-flight state but must not anchor
                 // the countdown. A malformed timestamp is likewise no anchor.
-                if (entry.isApiErrorMessage !== true && hasCacheActivity(entry) && entry.timestamp) {
+                if (anchor === undefined && entry.isApiErrorMessage !== true && hasCacheActivity(entry) && entry.timestamp) {
                     const parsed = new Date(entry.timestamp);
                     if (!Number.isNaN(parsed.getTime())) {
-                        const detectedTtl = detectTtlSeconds(entry);
-                        return working
-                            ? { isWorking: true, detectedTtl, workingSince }
-                            : { isWorking: false, lastAssistant: parsed, detectedTtl };
+                        anchor = { lastAssistant: parsed, detectedTtl: detectTtlSeconds(entry) };
                     }
                 }
                 continue;
@@ -218,23 +243,24 @@ function scanTailForState(tail: string): TranscriptState | null {
                     turnFinished = true;
                     continue;
                 }
-                // In flight: keep scanning only to learn the TTL tier from the
-                // previous anchor, so a working turn can show the full TTL.
                 if (!turnFinished) {
-                    working = true;
-                    // Lines are scanned newest-first, so keep the earliest unanswered row.
-                    const started = entry.timestamp ? new Date(entry.timestamp) : null;
-                    if (started && !Number.isNaN(started.getTime())
-                        && (workingSince === undefined || started.getTime() < workingSince.getTime())) {
-                        workingSince = started;
-                    }
+                    userWorking = true;
+                    userSince = keepEarliest(userSince, entry.timestamp);
                 }
             }
         } catch {
             continue;
         }
     }
-    return working ? { isWorking: true, workingSince } : null;
+    // Transcripts with api-request rows judge in-flight turns by those rows
+    // alone: a user row with no request after it was appended without sending
+    // anything. Transcripts without them (older Claude Code) keep the user rows.
+    const working = sawApiRequest ? requestWorking : userWorking;
+    if (working) {
+        const workingSince = sawApiRequest ? requestSince : userSince;
+        return { isWorking: true, detectedTtl: anchor?.detectedTtl, workingSince };
+    }
+    return anchor ? { isWorking: false, lastAssistant: anchor.lastAssistant, detectedTtl: anchor.detectedTtl } : null;
 }
 
 // The configured TTL in seconds. When unset, the tier detected from the
@@ -306,7 +332,8 @@ function renderGlyphCountdown(item: WidgetItem, label: string, remaining: number
 
 // Fork default display (deliberate deviation from upstream): whole minutes
 // only, no glyph and no HOT word (mid-turn decays from the first unanswered
-// user row, full TTL only when that row has no timestamp; expired shows
+// api-request row, or from the first unanswered user row in transcripts with
+// no api-request rows; full TTL only when that row has no timestamp; expired shows
 // COLD), `Cache: 42 min` longhand or `C: 42m` on narrow terminals, turning red
 // once the remaining time drops to the warn threshold. The threshold defaults
 // to 5 minutes on a 1h cache and 2 minutes on a 5m cache; `warnSeconds` in
