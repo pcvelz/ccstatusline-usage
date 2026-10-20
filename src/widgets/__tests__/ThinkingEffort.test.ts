@@ -1,14 +1,12 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Mock } from 'vitest';
 import {
     afterEach,
     beforeEach,
     describe,
     expect,
-    it,
-    vi
+    it
 } from 'vitest';
 
 import type {
@@ -17,13 +15,13 @@ import type {
     WidgetItem
 } from '../../types';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
-import { loadClaudeSettingsSync } from '../../utils/claude-settings';
+// Load the widget registry first: config -> widgets -> widget-manifest -> ThinkingEffort is a
+// cycle that only initializes cleanly when the registry is entered before the widget module.
+import '../../utils/widgets';
 import { ThinkingEffortWidget } from '../ThinkingEffort';
 
-// Mock claude-settings to avoid filesystem reads in tests
-vi.mock('../../utils/claude-settings', () => ({ loadClaudeSettingsSync: vi.fn() }));
+const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 
-const mockedLoadSettings = loadClaudeSettingsSync as Mock;
 const MODEL_WITH_HIGH_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-7)\u001b[22m with \u001b[1mhigh\u001b[22m effort</local-command-stdout>';
 const MODEL_WITH_LOW_EFFORT = '<local-command-stdout>Set model to \u001b[1msonnet (claude-sonnet-4-5)\u001b[22m with \u001b[1mlow\u001b[22m effort</local-command-stdout>';
 const MODEL_WITH_MAX_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-7)\u001b[22m with \u001b[1mmax\u001b[22m effort</local-command-stdout>';
@@ -38,6 +36,7 @@ const EFFORT_MEDIUM = '<local-command-stdout>Set effort level to \u001b[1mmedium
 const EFFORT_MAX = '<local-command-stdout>Set effort level to \u001b[1mmax\u001b[22m (this session only): Maximum capability with deepest reasoning (Opus 4.6 only)</local-command-stdout>';
 
 let tempDir: string;
+let configDir: string;
 
 function makeTranscriptEntry(content: string): string {
     return JSON.stringify({
@@ -56,6 +55,7 @@ function render(options: {
     isPreview?: boolean;
     statusData?: Partial<StatusJSON>;
     settingsValue?: unknown;
+    settingsRaw?: string;
     transcriptThinkingEffort?: RenderContext['transcriptThinkingEffort'];
 } = {}): string | null {
     const {
@@ -65,6 +65,7 @@ function render(options: {
         isPreview = false,
         statusData = {},
         settingsValue = {},
+        settingsRaw,
         transcriptThinkingEffort
     } = options;
 
@@ -84,7 +85,7 @@ function render(options: {
         rawValue
     };
 
-    mockedLoadSettings.mockReturnValue(settingsValue);
+    fs.writeFileSync(path.join(configDir, 'settings.json'), settingsRaw ?? JSON.stringify(settingsValue), 'utf-8');
 
     if (transcriptPath && fileContent !== undefined && fileContent !== null) {
         fs.writeFileSync(transcriptPath, fileContent, 'utf-8');
@@ -95,12 +96,18 @@ function render(options: {
 
 describe('ThinkingEffortWidget', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-thinking-effort-'));
-        mockedLoadSettings.mockReturnValue({});
+        configDir = path.join(tempDir, 'claude');
+        fs.mkdirSync(configDir, { recursive: true });
+        process.env.CLAUDE_CONFIG_DIR = configDir;
     });
 
     afterEach(() => {
+        if (ORIGINAL_CLAUDE_CONFIG_DIR !== undefined) {
+            process.env.CLAUDE_CONFIG_DIR = ORIGINAL_CLAUDE_CONFIG_DIR;
+        } else {
+            delete process.env.CLAUDE_CONFIG_DIR;
+        }
         fs.rmSync(tempDir, { recursive: true, force: true });
     });
 
@@ -370,10 +377,7 @@ describe('ThinkingEffortWidget', () => {
         });
 
         it('displays default when settings read fails', () => {
-            mockedLoadSettings.mockImplementation(() => {
-                throw new Error('settings unavailable');
-            });
-            const result = render();
+            const result = render({ settingsRaw: '{ invalid json' });
             expect(result).toBe('Thinking: default');
         });
 
