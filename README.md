@@ -92,6 +92,11 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.5.7](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.7) - Weekly decimal recalibrates after a plan change
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Weekly calibration** - a mid-week plan or limit change (the weekly % drops while its reset time stays) now rebases the decimal's rate at once instead of mixing in the old plan's steps for days.
+- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Upstream sync** - 9 commits: Spend Limit Usage and Spend Limit Amount widgets, Session Usage renamed to Block Usage, 8-bit color codes kept, bar text cursor, optional Claude Status link.
+
 ### [v2.5.6](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.6) - Cache timer stays COLD after a resume
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache timer** - a row Claude Code appends on `--resume` no longer restarts the countdown; an in-flight turn now decays from its API request, so a restored session shows `Cache: COLD` instead of a fresh 60 min
@@ -878,8 +883,9 @@ bun run example
 - **Cache Timer** - Minutes left on the prompt cache; *(ccstatusline-usage)* shows `Cache: 42 min` / `C: 42m`, red near expiry, TTL auto-detected; emoji countdown opt-in
 - **Memory Usage** - Shows system memory usage (used/total)
 - **Battery** *(ccstatusline-usage)* - Shows battery percentage on macOS and Linux (only visible when on battery power, hidden when charging)
-- **Session Usage** - Shows daily/session API usage percentage
+- **Block Usage** - Shows 5-hour block (session) API usage percentage
 - **Weekly Usage** - Shows weekly API usage percentage
+- **Spend Limit Usage** / **Spend Limit Amount** - Share of a Claude apps gateway spend limit used, and `$used / $limit`; read from the status line payload only, hidden without a spend limit
 - **Weekly Pace** - Pendulum bar or text label showing if usage pace is on track, overcooking, or underutilized (toggle with `p` key in TUI)
 - **Block Reset Timer** - Shows time remaining until current 5-hour block reset window
 - **Weekly Reset Timer** - Shows time remaining until weekly usage reset

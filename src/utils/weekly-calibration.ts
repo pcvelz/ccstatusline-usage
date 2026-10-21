@@ -24,11 +24,14 @@ export interface CalibrationStore {
     version: 2;
     crossings: WeeklyCrossing[];
     fit: RateFit | null;
+    // ts of the latest limit change (a weekly drop inside one window). The fit ignores
+    // crossings before it, so a plan change rebases the rate immediately.
+    limitChangeAt: string | null;
     updatedAt: string;
 }
 
 const MAX_CROSSINGS = 200;
-// Only recent crossings are fitted, so a limit change works through within this many weekly points
+// Only recent crossings are fitted (after the latest limit change, which rebases the fit at once)
 const FIT_WINDOW = 40;
 const SAMPLE_MAX_AGE_DAYS = 14;
 
@@ -39,7 +42,16 @@ function crossingKey(c: WeeklyCrossing): string {
 
 // Incoming crossings are recomputed from the sample file every tick and replace stored ones with
 // the same key; stored crossings the samples no longer cover (pruned) stay.
-export function mergeCrossings(store: CalibrationStore | null, incoming: WeeklyCrossing[], now: Date): CalibrationStore {
+export function mergeCrossings(
+    store: CalibrationStore | null,
+    incoming: WeeklyCrossing[],
+    now: Date,
+    limitChangeAt: string | null = null
+): CalibrationStore {
+    const stored = store?.limitChangeAt ?? null;
+    const effective = stored !== null && (limitChangeAt === null || Date.parse(stored) >= Date.parse(limitChangeAt))
+        ? stored
+        : limitChangeAt;
     const byKey = new Map<string, WeeklyCrossing>();
     for (const c of [...(store?.crossings ?? []), ...incoming])
         byKey.set(crossingKey(c), c);
@@ -47,10 +59,13 @@ export function mergeCrossings(store: CalibrationStore | null, incoming: WeeklyC
     const crossings = [...byKey.values()]
         .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
         .slice(-MAX_CROSSINGS);
+    const cutoff = effective === null ? -Infinity : Date.parse(effective);
+    const eligible = crossings.filter(c => Date.parse(c.at) >= cutoff);
     return {
         version: 2,
         crossings,
-        fit: fitRate(crossings.slice(-FIT_WINDOW)),
+        fit: fitRate(eligible.slice(-FIT_WINDOW)),
+        limitChangeAt: effective,
         updatedAt: now.toISOString()
     };
 }
@@ -59,7 +74,10 @@ export function mergeCrossings(store: CalibrationStore | null, incoming: WeeklyC
 export function readCalibration(file = CALIBRATION_FILE): CalibrationStore | null {
     try {
         const store = JSON.parse(readFileSync(file, 'utf8')) as Partial<CalibrationStore>;
-        return store.version === 2 && Array.isArray(store.crossings) ? store as CalibrationStore : null;
+        if (store.version !== 2 || !Array.isArray(store.crossings))
+            return null;
+        // Files written before limit changes were tracked lack the field
+        return { ...store, limitChangeAt: store.limitChangeAt ?? null } as CalibrationStore;
     } catch {
         return null;
     }

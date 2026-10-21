@@ -6,12 +6,14 @@ import {
     it
 } from 'vitest';
 
+import { mergeCrossings } from '../weekly-calibration';
 import {
     estimateWeeklyDetail,
     estimateWeeklyPercent,
     extractCrossings,
     fitRate,
     isUsageSample,
+    latestLimitChange,
     parseSampleLines,
     type RateFit,
     type UsageSample,
@@ -121,6 +123,25 @@ describe('extractCrossings', () => {
         ]);
     });
 
+    it('a weekly drop inside one window starts a new stretch (limit change)', () => {
+        // Same block throughout. Stretch 1: level 6 between cum 0 and 10.
+        // The drop 6 -> 0 at at(30) restarts the stretch: cum 0 there, then session 22 -> 25 -> 28.
+        // Level 1 between 0 and 3, level 2 between 3 and 6.
+        const samples = [
+            row(at(0), 0, 5),
+            row(at(10), 10, 6),
+            row(at(20), 20, 6),
+            row(at(30), 22, 0),
+            row(at(40), 25, 1),
+            row(at(50), 28, 2)
+        ];
+        expect(extractCrossings(samples)).toEqual([
+            { stretch: at(0), weeklyResetAt: WEEK, at: at(10), level: 6, cLo: 0, cHi: 10 },
+            { stretch: at(30), weeklyResetAt: WEEK, at: at(40), level: 1, cLo: 0, cHi: 3 },
+            { stretch: at(30), weeklyResetAt: WEEK, at: at(50), level: 2, cLo: 3, cHi: 6 }
+        ]);
+    });
+
     it('returns crossings from two weekly windows, ordered by at', () => {
         const window1 = [
             row(at(0), 0, 3),
@@ -137,6 +158,28 @@ describe('extractCrossings', () => {
         const crossings = extractCrossings([...window2, ...window1]);
         expect(crossings.map(c => c.at)).toEqual([at(10), at(30), at(210), at(230)]);
         expect(crossings.map(c => c.weeklyResetAt)).toEqual([WEEK, WEEK, WEEK2, WEEK2]);
+    });
+});
+
+describe('latestLimitChange', () => {
+    it('returns the ts of the sample where the weekly value dropped inside one window', () => {
+        const samples = [
+            row(at(0), 0, 5),
+            row(at(10), 10, 6),
+            row(at(20), 20, 6),
+            row(at(30), 22, 0),
+            row(at(40), 25, 1)
+        ];
+        expect(latestLimitChange(samples)).toBe(at(30));
+    });
+
+    it('ignores a drop across different weekly windows (a normal weekly reset)', () => {
+        const samples = [row(at(0), 0, 90, BLOCK_A, WEEK), row(at(10), 5, 0, BLOCK_A, WEEK2)];
+        expect(latestLimitChange(samples)).toBeNull();
+    });
+
+    it('returns null when the weekly value never drops', () => {
+        expect(latestLimitChange([row(at(0), 0, 3), row(at(10), 10, 4), row(at(20), 12, 4)])).toBeNull();
     });
 });
 
@@ -305,6 +348,38 @@ describe('estimateWeeklyDetail', () => {
         expect(est?.value).toBeCloseTo(3.25, 5);
     });
 
+    it('ignores pre-change points for the window fit after a limit change', () => {
+        // Old limit: rate 0.1 (weekly 3 -> 4 -> 5 every 10 session %). Then the weekly value drops
+        // to 0 inside the same window and block, and the new limit steps every 3 session %.
+        const samples = [
+            row(at(0), 0, 3),
+            row(at(10), 10, 4),
+            row(at(20), 20, 4),
+            row(at(30), 30, 5),
+            row(at(40), 30, 0),
+            row(at(50), 33, 1),
+            row(at(60), 36, 2),
+            row(at(70), 39, 3)
+        ];
+        const est = estimateWeeklyDetail(samples, live(41, 3), null);
+        expect(est?.rateSource).toBe('window');
+        expect(est?.rate).toBeGreaterThan(0.25);
+    });
+
+    it('does not treat a live weekly that lags the last sample as a limit change', () => {
+        // Steady crossings (weekly 3 -> 4 -> 5), but the live reading still says 4 (cache behind the sampler)
+        const samples = [
+            row(at(0), 0, 3),
+            row(at(10), 10, 4),
+            row(at(20), 20, 4),
+            row(at(30), 30, 5)
+        ];
+        const est = estimateWeeklyDetail(samples, live(32, 4), null);
+        expect(est).not.toBeNull();
+        expect(est?.value).toBeGreaterThanOrEqual(4);
+        expect(est?.value).toBeLessThan(5);
+    });
+
     it('anchors on the latest crossing, not the stretch mean', () => {
         // One stretch. Levels 4..9 step at cum 0, 18, 34, 45, 54 and 61..62 (level 9 is the last,
         // cLo 61, cHi 62, mid 61.5). Stored rate 0.0806 (real 2026-10-11 data).
@@ -369,5 +444,29 @@ describe('real sample fixture (weekly reset 2026-10-17T13:00)', () => {
         expect(est).not.toBeNull();
         expect(est).toBeGreaterThanOrEqual(6);
         expect(est).toBeLessThan(7);
+    });
+});
+
+const FIXTURE_LIMIT_CHANGE = fileURLToPath(new URL('./fixtures/usage-samples-2026-10-21.jsonl', import.meta.url));
+
+// Max 5 -> Max 20 switch on 2026-10-21: the weekly value dropped 99 -> 0 with the same reset time.
+// The fixture covers 05:00-10:58 on 2026-10-21.
+describe('real sample fixture (plan change 2026-10-21)', () => {
+    const load = (): UsageSample[] => parseSampleLines(readFileSync(FIXTURE_LIMIT_CHANGE, 'utf8'));
+    const now = new Date('2026-10-21T11:00:00.000Z');
+
+    it('finds the limit change at the 08:57:23 sample', () => {
+        const samples = load();
+        expect(latestLimitChange(samples)?.startsWith('2026-10-21T08:57:23')).toBe(true);
+    });
+
+    it('rebases the fit onto the Max 20 rate, where the unrebased fit stays on the Max 5 rate', () => {
+        const samples = load();
+        const crossings = extractCrossings(samples);
+        const rebased = mergeCrossings(null, crossings, now, latestLimitChange(samples));
+        const mixed = mergeCrossings(null, crossings, now);
+        expect(rebased.fit?.rate).toBeGreaterThan(0.25);
+        // Measured on this fixture: rebased 0.333, unrebased 0.143
+        expect(mixed.fit?.rate).toBeLessThan((rebased.fit?.rate ?? 0) / 1.5);
     });
 });

@@ -31,8 +31,8 @@ const START = Date.parse('2026-10-10T00:00:00.000Z');
 const NOW = new Date('2026-10-10T12:00:00.000Z');
 
 // Crossing at `minute` after START; cum positions are relative to the stretch 'S'
-function crossing(level: number, cLo: number, cHi: number, minute = level, weeklyResetAt = WEEK): WeeklyCrossing {
-    return { stretch: 'S', weeklyResetAt, at: new Date(START + minute * MIN).toISOString(), level, cLo, cHi };
+function crossing(level: number, cLo: number, cHi: number, minute = level, weeklyResetAt = WEEK, stretch = 'S'): WeeklyCrossing {
+    return { stretch, weeklyResetAt, at: new Date(START + minute * MIN).toISOString(), level, cLo, cHi };
 }
 
 describe('mergeCrossings', () => {
@@ -69,7 +69,29 @@ describe('mergeCrossings', () => {
 
     it('stamps version 2 and updatedAt', () => {
         const merged = mergeCrossings(null, [], NOW);
-        expect(merged).toEqual({ version: 2, crossings: [], fit: null, updatedAt: NOW.toISOString() });
+        expect(merged).toEqual({ version: 2, crossings: [], fit: null, limitChangeAt: null, updatedAt: NOW.toISOString() });
+    });
+
+    it('fits only crossings at or after limitChangeAt', () => {
+        // Stretch S: rate 0.1 (10 session % per level) at minutes 0..10.
+        // Stretch T: rate 0.5 (2 session % per level) at minutes 20..25.
+        const old = Array.from({ length: 11 }, (_, i) => crossing(i + 1, 10 * (i + 1), 10 * (i + 1), i));
+        const fresh = Array.from({ length: 6 }, (_, i) => crossing(12 + i, 2 * (i + 1), 2 * (i + 1), 20 + i, WEEK, 'T'));
+        const changeAt = new Date(START + 20 * MIN).toISOString();
+        const merged = mergeCrossings(null, [...old, ...fresh], NOW, changeAt);
+        expect(merged.fit?.rate).toBeCloseTo(0.5, 6);
+        expect(merged.limitChangeAt).toBe(changeAt);
+        expect(merged.crossings).toHaveLength(17);
+    });
+
+    it('keeps the later limitChangeAt of store and argument', () => {
+        const x = new Date(START + 20 * MIN).toISOString();
+        const y = new Date(START + 10 * MIN).toISOString();
+        const stored = mergeCrossings(null, [], NOW, x);
+        expect(mergeCrossings(stored, [], NOW, y).limitChangeAt).toBe(x);
+        expect(mergeCrossings(stored, [], NOW, null).limitChangeAt).toBe(x);
+        expect(mergeCrossings(stored, [], NOW).limitChangeAt).toBe(x);
+        expect(mergeCrossings(null, [], NOW, y).limitChangeAt).toBe(y);
     });
 });
 
@@ -98,6 +120,12 @@ describe('readCalibration / writeCalibration', () => {
         const file = join(dir, 'v3.json');
         writeFileSync(file, JSON.stringify({ version: 3, crossings: [], fit: null, updatedAt: NOW.toISOString() }));
         expect(readCalibration(file)).toBeNull();
+    });
+
+    it('reads a v2 file without limitChangeAt as limitChangeAt null', () => {
+        const file = join(dir, 'v2-old.json');
+        writeFileSync(file, JSON.stringify({ version: 2, crossings: [], fit: null, updatedAt: NOW.toISOString() }));
+        expect(readCalibration(file)?.limitChangeAt).toBeNull();
     });
 
     it('returns null for a v1 observation store', () => {

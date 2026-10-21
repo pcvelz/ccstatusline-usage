@@ -31,6 +31,7 @@ import {
 import {
     USAGE_SAMPLE_FILE,
     extractCrossings,
+    latestLimitChange,
     parseSampleLines
 } from '../src/utils/weekly-estimate';
 
@@ -90,7 +91,8 @@ function recalibrate(): void {
             writeFileSync(tmp, text);
             renameSync(tmp, USAGE_SAMPLE_FILE);
         }
-        const store = mergeCrossings(readCalibration(), extractCrossings(parseSampleLines(text)), new Date());
+        const samples = parseSampleLines(text);
+        const store = mergeCrossings(readCalibration(), extractCrossings(samples), new Date(), latestLimitChange(samples));
         writeCalibration(store);
     } catch {
         // Ignore calibration errors

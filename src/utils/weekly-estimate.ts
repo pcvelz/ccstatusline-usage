@@ -82,6 +82,9 @@ interface Point {
     reset: boolean;
     // True when that reset followed a sample taken too long before its block ended
     lossy: boolean;
+    // True when the weekly value is lower than the previous point's inside the same window:
+    // the plan or limit changed, so the old rate and offset no longer apply
+    limitChange: boolean;
 }
 
 // Reset timestamps jitter by a fraction of a second between fetches (the same
@@ -148,6 +151,7 @@ function at<T>(items: readonly T[], i: number): T {
 function toPoints(samples: UsageSample[]): Point[] {
     const points: Point[] = [];
     let prev: UsageSample | undefined;
+    let prevWeekly: number | undefined;
     for (const s of samples) {
         if (s.session === null || s.weekly === null || s.weeklyResetAt === null)
             continue;
@@ -156,8 +160,10 @@ function toPoints(samples: UsageSample[]): Point[] {
         // Unparseable timestamps make the comparison false, so they are never lossy
         const lossy = prev !== undefined && reset && prev.sessionResetAt !== null
             && Date.parse(prev.sessionResetAt) - Date.parse(prev.ts) > LOSSY_RESET_MS;
-        points.push({ ts: s.ts, weekly: s.weekly, session: s.session, weeklyResetAt: s.weeklyResetAt, sessionResetKey, reset, lossy });
+        const limitChange = prevWeekly !== undefined && s.weekly < prevWeekly;
+        points.push({ ts: s.ts, weekly: s.weekly, session: s.session, weeklyResetAt: s.weeklyResetAt, sessionResetKey, reset, lossy, limitChange });
         prev = s;
+        prevWeekly = s.weekly;
     }
     return points;
 }
@@ -175,15 +181,17 @@ function cumulate(points: Point[]): number[] {
     return cum;
 }
 
-// Index ranges of a weekly window with no lossy reset inside. Cumulative session
-// differences are only trustworthy within one stretch.
+// Index ranges of a weekly window with no lossy reset or limit change inside. Cumulative
+// session differences are only trustworthy within one stretch, and a limit change moves
+// both the rate and the offset.
 function stretches(points: Point[]): { start: number; end: number }[] {
     if (points.length === 0)
         return [];
     const result: { start: number; end: number }[] = [];
     let start = 0;
     for (let i = 1; i < points.length; i++) {
-        if (at(points, i).lossy) {
+        const p = at(points, i);
+        if (p.lossy || p.limitChange) {
             result.push({ start, end: i - 1 });
             start = i;
         }
@@ -220,8 +228,8 @@ function crossingsFromPoints(points: Point[]): WeeklyCrossing[] {
     return stretches(points).flatMap(s => stretchCrossings(points, cum, s.start, s.end));
 }
 
-// Crossings from every weekly window in the samples, ordered by at
-export function extractCrossings(samples: UsageSample[]): WeeklyCrossing[] {
+// Samples grouped by weekly window (reset time rounded to the minute)
+function groupByWindow(samples: UsageSample[]): Map<number, UsageSample[]> {
     const windows = new Map<number, UsageSample[]>();
     for (const s of samples) {
         const key = timeKey(s.weeklyResetAt);
@@ -231,10 +239,28 @@ export function extractCrossings(samples: UsageSample[]): WeeklyCrossing[] {
         group.push(s);
         windows.set(key, group);
     }
+    return windows;
+}
+
+// Crossings from every weekly window in the samples, ordered by at
+export function extractCrossings(samples: UsageSample[]): WeeklyCrossing[] {
     const crossings: WeeklyCrossing[] = [];
-    for (const group of windows.values())
+    for (const group of groupByWindow(samples).values())
         crossings.push(...crossingsFromPoints(toPoints(group)));
     return crossings.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+}
+
+// ts of the most recent limit change (a weekly drop inside one weekly window), or null.
+// A drop across windows is a normal weekly reset and does not count.
+export function latestLimitChange(samples: UsageSample[]): string | null {
+    let latest: string | null = null;
+    for (const group of groupByWindow(samples).values()) {
+        for (const p of toPoints(group)) {
+            if (p.limitChange && (latest === null || Date.parse(p.ts) > Date.parse(latest)))
+                latest = p.ts;
+        }
+    }
+    return latest;
 }
 
 // The rate range that every pair of same-stretch crossings allows when each crossing may
@@ -307,7 +333,23 @@ export function estimateWeeklyDetail(
 ): WeeklyEstimate | null {
     const liveKey = timeKey(live.weeklyResetAt);
     const window = [...samples, { ts: '', ...live }].filter(s => timeKey(s.weeklyResetAt) === liveKey);
-    const points = toPoints(window);
+    const allPoints = toPoints(window);
+    // The live weekly comes from the usage cache and can lag the sampler by a step; limit
+    // changes are recognised from sampled history only
+    const liveIndex = allPoints.length - 1;
+    const liveTail = allPoints[liveIndex];
+    if (liveTail !== undefined)
+        allPoints[liveIndex] = { ...liveTail, limitChange: false };
+    // After a limit change only the points from the latest one on describe the current limit.
+    // Plain loop: findLastIndex is not available on Node 14.
+    let changeIndex = 0;
+    for (let i = allPoints.length - 1; i > 0; i--) {
+        if (at(allPoints, i).limitChange) {
+            changeIndex = i;
+            break;
+        }
+    }
+    const points = allPoints.slice(changeIndex);
     const liveStretch = stretches(points).at(-1);
     if (liveStretch === undefined)
         return null;
