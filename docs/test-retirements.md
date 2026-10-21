@@ -7,6 +7,11 @@ A test file whose `expect(` count went down must be listed here by its
 backticked path with the reason (the `###` file headings count). Entries must
 be backticked: the gate matches `` `title` `` / `` `path` ``, not bare text.
 
+## v2.5.6 -> upstream merge (9 commits)
+
+- `drops an 8-bit CSI sequence\`: upstream c08a59d (#704) keeps 8-bit color codes in their 7-bit form instead of dropping the CSI introducer; replaced by "keeps 8-bit color codes, written in their 7-bit form" and "keeps an 8-bit hyperlink with a safe URL, written in its 7-bit form".
+- `strips OSC links and clamps preview lines to the terminal width`: upstream bed8501 (#701) preserves OSC links in the preview; replaced by "preserves OSC links and clamps preview lines to the terminal width", "closes a truncated link before the ellipsis" and "still removes non-link OSC sequences".
+
 ## v2.5.2 -> v2.5.3
 
 - `averages the two middle rates for an even count`: median rate replaced by the minimax crossing fit (fitRate) in 761bb45; replaced by "jittered data: the long span bounds the rate, and tau is positive".

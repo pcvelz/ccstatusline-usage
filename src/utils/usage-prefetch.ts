@@ -26,7 +26,9 @@ const BASE_USAGE_WIDGET_TYPES = [
     'extra-usage-utilization',
     'extra-usage-remaining',
     'extra-usage-used',
-    'extra-usage-daily-budget'
+    'extra-usage-daily-budget',
+    'spend-limit-usage',
+    'spend-limit-amount'
 ];
 
 const USAGE_WIDGET_TYPES = new Set<string>([
@@ -40,6 +42,9 @@ const USAGE_DATA_FIELDS: UsageDataField[] = [
     'weeklyUsage',
     'weeklyResetAt',
     ...WEEKLY_MODEL_USAGE_BUCKETS.flatMap(bucket => [bucket.usageField, bucket.resetField]),
+    'spendLimitUsage',
+    'spendLimitUsedUsd',
+    'spendLimitLimitUsd',
     'extraUsageEnabled',
     'extraUsageLimit',
     'extraUsageUsed',
@@ -71,6 +76,9 @@ function getWeeklyPaceRequirements(item: WidgetItem): UsageFieldRequirement[] {
     ];
 }
 
+// The spend limit widgets have no entry here on purpose: rate_limits.spend_limit
+// only exists in the statusline payload, so a missing value must not trigger an
+// OAuth usage fetch.
 const USAGE_WIDGET_REQUIREMENTS: Record<string, UsageWidgetRequirements> = {
     'session-usage': [{ field: 'sessionUsage' }],
     'weekly-usage': [{ field: 'weeklyUsage' }],
@@ -222,7 +230,10 @@ export function extractUsageDataFromRateLimits(rateLimits: StatusJSON['rate_limi
     const usageData: UsageData = {
         sessionUsage: rateLimits.five_hour?.used_percentage ?? undefined,
         sessionResetAt: epochSecondsToIsoString(rateLimits.five_hour?.resets_at),
-        weeklyResetAt: epochSecondsToIsoString(rateLimits.seven_day?.resets_at)
+        weeklyResetAt: epochSecondsToIsoString(rateLimits.seven_day?.resets_at),
+        spendLimitUsage: rateLimits.spend_limit?.used_percentage ?? undefined,
+        spendLimitUsedUsd: rateLimits.spend_limit?.used_usd ?? undefined,
+        spendLimitLimitUsd: rateLimits.spend_limit?.limit_usd ?? undefined
         // Note: rate_limits does not include extra_usage data (extraUsageEnabled, etc.).
         // Those fields are only available via the API fetch path.
     };
