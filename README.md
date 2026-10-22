@@ -92,6 +92,10 @@ Session: [████░░░░░░░░░░░] 27.0% | Weekly: [██
 
 ## 🆕 Recent Updates
 
+### [v2.5.8](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.8) - Adaptive light mode for many concurrent sessions
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Adaptive light mode** - each render now records a session heartbeat under `~/.cache/ccstatusline/sessions/`; when more sessions than `adaptiveLightMode.sessionThreshold` rendered within the last 120s, the git and custom-command cache TTLs are multiplied by `ttlMultiplier` (default 3), so dozens of concurrent Claude Code sessions stop stampeding git. Off by default; enable in settings.json with `"adaptiveLightMode": { "sessionThreshold": 10 }`.
+
 ### [v2.5.7](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.7) - Weekly decimal recalibrates after a plan change
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Weekly calibration** - a mid-week plan or limit change (the weekly % drops while its reset time stays) now rebases the decimal's rate at once instead of mixing in the old plan's steps for days.

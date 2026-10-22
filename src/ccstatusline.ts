@@ -34,6 +34,7 @@ import {
     resolveEffectiveTerminalWidth
 } from './utils/renderer';
 import { advanceGlobalSeparatorIndex } from './utils/separator-index';
+import { resolveLightMode } from './utils/session-count';
 import { getSkillsMetrics } from './utils/skills';
 import {
     getWidgetSpeedWindowSeconds,
@@ -172,6 +173,20 @@ async function renderMultipleLines(data: StatusJSON) {
         ? (transcriptAnalysis?.compactionData ?? ZERO_COMPACTION_STATS)
         : null;
 
+    // Adaptive light mode: when many sessions render concurrently, stretch
+    // the expensive cache TTLs (git execSync, custom commands) so refreshes
+    // happen less often. Widget output is unchanged; only staleness windows
+    // grow. Adjusted values go into locals: mutating `settings` here would
+    // leak the inflated TTLs into the saveSettings call in the updatemessage
+    // flow below, ratcheting them up on every render.
+    const { lightMode, ttlMultiplier } = resolveLightMode(settings, data.session_id);
+    const gitCacheTtlSeconds = lightMode
+        ? settings.gitCacheTtlSeconds * ttlMultiplier
+        : settings.gitCacheTtlSeconds;
+    const customCommandCacheTtlSeconds = lightMode
+        ? settings.customCommandCacheTtlSeconds * ttlMultiplier
+        : settings.customCommandCacheTtlSeconds;
+
     // Create render context
     const context: RenderContext = {
         data,
@@ -192,8 +207,8 @@ async function renderMultipleLines(data: StatusJSON) {
         terminalWidth: effectiveWidth,
         isPreview: false,
         minimalist: settings.minimalistMode,
-        gitCacheTtlSeconds: settings.gitCacheTtlSeconds,
-        customCommandCacheTtlSeconds: settings.customCommandCacheTtlSeconds,
+        gitCacheTtlSeconds,
+        customCommandCacheTtlSeconds,
         gitReviewNeedsChecks: lines.some(line => line.some(item => item.type === 'git-ci-status')),
         llamaSwapData
     };

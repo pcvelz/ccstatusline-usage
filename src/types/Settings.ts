@@ -117,6 +117,13 @@ export const SettingsSchema = z.object({
     // gitCacheTtlSeconds above, where 0 means "never expire".
     terminalWidthCacheTtlSeconds: z.number().min(0).max(300).default(5),
     customCommandCacheTtlSeconds: z.number().min(0).max(60).default(0),
+    // Adaptive light mode: when more sessions than sessionThreshold rendered
+    // recently, git/custom-command cache TTLs are multiplied by ttlMultiplier.
+    // Off by default; set adaptiveLightMode.sessionThreshold to enable.
+    adaptiveLightMode: z.object({
+        sessionThreshold: z.number().min(1).optional(),
+        ttlMultiplier: z.number().min(1).optional()
+    }).optional(),
     minimalistMode: z.boolean().default(false),
     // Adds the decimal part to the Weekly widget, estimated from the fractional
     // five-hour session %. Off shows the integer the API reports.
