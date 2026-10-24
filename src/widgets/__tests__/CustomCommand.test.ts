@@ -97,6 +97,7 @@ describe('CustomCommandWidget', () => {
         customCommandCacheTtlSeconds: 0,
         minimalistMode: false,
         weeklyEstimate: true,
+        weeklyEstimateDecimals: 1,
         powerline: {
             enabled: false,
             separators: [],

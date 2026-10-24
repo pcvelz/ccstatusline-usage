@@ -226,6 +226,60 @@ describe('GlobalOverridesMenu', () => {
         }
     });
 
+    async function pressKey(settings: typeof DEFAULT_SETTINGS, key: string, expected: Partial<typeof DEFAULT_SETTINGS>): Promise<void> {
+        const stdin = createMockStdin();
+        const stdout = createMockStdout();
+        const stderr = createMockStdout();
+        const onUpdate = vi.fn();
+
+        const instance = render(
+            React.createElement(GlobalOverridesMenu, { settings, onUpdate, onBack: vi.fn() }),
+            {
+                stdin,
+                stdout,
+                stderr,
+                debug: true,
+                exitOnCtrlC: false,
+                patchConsole: false
+            }
+        );
+
+        try {
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('Weekly Estimate:');
+                expect(stdout.getOutput()).toContain('Weekly Decimals:');
+            });
+            stdin.write(key);
+            await waitFor(() => {
+                expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining(expected));
+            });
+        } finally {
+            instance.unmount();
+            instance.cleanup();
+            stdin.destroy();
+            stdout.destroy();
+            stderr.destroy();
+        }
+    }
+
+    it('toggles the weekly estimate with (w)', async () => {
+        await pressKey({ ...DEFAULT_SETTINGS, weeklyEstimate: true }, 'w', { weeklyEstimate: false });
+        await pressKey({ ...DEFAULT_SETTINGS, weeklyEstimate: false }, 'w', { weeklyEstimate: true });
+    });
+
+    it('cycles the weekly decimals between 1 and 2 with (e)', async () => {
+        await pressKey({ ...DEFAULT_SETTINGS, weeklyEstimateDecimals: 1 }, 'e', { weeklyEstimateDecimals: 2 });
+        await pressKey({ ...DEFAULT_SETTINGS, weeklyEstimateDecimals: 2 }, 'e', { weeklyEstimateDecimals: 1 });
+    });
+
+    it('still cycles the weekly decimals while the estimate is off', async () => {
+        await pressKey(
+            { ...DEFAULT_SETTINGS, weeklyEstimate: false, weeklyEstimateDecimals: 1 },
+            'e',
+            { weeklyEstimate: false, weeklyEstimateDecimals: 2 }
+        );
+    });
+
     it('displays padding side as "Both" by default', async () => {
         const stdin = createMockStdin();
         const stdout = createMockStdout();

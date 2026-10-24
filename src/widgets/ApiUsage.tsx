@@ -76,10 +76,17 @@ export function makePrefillBar(prefillShare: number, width: number): string {
     return '[' + '█'.repeat(filledDone) + '▶' + '░'.repeat(empty) + ']';
 }
 
-function formatUsageBar(label: string, shortLabel: string, percent: number, size: DisplaySize): string {
+function formatUsageBar(label: string, shortLabel: string, percent: number, size: DisplaySize, decimals = 1): string {
     const bar = makeProgressBar(percent, getBarWidth(size));
     const display = Math.min(100, percent);
-    return `${size === 'mobile' ? shortLabel : label}: ${bar} ${display.toFixed(1)}%`;
+    return `${size === 'mobile' ? shortLabel : label}: ${bar} ${display.toFixed(decimals)}%`;
+}
+
+// Truncate (never round) to `decimals` places. The epsilon absorbs float error such
+// as 0.29 * 100 = 28.999999999999996, which would otherwise floor one step too low.
+export function truncateToDecimals(value: number, decimals: number): number {
+    const factor = 10 ** decimals;
+    return Math.floor(value * factor + 1e-9) / factor;
 }
 
 function formatSplitUsageBar(label: string, shortLabel: string, extraPercent: number, size: DisplaySize, extraUsed?: number, extraLimit?: number): string {
@@ -217,9 +224,9 @@ export class WeeklyUsageWidget implements Widget {
             : null;
         // Truncate, never round: the whole digit must stay the API value, so 5.96 shows 5.9, not 6.0.
         const weeklyPercent = estimate !== null && Math.floor(estimate) === data.weeklyUsage
-            ? Math.floor(estimate * 10) / 10
+            ? truncateToDecimals(estimate, settings.weeklyEstimateDecimals)
             : data.weeklyUsage;
-        return formatUsageBar('Weekly', 'W', weeklyPercent, size);
+        return formatUsageBar('Weekly', 'W', weeklyPercent, size, settings.weeklyEstimateDecimals);
     }
 
     supportsRawValue(): boolean { return false; }

@@ -59,7 +59,11 @@ disagree. `fitRate` (src/utils/weekly-estimate.ts) is a minimax fit:
 
 Computed on each render from the sample tail plus the live snapshot:
 
-1. Take the live weekly window and its last stretch. No crossing there means no estimate.
+1. Take the live weekly window and its last stretch. If the stretch has no crossing yet, the
+   weekly reset is the anchor: level 0, with the interval running from the session % at the last
+   old-window sample to the session % at the first new-window sample. It applies only when that
+   old sample was taken within 6 minutes of the reset, the first new reading is 0, and there was
+   no lossy reset or limit change since. Otherwise there is no estimate.
 2. `offset` = mean over the stretch's crossings of `level - rate * (cLo + cHi) / 2`.
 3. `now` = session % used since the stretch started, including the live five-hour value.
 4. Value = `offset + rate * now`, clamped to `[API value, API value + 0.999]`, so the whole

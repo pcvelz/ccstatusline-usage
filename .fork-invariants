@@ -17,6 +17,8 @@ src/widgets/ApiUsage.tsx export class WeeklyUsageWidget
 src/widgets/ApiUsage.tsx readWeeklyEstimate(data.weeklyUsage)
 src/utils/weekly-estimate.ts readCalibration()?.fit ?? null
 src/types/Settings.ts weeklyEstimate: z.boolean()
+src/types/Settings.ts weeklyEstimateDecimals: z.union([z.literal(1), z.literal(2)]).catch(1),
+src/utils/weekly-estimate.ts weeklyResetAnchor
 src/widgets/ApiUsage.tsx export class ResetTimerWidget
 src/widgets/ApiUsage.tsx export class ContextBarWidget
 src/widgets/index.ts ContextBarWidget

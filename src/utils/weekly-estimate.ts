@@ -321,18 +321,47 @@ function isUsableFit(fit: RateFit | null): fit is RateFit {
     return fit !== null && Number.isFinite(fit.rate) && fit.rate > 0;
 }
 
+// A sample with the session, weekly and weekly reset values all present
+type WindowSample = UsageSample & { session: number; weekly: number; weeklyResetAt: string };
+
+function isWindowSample(s: UsageSample): s is WindowSample {
+    return s.session !== null && s.weekly !== null && s.weeklyResetAt !== null;
+}
+
+// A weekly reset puts the true weekly value at exactly 0. When the previous window's last
+// sample was taken just before that reset, the new window starts from a level-0 crossing whose
+// interval is the session usage between those two readings.
+function weeklyResetAnchor(samples: UsageSample[], liveKey: number | null, first: Point): WeeklyCrossing | null {
+    const valid = samples.filter(isWindowSample);
+    const index = valid.findIndex(s => timeKey(s.weeklyResetAt) === liveKey);
+    const prev = index > 0 ? valid[index - 1] : undefined;
+    if (prev === undefined)
+        return null;
+    // NaN from an unparseable timestamp fails the comparison, so it yields no anchor
+    const lead = Date.parse(prev.weeklyResetAt) - Date.parse(prev.ts);
+    if (first.weekly !== 0 || !(lead <= LOSSY_RESET_MS))
+        return null;
+    const delta = timeKey(prev.sessionResetAt) !== first.sessionResetKey
+        ? first.session
+        : Math.max(0, first.session - prev.session);
+    return { stretch: first.ts, weeklyResetAt: first.weeklyResetAt, at: first.ts, level: 0, cLo: -delta, cHi: 0 };
+}
+
 // Estimator. Returns the weekly % with its fractional part, or null when the live stretch
 // has no crossing yet or no rate is available (stored, or fitted on the live window).
 //
-// The value advances from the live stretch's latest crossing at the fitted rate. The
-// result is clamped to [API value, API value + 0.999]: the whole digit is always the API's.
+// The value advances from the live stretch's latest crossing at the fitted rate. When the
+// live window has no crossing yet, the weekly reset itself anchors the first stretch (see
+// weeklyResetAnchor). The rate is never fitted on that anchor. The result is clamped to
+// [API value, API value + 0.999]: the whole digit is always the API's.
 export function estimateWeeklyDetail(
     samples: UsageSample[],
     live: Omit<UsageSample, 'ts'>,
     stored: RateFit | null = null
 ): WeeklyEstimate | null {
     const liveKey = timeKey(live.weeklyResetAt);
-    const window = [...samples, { ts: '', ...live }].filter(s => timeKey(s.weeklyResetAt) === liveKey);
+    const withLive = [...samples, { ts: '', ...live }];
+    const window = withLive.filter(s => timeKey(s.weeklyResetAt) === liveKey);
     const allPoints = toPoints(window);
     // The live weekly comes from the usage cache and can lag the sampler by a step; limit
     // changes are recognised from sampled history only
@@ -356,7 +385,11 @@ export function estimateWeeklyDetail(
 
     const cum = cumulate(points);
     const crossings = stretchCrossings(points, cum, liveStretch.start, liveStretch.end);
-    if (crossings.length === 0)
+    // Only a window that starts at its first sample, with no limit change, can use the reset anchor
+    const resetAnchor = crossings.length === 0 && changeIndex === 0 && liveStretch.start === 0
+        ? weeklyResetAnchor(withLive, liveKey, at(points, 0))
+        : null;
+    if (crossings.length === 0 && resetAnchor === null)
         return null;
 
     const useStored = isUsableFit(stored);
@@ -366,7 +399,7 @@ export function estimateWeeklyDetail(
 
     // Anchored on the most recent crossing, at the middle of its reading interval. The rate
     // drifts with the model mix, so a mean over older crossings lags behind the latest step.
-    const anchor = at(crossings, crossings.length - 1);
+    const anchor = resetAnchor ?? at(crossings, crossings.length - 1);
     const offset = anchor.level - fit.rate * (anchor.cLo + anchor.cHi) / 2;
     const last = at(points, points.length - 1);
     const now = at(cum, cum.length - 1) - at(cum, liveStretch.start);

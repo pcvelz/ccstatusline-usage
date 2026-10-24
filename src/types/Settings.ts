@@ -128,6 +128,9 @@ export const SettingsSchema = z.object({
     // Adds the decimal part to the Weekly widget, estimated from the fractional
     // five-hour session %. Off shows the integer the API reports.
     weeklyEstimate: z.boolean().default(true),
+    // Decimal places shown on the Weekly widget (1 or 2). Truncated, never rounded.
+    // Any other value falls back to 1 instead of invalidating the whole settings file.
+    weeklyEstimateDecimals: z.union([z.literal(1), z.literal(2)]).catch(1),
     powerline: PowerlineConfigSchema.default({
         enabled: false,
         separators: ['\uE0B0'],

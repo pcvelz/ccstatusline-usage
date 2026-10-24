@@ -470,3 +470,134 @@ describe('real sample fixture (plan change 2026-10-21)', () => {
         expect(mixed.fit?.rate).toBeLessThan((rebased.fit?.rate ?? 0) / 1.5);
     });
 });
+
+describe('weekly reset anchor', () => {
+    // The old window (weekly reset R) is sampled until just before R, then the new window (NEXT) starts at 0
+    const R = '2026-10-10T19:00:00.000+00:00';
+    const NEXT = '2026-10-17T19:00:00.000+00:00';
+    const base = (): UsageSample[] => [
+        row(at(56), 10, 97, BLOCK_A, R),
+        row(at(58), 12, 98, BLOCK_A, R),
+        row(at(62), 14, 0, BLOCK_A, NEXT)
+    ];
+
+    it('starts the decimal from a clean weekly reset', () => {
+        // Anchor: level 0 over cum -2..0 (delta = session 14 - 12 = 2), mid -1, offset = 0 + 0.05 = 0.05.
+        // Live session 22 at cum 8: 0.05 + 0.05 * 8 = 0.45
+        const est = estimateWeeklyDetail(base(), live(22, 0, BLOCK_A, NEXT), storedFit(0.05));
+        expect(est?.value).toBeCloseTo(0.45, 5);
+        expect(est?.rateSource).toBe('stored');
+    });
+
+    it('advances as session usage grows after the reset', () => {
+        // Live session 30 at cum 16: 0.05 + 0.05 * 16 = 0.85
+        const est = estimateWeeklyDetail(base(), live(30, 0, BLOCK_A, NEXT), storedFit(0.05));
+        expect(est?.value).toBeCloseTo(0.85, 5);
+    });
+
+    it('no anchor when the old window was last sampled more than 6 minutes before its reset', () => {
+        // Last old-window sample at(42) is 18 min before R: lossy, so no level-0 anchor
+        const samples = [
+            row(at(40), 10, 97, BLOCK_A, R),
+            row(at(42), 12, 98, BLOCK_A, R),
+            row(at(62), 14, 0, BLOCK_A, NEXT)
+        ];
+        expect(estimateWeeklyDetail(samples, live(22, 0, BLOCK_A, NEXT), storedFit(0.05))).toBeNull();
+    });
+
+    it('no anchor without a previous-window sample', () => {
+        const samples = [row(at(62), 14, 0, BLOCK_A, NEXT)];
+        expect(estimateWeeklyDetail(samples, live(22, 0, BLOCK_A, NEXT), storedFit(0.05))).toBeNull();
+    });
+
+    it('no anchor when the first new-window reading is above 0', () => {
+        const samples = [
+            row(at(56), 10, 97, BLOCK_A, R),
+            row(at(58), 12, 98, BLOCK_A, R),
+            row(at(62), 14, 1, BLOCK_A, NEXT)
+        ];
+        expect(estimateWeeklyDetail(samples, live(22, 1, BLOCK_A, NEXT), storedFit(0.05))).toBeNull();
+    });
+
+    it('no anchor without a stored rate', () => {
+        // The anchor never feeds the rate fit, and no real crossing exists in the new window
+        expect(estimateWeeklyDetail(base(), live(22, 0, BLOCK_A, NEXT), null)).toBeNull();
+    });
+
+    it('a lossy five-hour reset after the weekly reset drops the anchor', () => {
+        // Block A ends 19:40 (at(100)); its last sample at(62) is 38 min early, so the move to block B is lossy
+        const est = estimateWeeklyDetail(base(), live(5, 0, BLOCK_B, NEXT), storedFit(0.05));
+        expect(est).toBeNull();
+    });
+
+    it('a real crossing in the new window takes over from the anchor', () => {
+        // New-window points: cum 0 (s14, w0), 6 (s20, w0), 12 (s26, w1), 16 (live s30, w1).
+        // Real crossing: level 1 over cum 6..12 (mid 9). Offset = 1 - 0.05 * 9 = 0.55.
+        // Value = 0.55 + 0.05 * 16 - 1 = 0.35, so 1 + 0.35 = 1.35
+        const samples = [
+            ...base(),
+            row(at(64), 20, 0, BLOCK_A, NEXT),
+            row(at(66), 26, 1, BLOCK_A, NEXT)
+        ];
+        const est = estimateWeeklyDetail(samples, live(30, 1, BLOCK_A, NEXT), storedFit(0.05));
+        expect(est?.value).toBeCloseTo(1.35, 5);
+    });
+});
+
+const FIXTURE_RESET = fileURLToPath(new URL('./fixtures/usage-samples-2026-10-24.jsonl', import.meta.url));
+
+describe('real sample fixture (weekly reset 2026-10-24T13:00)', () => {
+    const samples = parseSampleLines(readFileSync(FIXTURE_RESET, 'utf8'));
+    const RESET_BLOCK = '2026-10-24T17:00:00.000Z';
+    const NEXT_WEEK = '2026-10-31T13:00:00.000Z';
+
+    it('shows a decimal right after the reset and advances with session usage', () => {
+        // History before the first weekly 1 reading (a live weekly 0 after it would read as a limit change)
+        const history = samples.slice(0, samples.findIndex(s => s.weeklyResetAt?.startsWith('2026-10-31T13:00') && s.weekly === 1));
+        const at8 = estimateWeeklyDetail(history, { session: 8, sessionResetAt: RESET_BLOCK, weekly: 0, weeklyResetAt: NEXT_WEEK }, storedFit(0.2549));
+        const at10 = estimateWeeklyDetail(history, { session: 10, sessionResetAt: RESET_BLOCK, weekly: 0, weeklyResetAt: NEXT_WEEK }, storedFit(0.2549));
+        expect(at8).not.toBeNull();
+        expect(at8?.value).toBeGreaterThan(0);
+        expect(at8?.value).toBeLessThan(1);
+        expect(at10?.value).toBeGreaterThan(at8?.value ?? Infinity);
+    });
+
+    // Samples of the new weekly window (weekly reset 2026-10-31T13:00)
+    const inNewWindow = (s: UsageSample): boolean => s.weeklyResetAt?.startsWith('2026-10-31T13:00') ?? false;
+
+    it('replays the decimal through the new window', () => {
+        // Every new-window reading, estimated from the history before it
+        const values: number[] = [];
+        for (const [i, s] of samples.entries()) {
+            if (!inNewWindow(s))
+                continue;
+            const est = estimateWeeklyDetail(samples.slice(0, i), liveOf(s), storedFit(0.2549));
+            expect(est).not.toBeNull();
+            const value = est?.value ?? NaN;
+            // Weekly 0 readings sit strictly inside (0, 1)
+            if (s.weekly === 0) {
+                expect(value).toBeGreaterThan(0);
+                expect(value).toBeLessThan(1);
+            }
+            values.push(value);
+        }
+        for (const [k, v] of values.entries()) {
+            if (k > 0)
+                expect(v).toBeGreaterThanOrEqual(values[k - 1] ?? 0);
+        }
+        // Only sessions 7 and 8 occur at weekly 0 in this fixture (two values), so the spread
+        // is counted over the whole window, including the 0 -> 1 step
+        expect(new Set(values.map(v => v.toFixed(4))).size).toBeGreaterThanOrEqual(3);
+    });
+
+    it('estimates the first weekly 1 reading in [1, 2)', () => {
+        const j = samples.findIndex(s => inNewWindow(s) && s.weekly === 1);
+        expect(j).toBeGreaterThan(0);
+        const s1 = samples[j];
+        if (s1 === undefined)
+            return;
+        const est = estimateWeeklyDetail(samples.slice(0, j), liveOf(s1), storedFit(0.2549));
+        expect(est?.value).toBeGreaterThanOrEqual(1);
+        expect(est?.value).toBeLessThan(2);
+    });
+});

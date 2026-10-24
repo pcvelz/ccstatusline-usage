@@ -47,6 +47,7 @@ describe('CurrentWorkingDirWidget', () => {
         customCommandCacheTtlSeconds: 5,
         minimalistMode: false,
         weeklyEstimate: true,
+        weeklyEstimateDecimals: 1,
         powerline: {
             enabled: false,
             separators: [],

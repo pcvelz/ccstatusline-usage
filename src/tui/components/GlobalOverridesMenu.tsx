@@ -263,6 +263,18 @@ export const GlobalOverridesMenu: React.FC<GlobalOverridesMenuProps> = ({ settin
                     minimalistMode: newMinimalistMode
                 };
                 onUpdate(updatedSettings);
+            } else if (shortcut === 'w' || shortcut === 'W') {
+                // Toggle the Weekly widget decimal estimate
+                onUpdate({
+                    ...settings,
+                    weeklyEstimate: !settings.weeklyEstimate
+                });
+            } else if (shortcut === 'e' || shortcut === 'E') {
+                // Cycle Weekly widget decimals: 1 <-> 2
+                onUpdate({
+                    ...settings,
+                    weeklyEstimateDecimals: settings.weeklyEstimateDecimals === 1 ? 2 : 1
+                });
             } else if (shortcut === 'n' || shortcut === 'N') {
                 setNumberFormatMode(true);
                 setNumberFormatKindIndex(0);
@@ -453,6 +465,18 @@ export const GlobalOverridesMenu: React.FC<GlobalOverridesMenuProps> = ({ settin
                         <Text>  Minimalist Mode: </Text>
                         <Text color={minimalistMode ? 'green' : 'red'}>{minimalistMode ? '✓ Enabled' : '✗ Disabled'}</Text>
                         <Text dimColor> - Press (m) to toggle</Text>
+                    </Box>
+
+                    <Box>
+                        <Text>  Weekly Estimate: </Text>
+                        <Text color={settings.weeklyEstimate ? 'green' : 'red'}>{settings.weeklyEstimate ? '✓ Enabled' : '✗ Disabled'}</Text>
+                        <Text dimColor> - Press (w) to toggle</Text>
+                    </Box>
+
+                    <Box>
+                        <Text>  Weekly Decimals: </Text>
+                        <Text color='cyan'>{settings.weeklyEstimateDecimals}</Text>
+                        <Text dimColor> - Press (e) to cycle 1/2</Text>
                     </Box>
 
                     <Box>
