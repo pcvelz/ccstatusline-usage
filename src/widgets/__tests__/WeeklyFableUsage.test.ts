@@ -68,6 +68,24 @@ describe('WeeklyFableUsageWidget', () => {
         expect(render(widget, { id: 'weekly-fable', type: 'weekly-fable-usage' }, { usageData: {} })).toBeNull();
     });
 
+    it('returns null for non-Anthropic usage providers (Kimi has no Fable quota)', () => {
+        const widget = new WeeklyFableUsageWidget();
+        const context: RenderContext = { usageData: { provider: 'kimi', sessionUsage: 85, weeklyUsage: 55 } };
+        expect(render(widget, { id: 'weekly-fable', type: 'weekly-fable-usage' }, context)).toBeNull();
+    });
+
+    it('returns null for the opencode usage provider', () => {
+        const widget = new WeeklyFableUsageWidget();
+        const context: RenderContext = { usageData: { provider: 'opencode', sessionUsage: 10 } };
+        expect(render(widget, { id: 'weekly-fable', type: 'weekly-fable-usage' }, context)).toBeNull();
+    });
+
+    it('still renders the zero-usage fallback when no provider is set', () => {
+        const widget = new WeeklyFableUsageWidget();
+        const context: RenderContext = { usageData: { sessionUsage: 85, weeklyUsage: 55 } };
+        expect(render(widget, { id: 'weekly-fable', type: 'weekly-fable-usage' }, context)).toBe('Fable: 0.0%');
+    });
+
     runUsagePercentWidgetSuite({
         baseItem: { id: 'weekly-fable', type: 'weekly-fable-usage' },
         createWidget: () => new WeeklyFableUsageWidget(),

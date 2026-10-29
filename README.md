@@ -37,7 +37,7 @@ This fork adds API-based usage widgets beyond the upstream:
 - **Weekly Pace** - Pendulum bar showing if you're ahead or behind expected usage pace (optional Off Hours window subtracts sleep time from the expected % calc)
 - **Off Peak** - Optional widget showing peak/off-peak status with countdown timer
 - **Two-line Layout** - Session info on line 1, context on line 2
-- **Multi-provider routing** - Usage widgets dispatch per model: Anthropic models hit the usage API; opencode/local models (GLM, Kimi, MiniMax, Qwen, Ollama) skip the fetch and gracefully hide usage bars while keeping the real-time context bar.
+- **Multi-provider routing** - Usage widgets dispatch per model: Anthropic models hit the usage API; Kimi Code sessions (backend `api.kimi.com/coding` or a loopback proxy in front of it) read Kimi's own 5-hour and weekly usage; other opencode/local models (GLM, Kimi, MiniMax, Qwen, Ollama) skip the fetch and gracefully hide usage bars while keeping the real-time context bar.
 
 <br />
 
@@ -182,6 +182,12 @@ For pinned installs, launch the TUI with `npx -y ccstatusline-usage@latest` or `
 </details>
 
 ## 🆕 Recent Updates
+
+### [v2.5.9](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.9) - Kimi Code usage bars + upstream sync
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Kimi Code usage** - in a Kimi Code session the Session bar shows the 5-hour window and the Weekly bar the 7-day window, read from `<ANTHROPIC_BASE_URL>/v1/usages` with the session's own API key. Works for direct `api.kimi.com/coding` sessions and for a local loopback proxy in front of Kimi (Kimi model ids `k3*` and `kimi-for-coding`). Cached for 3 minutes per base URL; Kimi models served by other backends keep routing to OpenCode.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fable hides off Anthropic** - the Fable bar no longer shows a bogus `0.0%` when the usage comes from a non-Anthropic provider.
+- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Upstream sync (28 commits)** - Block Forecast and Block Limit Timer widgets, Extra Usage Limit and Fast Mode widgets, Keychain lookups that time out instead of hanging, usage cache scoped per `CLAUDE_CONFIG_DIR`, fish-style branch abbreviation, live widget preview while picking, and powerline/jj/git fixes.
 
 ### [v2.5.8](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.8) - Adaptive light mode and weekly decimal fixes
 

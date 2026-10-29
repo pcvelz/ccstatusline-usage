@@ -1,4 +1,6 @@
 import {
+    afterEach,
+    beforeEach,
     describe,
     expect,
     it
@@ -10,6 +12,7 @@ import type { WidgetItem } from '../../types/Widget';
 import { preRenderAllWidgets } from '../renderer';
 
 const offPeakWidget: WidgetItem = { id: 'off-peak', type: 'off-peak' };
+const ORIGINAL_BASE_URL = process.env.ANTHROPIC_BASE_URL;
 
 function renderOffPeakForModel(modelId: string | undefined): string {
     const context: RenderContext = {
@@ -22,6 +25,18 @@ function renderOffPeakForModel(modelId: string | undefined): string {
 }
 
 describe('renderer provider gate (getSupportedProviders)', () => {
+    beforeEach(() => {
+        process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+    });
+
+    afterEach(() => {
+        if (ORIGINAL_BASE_URL === undefined) {
+            delete process.env.ANTHROPIC_BASE_URL;
+        } else {
+            process.env.ANTHROPIC_BASE_URL = ORIGINAL_BASE_URL;
+        }
+    });
+
     it('renders Off-peak widget for Anthropic models', () => {
         const out = renderOffPeakForModel('claude-opus-4-7');
         expect(out).toMatch(/Peak|Off-peak/);

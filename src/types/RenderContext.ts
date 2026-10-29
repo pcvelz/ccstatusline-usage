@@ -30,6 +30,7 @@ export interface RenderUsageData {
     extraUsageCurrency?: string;
     apiSessionUsage?: number;
     error?: 'no-credentials' | 'timeout' | 'rate-limited' | 'api-error' | 'parse-error';
+    provider?: 'anthropic' | 'kimi' | 'opencode' | null;
 }
 
 export interface ClaudeStatusRenderData {

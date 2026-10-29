@@ -21,6 +21,7 @@ import {
 } from '../ApiUsage';
 
 const BASE_ITEM: WidgetItem = { id: 'test', type: 'test' };
+const ORIGINAL_BASE_URL = process.env.ANTHROPIC_BASE_URL;
 
 function makeContext(usageData: RenderUsageData | null, extra: Partial<RenderContext> = {}): RenderContext {
     return {
@@ -34,10 +35,16 @@ function makeContext(usageData: RenderUsageData | null, extra: Partial<RenderCon
 describe('ApiUsage widgets with provider resolution', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
+        if (ORIGINAL_BASE_URL === undefined) {
+            delete process.env.ANTHROPIC_BASE_URL;
+        } else {
+            process.env.ANTHROPIC_BASE_URL = ORIGINAL_BASE_URL;
+        }
     });
 
     // Null provider models (unknown model ids) — widgets should hide (return null)

@@ -97,6 +97,11 @@ export class WeeklyFableUsageWidget implements Widget {
         }
 
         const data = context.usageData ?? {};
+        // Fable is an Anthropic-only quota. A defined non-Anthropic provider
+        // (Kimi, OpenCode, null) means "no Fable window exists", so hide
+        // instead of letting the zero-usage fallback below show a bogus 0.0%.
+        if (data.provider !== undefined && data.provider !== 'anthropic')
+            return null;
         // Accounts that never used Fable get no Fable limit from the API. When
         // the core usage windows did arrive, that absence means "no usage yet",
         // so show 0.0% instead of hiding the widget for light users (#7).

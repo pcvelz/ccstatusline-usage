@@ -27,7 +27,7 @@ export interface UsageData {
     extraUsageCurrency?: string;   // ISO 4217 currency code (e.g. 'USD', 'EUR')
     apiSessionUsage?: number;      // the usage API's own sessionUsage, never rate_limits'; see usage-prefetch.ts
     error?: UsageError;
-    provider?: 'anthropic' | 'opencode' | null;
+    provider?: 'anthropic' | 'kimi' | 'opencode' | null;
 }
 
 export interface UsageWindowMetrics {

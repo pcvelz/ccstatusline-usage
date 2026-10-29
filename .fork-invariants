@@ -23,6 +23,11 @@ src/widgets/ApiUsage.tsx export class ResetTimerWidget
 src/widgets/ApiUsage.tsx export class ContextBarWidget
 src/widgets/index.ts ContextBarWidget
 src/widgets/index.ts ResetTimerWidget
+
+# Kimi Code usage provider
+src/utils/usage/resolver.ts createKimiProvider
+src/utils/usage/providers/kimi.ts new URL('v1/usages', baseUrl)
+src/widgets/WeeklyFableUsage.ts data.provider !== 'anthropic'
 src/widgets/index.ts SessionUsageWidget
 src/widgets/index.ts WeeklyUsageWidget
 src/widgets/index.ts WeeklyFableUsageWidget

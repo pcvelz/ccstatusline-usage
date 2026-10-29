@@ -16,10 +16,29 @@ import {
 
 export { getMatchSegments } from './fuzzy';
 
-// Create widget registry
-const widgetRegistry = new Map<WidgetItemType, Widget>(
-    WIDGET_MANIFEST.map((entry): [WidgetItemType, Widget] => [entry.type, entry.create()])
+// Create widget registry. Instantiation is lazy: creating a widget touches its
+// class binding in the widget barrel, and doing that during module evaluation
+// throws a TDZ ReferenceError whenever a widget module (e.g. ApiUsage) is
+// mid-initialization in an import cycle (widget -> resolver -> usage-fetch ->
+// claude-settings -> config -> widgets -> widget-manifest -> widget barrel).
+const widgetFactories = new Map<WidgetItemType, () => Widget>(
+    WIDGET_MANIFEST.map((entry): [WidgetItemType, () => Widget] => [entry.type, entry.create])
 );
+const widgetRegistry = new Map<WidgetItemType, Widget>();
+
+function getWidgetInstance(type: WidgetItemType): Widget | null {
+    const cached = widgetRegistry.get(type);
+    if (cached) {
+        return cached;
+    }
+    const create = widgetFactories.get(type);
+    if (!create) {
+        return null;
+    }
+    const widget = create();
+    widgetRegistry.set(type, widget);
+    return widget;
+}
 const layoutWidgetTypes = new Set<WidgetItemType>(LAYOUT_WIDGET_MANIFEST.map(entry => entry.type));
 
 export const LEGACY_WIDGET_TYPE_ALIASES: Record<string, WidgetItemType> = { 'git-pr': 'git-review' };
@@ -36,7 +55,7 @@ export function upgradeLegacyWidgetTypes(lines: WidgetItem[][]): WidgetItem[][] 
 }
 
 export function getWidget(type: WidgetItemType): Widget | null {
-    return widgetRegistry.get(resolveLegacyWidgetType(type)) ?? null;
+    return getWidgetInstance(resolveLegacyWidgetType(type));
 }
 
 /**
@@ -138,6 +157,6 @@ export function filterWidgetCatalog(catalog: WidgetCatalogEntry[], category: str
 
 export function isKnownWidgetType(type: string): boolean {
     const resolved = resolveLegacyWidgetType(type);
-    return widgetRegistry.has(resolved)
+    return widgetFactories.has(resolved)
         || layoutWidgetTypes.has(resolved);
 }
