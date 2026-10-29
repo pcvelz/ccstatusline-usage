@@ -7,6 +7,22 @@ A test file whose `expect(` count went down must be listed here by its
 backticked path with the reason (the `###` file headings count). Entries must
 be backticked: the gate matches `` `title` `` / `` `path` ``, not bare text.
 
+## v2.5.8 -> upstream merge (28 commits)
+
+- `keeps manual separators when removal is not requested`: upstream 21f010e (#713) drops the "remove manual separators" option, so toggling Powerline never deletes a manual separator; replaced by "does not delete a manual separator across an enable then disable round trip".
+- `removes manual separators while preserving flex separators when requested`: same 21f010e (#713) removal of the option; replaced by "keeps manual separators alongside flex separators when enabling".
+- `uses the credentials file on non-macOS`: upstream 7cabd22 (#760) turns it into a parameterised test; replaced by "uses the credentials file on %s" (linux, win32).
+- `runs a confirmed install once, ignoring Enter and ESC until it finishes`: upstream 9e4acc8 (#700, dev reload) also ignores Ctrl+R during the install; replaced by "runs a confirmed install once, ignoring Enter, ESC and Ctrl+R until it finishes".
+- `runs the pinned version update once, ignoring Enter and ESC until it finishes`: same 9e4acc8 (#700) change; replaced by "runs the pinned version update once, ignoring Enter, ESC and Ctrl+R until it finishes".
+- `merges across a widget that rendered empty`: semantics deliberately narrowed upstream in 8e63775 (#698, end a merge at a hidden widget that isn't merged onward); replaced by "merges across an empty widget that is merged too" and "ends a merge at an empty widget that is not merged".
+- `lets a merge:no-padding widget glue to the next visible widget across an empty middle widget`: same 8e63775 (#698) change - a merge no longer crosses an empty widget that is not merged onward; replaced by "carries a merge across an empty widget that is merged too, without the default separator".
+- `lets a merge:true widget own the boundary across an empty middle widget`: same 8e63775 (#698) change; replaced by "carries a merge across an empty widget that is merged too, without the default separator".
+- `honors merge state on the previous rendered widget across hidden widgets`: same 8e63775 (#698) change; replaced by "honors merge state on the previous rendered widget across hidden widgets that are merged too" and "ends a merge at a hidden widget that is not merged onward".
+- `declares the no-data hideable state`: upstream bd6fcb1 (#697) adds the under-limit hideable state; replaced by "declares the no-data and under-limit hideable states".
+- `should render no git when branch and commit lookups are empty`: upstream 35ddf52 (#705) adds a jj lookup; replaced by "should render no git when branch, jj and commit lookups are empty".
+- `should render the short commit on a detached HEAD`: upstream 35ddf52 (#705) moves it into a jj describe block; replaced by "should render the short commit on a detached HEAD in a git repo nested in it".
+- `src/utils/__tests__/renderer-separator-collapse.test.ts`: expect() count 33 -> 29 because upstream 8e63775 (#698) folded the two merge-across-empty tests into one.
+
 ## v2.5.6 -> upstream merge (9 commits)
 
 - `drops an 8-bit CSI sequence\`: upstream c08a59d (#704) keeps 8-bit color codes in their 7-bit form instead of dropping the CSI introducer; replaced by "keeps 8-bit color codes, written in their 7-bit form" and "keeps an 8-bit hyperlink with a safe URL, written in its 7-bit form".

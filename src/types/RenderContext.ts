@@ -4,6 +4,7 @@ import type {
 } from '../types';
 import type { LlamaSwapData } from '../utils/llama-swap-types';
 
+import type { SessionForecast } from './SessionForecast';
 import type { SpeedMetrics } from './SpeedMetrics';
 import type { StatusJSON } from './StatusJSON';
 import type { TokenMetrics } from './TokenMetrics';
@@ -27,6 +28,7 @@ export interface RenderUsageData {
     extraUsageUsed?: number;
     extraUsageUtilization?: number;
     extraUsageCurrency?: string;
+    apiSessionUsage?: number;
     error?: 'no-credentials' | 'timeout' | 'rate-limited' | 'api-error' | 'parse-error';
 }
 
@@ -52,6 +54,7 @@ export interface RenderContext {
     speedMetrics?: SpeedMetrics | null;
     windowedSpeedMetrics?: Record<string, SpeedMetrics> | null;
     usageData?: RenderUsageData | null;
+    sessionForecast?: SessionForecast | null;
     claudeStatusData?: ClaudeStatusRenderData | null;
     sessionDuration?: string | null;
     transcriptSessionName?: string | null;

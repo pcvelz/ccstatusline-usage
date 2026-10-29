@@ -21,13 +21,14 @@ import {
 } from '../../types/Settings';
 import type { ImportValidationResult } from '../config';
 import { ensureDir } from '../config';
+import type { SkippedWidgetHooks } from '../hooks';
 
 // Unique per run, so test runs going at once don't delete each other's files
 const MOCK_HOME_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-config-test-home-'));
 const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 
 let loadSettings: () => Promise<Settings>;
-let saveSettings: (settings: Settings) => Promise<void>;
+let saveSettings: (settings: Settings) => Promise<SkippedWidgetHooks | null>;
 let exportConfig: (settings: Settings, filePath: string) => Promise<void>;
 let validateImportFile: (filePath: string) => Promise<ImportValidationResult>;
 let applyImport: (
@@ -426,6 +427,20 @@ describe('config utilities', () => {
         const saved = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')) as { version?: number };
         expect(saved.version).toBe(CURRENT_VERSION);
         expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('returns the widget hooks a save couldn\'t add', async () => {
+        const command = 'bash ~/.claude/statusline.sh';
+        fs.mkdirSync(getClaudeConfigDir(), { recursive: true });
+        fs.writeFileSync(
+            path.join(getClaudeConfigDir(), 'settings.json'),
+            JSON.stringify({ statusLine: { type: 'command', command } }),
+            'utf-8'
+        );
+
+        const skipped = await saveSettings({ ...DEFAULT_SETTINGS, lines: [[{ id: 'skills-1', type: 'skills' }]] });
+
+        expect(skipped).toEqual({ statusCommand: command, widgetNames: ['Skills'] });
     });
 
     it('saves settings without leaving a temp file behind', async () => {

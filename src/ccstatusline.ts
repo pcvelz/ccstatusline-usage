@@ -35,6 +35,8 @@ import {
 } from './utils/renderer';
 import { advanceGlobalSeparatorIndex } from './utils/separator-index';
 import { resolveLightMode } from './utils/session-count';
+import { computeSessionForecastIfNeeded } from './utils/session-forecast-prefetch';
+import { getDefaultSessionUsageHistoryDeps } from './utils/session-usage-history';
 import { getSkillsMetrics } from './utils/skills';
 import {
     getWidgetSpeedWindowSeconds,
@@ -58,6 +60,10 @@ function shouldUseCompactMode(width: number | null, data: StatusJSON): boolean {
         return true;
     return false;
 }
+
+// Captured before --config is parsed out of process.argv, so the dev reload
+// supervisor can relaunch with exactly the arguments it was started with
+const LAUNCH_ARGS = process.argv.slice(2);
 
 function hasSessionDurationInStatusJson(data: StatusJSON): boolean {
     const durationMs = data.cost?.total_duration_ms;
@@ -144,6 +150,7 @@ async function renderMultipleLines(data: StatusJSON) {
         prefetchClaudeStatusIfNeeded(lines),
         prefetchLlamaSwapData(lines, data)
     ]);
+    const sessionForecast = computeSessionForecastIfNeeded(lines, usageData, getDefaultSessionUsageHistoryDeps(data));
 
     const tokenMetrics = transcriptAnalysis?.tokenMetrics ?? null;
     const sessionDuration = transcriptAnalysis?.sessionDuration ?? null;
@@ -194,6 +201,7 @@ async function renderMultipleLines(data: StatusJSON) {
         speedMetrics,
         windowedSpeedMetrics,
         usageData,
+        sessionForecast,
         claudeStatusData,
         sessionDuration,
         transcriptSessionName: hasSessionNameWidget
@@ -402,6 +410,15 @@ async function main() {
         }
     } else {
         // Interactive mode - run TUI
+        // With CCSTATUSLINE_DEV_RELOAD=1 this process only supervises: it runs
+        // the TUI in child processes and restarts one whenever ctrl+r asks
+        if (process.env.CCSTATUSLINE_DEV_RELOAD === '1') {
+            const { getDevReloadMode, superviseDevReload } = await import('./utils/dev-reload');
+            if (getDevReloadMode(process.env) === 'supervisor') {
+                process.exit(await superviseDevReload(LAUNCH_ARGS));
+            }
+        }
+
         // Remove updatemessage before running TUI
         const settings = await loadSettings();
         if (settings.updatemessage) {

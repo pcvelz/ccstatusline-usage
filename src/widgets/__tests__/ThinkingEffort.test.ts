@@ -22,18 +22,18 @@ import { ThinkingEffortWidget } from '../ThinkingEffort';
 
 const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 
-const MODEL_WITH_HIGH_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-7)\u001b[22m with \u001b[1mhigh\u001b[22m effort</local-command-stdout>';
-const MODEL_WITH_LOW_EFFORT = '<local-command-stdout>Set model to \u001b[1msonnet (claude-sonnet-4-5)\u001b[22m with \u001b[1mlow\u001b[22m effort</local-command-stdout>';
-const MODEL_WITH_MAX_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-7)\u001b[22m with \u001b[1mmax\u001b[22m effort</local-command-stdout>';
-const MODEL_WITH_XHIGH_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-7)\u001b[22m with \u001b[1mxhigh\u001b[22m effort</local-command-stdout>';
-const MODEL_WITH_XHIGH_MIXED_CASE_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-7)\u001b[22m with \u001b[1mxHigh\u001b[22m effort</local-command-stdout>';
-const MODEL_WITH_SUPER_MAX_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-8)\u001b[22m with \u001b[1msuper-max\u001b[22m effort</local-command-stdout>';
-const MODEL_WITH_SUPER_MAX_MIXED_CASE_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-8)\u001b[22m with \u001b[1mSuper-Max\u001b[22m effort</local-command-stdout>';
-const MODEL_WITHOUT_EFFORT = '<local-command-stdout>Set model to \u001b[1msonnet (claude-sonnet-4-5)\u001b[22m</local-command-stdout>';
-const EFFORT_HIGH = '<local-command-stdout>Set effort level to \u001b[1mhigh\u001b[22m: Comprehensive implementation with extensive testing and documentation</local-command-stdout>';
-const EFFORT_LOW = '<local-command-stdout>Set effort level to \u001b[1mlow\u001b[22m: Quick, minimal-effort response</local-command-stdout>';
-const EFFORT_MEDIUM = '<local-command-stdout>Set effort level to \u001b[1mmedium\u001b[22m: Balanced response with good coverage</local-command-stdout>';
-const EFFORT_MAX = '<local-command-stdout>Set effort level to \u001b[1mmax\u001b[22m (this session only): Maximum capability with deepest reasoning (Opus 4.6 only)</local-command-stdout>';
+const MODEL_WITH_HIGH_EFFORT = '<local-command-stdout>Set model to [1mopus (claude-opus-4-7)[22m with [1mhigh[22m effort</local-command-stdout>';
+const MODEL_WITH_LOW_EFFORT = '<local-command-stdout>Set model to [1msonnet (claude-sonnet-4-5)[22m with [1mlow[22m effort</local-command-stdout>';
+const MODEL_WITH_MAX_EFFORT = '<local-command-stdout>Set model to [1mopus (claude-opus-4-7)[22m with [1mmax[22m effort</local-command-stdout>';
+const MODEL_WITH_XHIGH_EFFORT = '<local-command-stdout>Set model to [1mopus (claude-opus-4-7)[22m with [1mxhigh[22m effort</local-command-stdout>';
+const MODEL_WITH_XHIGH_MIXED_CASE_EFFORT = '<local-command-stdout>Set model to [1mopus (claude-opus-4-7)[22m with [1mxHigh[22m effort</local-command-stdout>';
+const MODEL_WITH_SUPER_MAX_EFFORT = '<local-command-stdout>Set model to [1mopus (claude-opus-4-8)[22m with [1msuper-max[22m effort</local-command-stdout>';
+const MODEL_WITH_SUPER_MAX_MIXED_CASE_EFFORT = '<local-command-stdout>Set model to [1mopus (claude-opus-4-8)[22m with [1mSuper-Max[22m effort</local-command-stdout>';
+const MODEL_WITHOUT_EFFORT = '<local-command-stdout>Set model to [1msonnet (claude-sonnet-4-5)[22m</local-command-stdout>';
+const EFFORT_HIGH = '<local-command-stdout>Set effort level to [1mhigh[22m: Comprehensive implementation with extensive testing and documentation</local-command-stdout>';
+const EFFORT_LOW = '<local-command-stdout>Set effort level to [1mlow[22m: Quick, minimal-effort response</local-command-stdout>';
+const EFFORT_MEDIUM = '<local-command-stdout>Set effort level to [1mmedium[22m: Balanced response with good coverage</local-command-stdout>';
+const EFFORT_MAX = '<local-command-stdout>Set effort level to [1mmax[22m (this session only): Maximum capability with deepest reasoning (Opus 4.6 only)</local-command-stdout>';
 
 let tempDir: string;
 let configDir: string;
