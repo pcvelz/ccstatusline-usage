@@ -183,6 +183,10 @@ For pinned installs, launch the TUI with `npx -y ccstatusline-usage@latest` or `
 
 ## 🆕 Recent Updates
 
+### v2.5.10 - Hide the 5-hour bar on plans without a five-hour limit
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Hide Session bar option** - Ultra plans have no five-hour limit, so the Session Usage widget has a new hide state, "when plan has no 5-hour limit". Off by default; enable it per item in the TUI (Edit hide states) and the Session bar disappears. Existing layouts are unchanged.
+
 ### [v2.5.9](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.9) - Kimi Code usage bars + upstream sync
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Kimi Code usage** - in a Kimi Code session the Session bar shows the 5-hour window and the Weekly bar the 7-day window, read from `<ANTHROPIC_BASE_URL>/v1/usages` with the session's own API key. Works for direct `api.kimi.com/coding` sessions and for a local loopback proxy in front of Kimi (Kimi model ids `k3*` and `kimi-for-coding`). Cached for 3 minutes per base URL; Kimi models served by other backends keep routing to OpenCode.

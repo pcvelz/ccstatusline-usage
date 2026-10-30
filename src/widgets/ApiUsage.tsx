@@ -4,6 +4,7 @@ import type { RenderContext } from '../types/RenderContext';
 import type { Settings } from '../types/Settings';
 import type {
     CustomKeybind,
+    HideableState,
     Widget,
     WidgetEditorDisplay,
     WidgetEditorProps,
@@ -21,6 +22,7 @@ import {
 import { resolveProvider } from '../utils/usage/resolver';
 import { readWeeklyEstimate } from '../utils/weekly-estimate';
 
+import { isHidden } from './shared/hideable';
 import {
     LOCALE_EDITOR_ACTION,
     renderUsageLocaleEditor
@@ -134,6 +136,9 @@ function getModelId(context: RenderContext): string {
 }
 
 // Session Usage Widget
+// Ultra plans have no five-hour limit, so the bar can be hidden per item.
+const SESSION_BAR_HIDEABLE_STATE: HideableState = { key: 'no-five-hour-limit', label: 'when plan has no 5-hour limit' };
+
 export class SessionUsageWidget implements Widget {
     getDefaultColor(): string { return 'brightBlue'; }
     getDescription(): string { return 'Shows daily/session API usage percentage'; }
@@ -144,7 +149,11 @@ export class SessionUsageWidget implements Widget {
         return { displayText: this.getDisplayName() };
     }
 
-    render(_item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
+    getHideableStates(): HideableState[] {
+        return [SESSION_BAR_HIDEABLE_STATE];
+    }
+
+    render(item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
         if (context.isPreview)
             return 'Session: [███░░░░░░░░░░░░] 20%';
 
@@ -152,6 +161,8 @@ export class SessionUsageWidget implements Widget {
         if (data.error)
             return getUsageErrorMessage(data.error);
         if (data.sessionUsage === undefined)
+            return null;
+        if (isHidden(item, SESSION_BAR_HIDEABLE_STATE.key))
             return null;
 
         const size = getDisplaySize(context);
