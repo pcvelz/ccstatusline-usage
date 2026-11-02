@@ -4,12 +4,12 @@ import type { RenderContext } from '../types/RenderContext';
 import type { Settings } from '../types/Settings';
 import type {
     CustomKeybind,
-    HideableState,
     Widget,
     WidgetEditorDisplay,
     WidgetEditorProps,
     WidgetItem
 } from '../types/Widget';
+import { observeFiveHourPlan } from '../utils/five-hour-plan';
 import {
     getContextConfig,
     getModelContextIdentifier
@@ -22,7 +22,6 @@ import {
 import { resolveProvider } from '../utils/usage/resolver';
 import { readWeeklyEstimate } from '../utils/weekly-estimate';
 
-import { isHidden } from './shared/hideable';
 import {
     LOCALE_EDITOR_ACTION,
     renderUsageLocaleEditor
@@ -136,8 +135,25 @@ function getModelId(context: RenderContext): string {
 }
 
 // Session Usage Widget
-// Ultra plans have no five-hour limit, so the bar can be hidden per item.
-const SESSION_BAR_HIDEABLE_STATE: HideableState = { key: 'no-five-hour-limit', label: 'when plan has no 5-hour limit' };
+// Ultra plans have no five-hour limit. Per item the bar is 'auto' (default: hidden once
+// the plan is seen to have none, see five-hour-plan.ts), 'show' or 'hide'.
+const FIVE_HOUR_MODE_KEY = 'fiveHourDisplay';
+const CYCLE_FIVE_HOUR_MODE_ACTION = 'cycle-five-hour-mode';
+type FiveHourMode = 'auto' | 'show' | 'hide';
+const FIVE_HOUR_MODE_ORDER: FiveHourMode[] = ['auto', 'show', 'hide'];
+
+function getFiveHourMode(item: WidgetItem): FiveHourMode {
+    const value = item.metadata?.[FIVE_HOUR_MODE_KEY];
+    return value === 'show' || value === 'hide' ? value : 'auto';
+}
+
+function cycleFiveHourMode(item: WidgetItem): WidgetItem {
+    const next: FiveHourMode = FIVE_HOUR_MODE_ORDER[(FIVE_HOUR_MODE_ORDER.indexOf(getFiveHourMode(item)) + 1) % FIVE_HOUR_MODE_ORDER.length] ?? 'auto';
+    const others = Object.entries(item.metadata ?? {}).filter(([key]) => key !== FIVE_HOUR_MODE_KEY);
+    // Auto is the default, so it is stored as the absence of the key
+    const metadata: Record<string, string> = Object.fromEntries(next === 'auto' ? others : [...others, [FIVE_HOUR_MODE_KEY, next]]);
+    return { ...item, metadata: Object.keys(metadata).length > 0 ? metadata : undefined };
+}
 
 export class SessionUsageWidget implements Widget {
     getDefaultColor(): string { return 'brightBlue'; }
@@ -145,12 +161,16 @@ export class SessionUsageWidget implements Widget {
     getDisplayName(): string { return 'Session Usage'; }
     getCategory(): string { return 'API Usage'; }
 
-    getEditorDisplay(_item: WidgetItem): WidgetEditorDisplay {
-        return { displayText: this.getDisplayName() };
+    getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
+        return { displayText: this.getDisplayName(), modifierText: `(${getFiveHourMode(item)})` };
     }
 
-    getHideableStates(): HideableState[] {
-        return [SESSION_BAR_HIDEABLE_STATE];
+    handleEditorAction(action: string, item: WidgetItem): WidgetItem | null {
+        return action === CYCLE_FIVE_HOUR_MODE_ACTION ? cycleFiveHourMode(item) : null;
+    }
+
+    getCustomKeybinds(_item?: WidgetItem): CustomKeybind[] {
+        return [{ key: 'a', label: '(a)uto/show/hide', action: CYCLE_FIVE_HOUR_MODE_ACTION }];
     }
 
     render(item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
@@ -162,13 +182,21 @@ export class SessionUsageWidget implements Widget {
             return getUsageErrorMessage(data.error);
         if (data.sessionUsage === undefined)
             return null;
-        if (isHidden(item, SESSION_BAR_HIDEABLE_STATE.key))
+
+        const provider = resolveProvider(getModelId(context)).name;
+        if (provider === 'null')
+            return null;
+
+        // Observed on every Anthropic render, whatever the mode, so the judgement is
+        // ready when the mode is switched to auto. Other providers' 5-hour windows
+        // say nothing about Anthropic plans.
+        const noFiveHourLimit = provider === 'anthropic'
+            && observeFiveHourPlan(data.weeklyUsage, data.sessionUsage);
+        const mode = getFiveHourMode(item);
+        if (mode === 'hide' || (mode === 'auto' && noFiveHourLimit))
             return null;
 
         const size = getDisplaySize(context);
-
-        if (resolveProvider(getModelId(context)).name === 'null')
-            return null;
 
         const extraUsed = data.extraUsageUsed;
         const extraLimit = data.extraUsageLimit;

@@ -63,3 +63,8 @@ README.md # ccstatusline-usage
 README.md > Fork of [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline)
 README.md ## Fork Enhancements
 README.md https://www.npmjs.com/package/ccstatusline-usage
+
+# Session bar auto mode (v2.5.10)
+src/utils/five-hour-plan.ts export function observeFiveHourPlan
+src/widgets/ApiUsage.tsx observeFiveHourPlan
+src/widgets/ApiUsage.tsx cycle-five-hour-mode

@@ -183,9 +183,9 @@ For pinned installs, launch the TUI with `npx -y ccstatusline-usage@latest` or `
 
 ## 🆕 Recent Updates
 
-### v2.5.10 - Hide the 5-hour bar on plans without a five-hour limit
+### [v2.5.10](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.10) - Session bar auto-hides on plans without a 5-hour limit
 
-- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Hide Session bar option** - Ultra plans have no five-hour limit, so the Session Usage widget has a new hide state, "when plan has no 5-hour limit". Off by default; enable it per item in the TUI (Edit hide states) and the Session bar disappears. Existing layouts are unchanged.
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Session bar auto-hide for plans without a 5-hour limit** - Ultra has no five-hour limit, Max 5x does. The Session Usage widget now has three display modes, cycled per item in the TUI with `a`: **auto** (the default), **show** and **hide**. Auto hides the bar only after the weekly usage has risen 2 percentage points while the 5-hour reading was 0% at every single reading in that span; one reading above 0% voids the span and the bar shows again. Nothing changes on first sight, only after that observed rise. Readings are kept in `~/.cache/ccstatusline/five-hour-plan*.json`.
 
 ### [v2.5.9](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.9) - Kimi Code usage bars + upstream sync
 
