@@ -183,6 +183,11 @@ For pinned installs, launch the TUI with `npx -y ccstatusline-usage@latest` or `
 
 ## 🆕 Recent Updates
 
+### [v2.5.11](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.11) - Cache widget polish
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Last Cache Miss** - shows until your next prompt, red by default, cause only when it is not a cache expiry
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache widgets** - shorter labels with a compact mode: Cache misses: 3/42 (7%), Miss cost, Next miss
+
 ### [v2.5.10](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.10) - Session bar auto-hides on plans without a 5-hour limit
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Session bar auto-hide for plans without a 5-hour limit** - Ultra has no five-hour limit, Max 5x does. The Session Usage widget now has three display modes, cycled per item in the TUI with `a`: **auto** (the default), **show** and **hide**. Auto hides the bar only after the weekly usage has risen 2 percentage points while the 5-hour reading was 0% at every single reading in that span; one reading above 0% voids the span and the bar shows again. Nothing changes on first sight, only after that observed rise. Readings are kept in `~/.cache/ccstatusline/five-hour-plan*.json`.

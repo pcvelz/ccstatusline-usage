@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+
 import type { RenderContext } from '../../types/RenderContext';
 import type { StatusJSON } from '../../types/StatusJSON';
 import type { HideableState } from '../../types/Widget';
@@ -78,4 +80,125 @@ export function formatMissCause(cause: LastMissCause | null | undefined): string
 export function formatMissAge(lastMissAtSeconds: number, nowMs = Date.now()): string {
     const ageMs = nowMs - lastMissAtSeconds * 1000;
     return ageMs < 60 * 1000 ? 'just now' : `${formatUsageDuration(ageMs, true)} ago`;
+}
+
+function formatToolsBrief(details: LastMissCause, compact: boolean): string {
+    const added = details.tools_added ?? 0;
+    const removed = details.tools_removed ?? 0;
+    if (compact) {
+        const counts = [added > 0 ? `+${added}` : '', removed > 0 ? `-${removed}` : ''].join('');
+        return counts.length > 0 ? `tools${counts}` : 'tools';
+    }
+    const parts: string[] = [];
+    if (added > 0) {
+        parts.push(`${added} tool${added === 1 ? '' : 's'} added`);
+    }
+    if (removed > 0) {
+        parts.push(`${removed} tool${removed === 1 ? '' : 's'} removed`);
+    }
+    return parts.length > 0 ? parts.join(', ') : 'tools changed';
+}
+
+// The widget's brief cause suffix. TTL expiries and unknown causes add nothing
+// (a TTL expiry is the cache's normal background churn, not news), so only
+// actionable causes render: longhand '2 tools added' / 'server-side', compact
+// 'tools+2' / 'srv'. Returns '' when there is nothing worth showing.
+export function formatMissCauseBrief(cause: LastMissCause | null | undefined, compact: boolean): string {
+    if (!cause) {
+        return '';
+    }
+
+    const parts: string[] = [];
+    for (const name of cause.causes) {
+        if (name.startsWith('ttl_expired_')) {
+            continue;
+        }
+        if (name === 'tools_changed') {
+            parts.push(formatToolsBrief(cause, compact));
+        } else if (name === 'system_prompt_changed') {
+            parts.push(compact ? 'sys' : formatCause(name, cause));
+        } else if (name === 'likely_server_side') {
+            parts.push(compact ? 'srv' : 'server-side');
+        } else {
+            parts.push(compact ? name.split('_')[0]?.slice(0, 4) ?? name : name.replace(/_/g, ' '));
+        }
+    }
+    return parts.join(compact ? ' ' : ', ');
+}
+
+interface TranscriptTimestampEntry {
+    type?: string;
+    timestamp?: string;
+    isSidechain?: boolean;
+}
+
+// A single transcript record can exceed the initial tail read (pasted prompts
+// and tool results reach hundreds of KiB), so the read doubles until the last
+// user row resolves or the whole file has been scanned. Same pattern as
+// CacheTimer's transcript tail reader.
+const INITIAL_TAIL_BYTES = 32768;
+
+function readTranscriptTail(filePath: string, bytes: number): { text: string; isComplete: boolean } | null {
+    try {
+        const fd = fs.openSync(filePath, 'r');
+        try {
+            const size = fs.fstatSync(fd).size;
+            const readSize = Math.min(bytes, size);
+            const buf = Buffer.alloc(readSize);
+            fs.readSync(fd, buf, 0, readSize, size - readSize);
+            return { text: buf.toString('utf-8'), isComplete: readSize === size };
+        } finally {
+            fs.closeSync(fd);
+        }
+    } catch {
+        return null;
+    }
+}
+
+// Seconds of the newest main-chain user row in the transcript tail, or null
+// when none is in view (so the caller doubles the read).
+function scanTailForLastUserSeconds(text: string): number | null {
+    for (const line of text.split('\n').reverse()) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+            continue;
+        }
+        try {
+            const entry = JSON.parse(trimmed) as TranscriptTimestampEntry;
+            // Sidechain (subagent) traffic is not this conversation's prompts.
+            if (entry.type !== 'user' || entry.isSidechain === true) {
+                continue;
+            }
+            const parsed = entry.timestamp ? Date.parse(entry.timestamp) : NaN;
+            if (!Number.isNaN(parsed)) {
+                return parsed / 1000;
+            }
+        } catch {
+            continue;
+        }
+    }
+    return null;
+}
+
+/**
+ * Unix seconds of the transcript's last main-chain user message, the same
+ * "last user message" the speed-metrics collector reports. Reads only the
+ * file's tail, doubling until the row resolves. Null when the file cannot be
+ * read or holds no timestamped user row: callers treat null as "unknown",
+ * not as "no prompt yet".
+ */
+export function getLastUserPromptSeconds(transcriptPath: string): number | null {
+    for (let bytes = INITIAL_TAIL_BYTES; ; bytes *= 2) {
+        const tail = readTranscriptTail(transcriptPath, bytes);
+        if (!tail || tail.text.length === 0) {
+            return null;
+        }
+        const seconds = scanTailForLastUserSeconds(tail.text);
+        if (seconds !== null) {
+            return seconds;
+        }
+        if (tail.isComplete) {
+            return null;
+        }
+    }
 }
