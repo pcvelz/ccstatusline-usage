@@ -6,6 +6,7 @@ export {
     isStaleUsageFallback
 } from './usage-fetch';
 export {
+    formatLimitTimerCompact,
     formatUsageDuration,
     formatUsageResetAt,
     getUsageErrorMessage,

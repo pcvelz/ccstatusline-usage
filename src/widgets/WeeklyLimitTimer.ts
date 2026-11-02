@@ -2,6 +2,7 @@ import type {
     RenderContext,
     RenderUsageData
 } from '../types/RenderContext';
+import { formatLimitTimerCompact } from '../utils/usage';
 import { getWeeklyLimitInMs } from '../utils/weekly-limit';
 
 import { LimitTimerWidget } from './shared/limit-timer-widget';
@@ -10,6 +11,7 @@ export type WeeklyLimitWindow = 'weekly' | 'fable-weekly';
 
 interface WeeklyLimitWindowConfig {
     label: string;
+    compactLabel: string;
     displayName: string;
     description: string;
     previewLimitInMs: number;
@@ -24,7 +26,8 @@ const HOUR_MS = 60 * 60 * 1000;
 
 const WEEKLY_LIMIT_WINDOWS: Record<WeeklyLimitWindow, WeeklyLimitWindowConfig> = {
     'weekly': {
-        label: 'Weekly limit in: ',
+        label: 'Weekly 100% in: ',
+        compactLabel: 'W 100% in: ',
         displayName: 'Weekly Limit Timer',
         description: 'Time until the 7-day limit at this week\'s average pace; shown only when that comes before the reset',
         previewLimitInMs: 37 * HOUR_MS,
@@ -32,7 +35,8 @@ const WEEKLY_LIMIT_WINDOWS: Record<WeeklyLimitWindow, WeeklyLimitWindowConfig> =
         resetFields: ['weeklyResetAt']
     },
     'fable-weekly': {
-        label: 'Fable limit in: ',
+        label: 'Fable 100% in: ',
+        compactLabel: 'F 100% in: ',
         displayName: 'Weekly Fable Limit Timer',
         description: 'Time until the Fable-only 7-day limit at this week\'s average pace; shown only when that comes before the reset',
         previewLimitInMs: 52 * HOUR_MS,
@@ -53,6 +57,7 @@ function getResetAt(data: RenderUsageData, config: WeeklyLimitWindowConfig): str
 // The limit timers for the 7-day windows: all models by default, or Fable alone
 export class WeeklyLimitTimerWidget extends LimitTimerWidget {
     protected readonly label: string;
+    protected readonly compactLabel: string;
     protected readonly previewLimitInMs: number;
     private readonly config: WeeklyLimitWindowConfig;
 
@@ -60,11 +65,16 @@ export class WeeklyLimitTimerWidget extends LimitTimerWidget {
         super();
         this.config = WEEKLY_LIMIT_WINDOWS[window];
         this.label = this.config.label;
+        this.compactLabel = this.config.compactLabel;
         this.previewLimitInMs = this.config.previewLimitInMs;
     }
 
     getDescription(): string { return this.config.description; }
     getDisplayName(): string { return this.config.displayName; }
+
+    protected override formatCompactDuration(limitInMs: number): string {
+        return formatLimitTimerCompact(limitInMs);
+    }
 
     protected getLimitInMs(context: RenderContext): number | null {
         const data = context.usageData ?? {};

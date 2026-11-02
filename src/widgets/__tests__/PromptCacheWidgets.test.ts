@@ -166,36 +166,36 @@ describe('Prompt cache widgets', () => {
         const render = (widgetItem: WidgetItem, context: RenderContext) => widget.render(widgetItem, context, DEFAULT_SETTINGS);
 
         it('shows how long ago the last miss was, red by default, with a brief cause', () => {
-            expect(render(item('last-cache-miss'), withCache(DOCS_EXAMPLE))).toBe(`Last miss: ${RED}3m ago, 2 tools added${RESET}`);
+            expect(render(item('last-cache-miss'), withCache(DOCS_EXAMPLE))).toBe(`${RED}Last miss: 3m ago, 2 tools added${RESET}`);
             expect(render(item('last-cache-miss', { rawValue: true }), withCache(DOCS_EXAMPLE))).toBe(`${RED}3m ago, 2 tools added${RESET}`);
         });
 
         it('drops TTL-expired and unknown causes', () => {
-            expect(render(item('last-cache-miss'), withCache({ ...DOCS_EXAMPLE, last_miss_cause: { causes: ['ttl_expired_1h'] } }))).toBe(`Last miss: ${RED}3m ago${RESET}`);
-            expect(render(item('last-cache-miss'), withCache({ ...DOCS_EXAMPLE, last_miss_cause: null }))).toBe(`Last miss: ${RED}3m ago${RESET}`);
+            expect(render(item('last-cache-miss'), withCache({ ...DOCS_EXAMPLE, last_miss_cause: { causes: ['ttl_expired_1h'] } }))).toBe(`${RED}Last miss: 3m ago${RESET}`);
+            expect(render(item('last-cache-miss'), withCache({ ...DOCS_EXAMPLE, last_miss_cause: null }))).toBe(`${RED}Last miss: 3m ago${RESET}`);
         });
 
         it('keeps only the non-TTL causes of a mixed list', () => {
             const cache = { ...DOCS_EXAMPLE, last_miss_cause: { causes: ['system_prompt_changed', 'ttl_expired_5m'], system_char_delta: 120 } };
 
-            expect(render(item('last-cache-miss'), withCache(cache))).toBe(`Last miss: ${RED}3m ago, system prompt changed (+120 chars)${RESET}`);
+            expect(render(item('last-cache-miss'), withCache(cache))).toBe(`${RED}Last miss: 3m ago, system prompt changed (+120 chars)${RESET}`);
         });
 
         it('names removed tools singularly', () => {
             const cache = { ...DOCS_EXAMPLE, last_miss_cause: { causes: ['tools_changed'], tools_added: 0, tools_removed: 1 } };
 
-            expect(render(item('last-cache-miss'), withCache(cache))).toBe(`Last miss: ${RED}3m ago, 1 tool removed${RESET}`);
+            expect(render(item('last-cache-miss'), withCache(cache))).toBe(`${RED}Last miss: 3m ago, 1 tool removed${RESET}`);
         });
 
         it('shows the short label and cause codes in compact mode', () => {
-            expect(render(compact('last-cache-miss'), withCache(DOCS_EXAMPLE))).toBe(`CM ${RED}3m tools+2${RESET}`);
+            expect(render(compact('last-cache-miss'), withCache(DOCS_EXAMPLE))).toBe(`${RED}CM 3m tools+2${RESET}`);
 
             const removed = { ...DOCS_EXAMPLE, last_miss_cause: { causes: ['tools_changed'], tools_added: 0, tools_removed: 1 } };
-            expect(render(compact('last-cache-miss'), withCache(removed))).toBe(`CM ${RED}3m tools-1${RESET}`);
+            expect(render(compact('last-cache-miss'), withCache(removed))).toBe(`${RED}CM 3m tools-1${RESET}`);
 
             const serverSide = { ...DOCS_EXAMPLE, last_miss_cause: { causes: ['likely_server_side'] } };
-            expect(render(compact('last-cache-miss'), withCache(serverSide))).toBe(`CM ${RED}3m srv${RESET}`);
-            expect(render(item('last-cache-miss'), withCache(serverSide))).toBe(`Last miss: ${RED}3m ago, server-side${RESET}`);
+            expect(render(compact('last-cache-miss'), withCache(serverSide))).toBe(`${RED}CM 3m srv${RESET}`);
+            expect(render(item('last-cache-miss'), withCache(serverSide))).toBe(`${RED}Last miss: 3m ago, server-side${RESET}`);
         });
 
         it('renders in its normal color when warn mode is off', () => {
@@ -220,15 +220,15 @@ describe('Prompt cache widgets', () => {
             // Miss 3 minutes ago; a user prompt 1 minute ago supersedes it
             expect(render(item('last-cache-miss'), transcriptContext(DOCS_EXAMPLE, 60))).toBeNull();
             // A user prompt before the miss leaves it visible
-            expect(render(item('last-cache-miss'), transcriptContext(DOCS_EXAMPLE, 600))).toBe(`Last miss: ${RED}3m ago, 2 tools added${RESET}`);
+            expect(render(item('last-cache-miss'), transcriptContext(DOCS_EXAMPLE, 600))).toBe(`${RED}Last miss: 3m ago, 2 tools added${RESET}`);
         });
 
         it('keeps showing when the transcript cannot be read', () => {
             const context: RenderContext = { data: { prompt_cache: DOCS_EXAMPLE, transcript_path: path.join(tmpDir, 'missing.jsonl') } };
-            expect(render(item('last-cache-miss'), context)).toBe(`Last miss: ${RED}3m ago, 2 tools added${RESET}`);
+            expect(render(item('last-cache-miss'), context)).toBe(`${RED}Last miss: 3m ago, 2 tools added${RESET}`);
 
             // A transcript without any user row tells nothing either
-            expect(render(item('last-cache-miss'), transcriptContext(DOCS_EXAMPLE))).toBe(`Last miss: ${RED}3m ago, 2 tools added${RESET}`);
+            expect(render(item('last-cache-miss'), transcriptContext(DOCS_EXAMPLE))).toBe(`${RED}Last miss: 3m ago, 2 tools added${RESET}`);
         });
 
         it('renders nothing before the first miss', () => {
@@ -237,7 +237,7 @@ describe('Prompt cache widgets', () => {
         });
 
         it('previews the docs\' example', () => {
-            expect(render(item('last-cache-miss'), PREVIEW)).toBe(`Last miss: ${RED}3m ago, 2 tools added${RESET}`);
+            expect(render(item('last-cache-miss'), PREVIEW)).toBe(`${RED}Last miss: 3m ago, 2 tools added${RESET}`);
         });
 
         it('starts amber, mentions the next prompt, and shows its modes in the editor', () => {
@@ -253,9 +253,13 @@ describe('Prompt cache widgets', () => {
         const widget = new CacheMissTokensWidget();
         const render = (widgetItem: WidgetItem, context: RenderContext) => widget.render(widgetItem, context, DEFAULT_SETTINGS);
 
-        it('shows the tokens the misses wrote back to the cache', () => {
-            expect(render(item('cache-miss-tokens'), withCache(DOCS_EXAMPLE))).toBe('Miss cost: 300.0k tok');
-            expect(render(item('cache-miss-tokens', { rawValue: true }), withCache(DOCS_EXAMPLE))).toBe('300.0k tok');
+        it('shows the tokens the misses wrote back to the cache, rounded to whole k', () => {
+            expect(render(item('cache-miss-tokens'), withCache(DOCS_EXAMPLE))).toBe('Miss cost: 300k tok');
+            expect(render(item('cache-miss-tokens', { rawValue: true }), withCache(DOCS_EXAMPLE))).toBe('300k tok');
+        });
+
+        it('shows a plain number under 1k', () => {
+            expect(render(item('cache-miss-tokens'), withCache({ ...DOCS_EXAMPLE, miss_recache_tokens: 512 }))).toBe('Miss cost: 512 tok');
         });
 
         it('shows the short label with whole-k tokens in compact mode', () => {
@@ -268,7 +272,7 @@ describe('Prompt cache widgets', () => {
         });
 
         it('shows zero unless hidden while the session has no misses', () => {
-            expect(render(item('cache-miss-tokens'), withCache(NO_MISSES))).toBe('Miss cost: 0');
+            expect(render(item('cache-miss-tokens'), withCache(NO_MISSES))).toBe('Miss cost: 0 tok');
             expect(render(hideZero('cache-miss-tokens'), withCache(NO_MISSES))).toBeNull();
             expect(widget.getHideableStates()).toEqual([{ key: 'zero', label: 'when there are no misses' }]);
         });
@@ -279,7 +283,7 @@ describe('Prompt cache widgets', () => {
         });
 
         it('previews the docs\' example', () => {
-            expect(render(item('cache-miss-tokens'), PREVIEW)).toBe('Miss cost: 310.2k tok');
+            expect(render(item('cache-miss-tokens'), PREVIEW)).toBe('Miss cost: 310k tok');
         });
 
         it('starts amber, with a compact toggle on s', () => {
@@ -293,10 +297,14 @@ describe('Prompt cache widgets', () => {
         const widget = new CacheIfColdWidget();
         const render = (widgetItem: WidgetItem, context: RenderContext) => widget.render(widgetItem, context, DEFAULT_SETTINGS);
 
-        it('shows what the next request re-caches if the cache has gone cold', () => {
-            expect(render(item('cache-if-cold'), withCache(DOCS_EXAMPLE))).toBe('Next miss: 45.0k tok');
-            expect(render(item('cache-if-cold', { rawValue: true }), withCache(DOCS_EXAMPLE))).toBe('45.0k tok');
+        it('shows what the next request re-caches if the cache has gone cold, rounded to whole k', () => {
+            expect(render(item('cache-if-cold'), withCache(DOCS_EXAMPLE))).toBe('Next miss: 45k tok');
+            expect(render(item('cache-if-cold', { rawValue: true }), withCache(DOCS_EXAMPLE))).toBe('45k tok');
             expect(render(item('cache-if-cold', { numberFormat: { style: 'whole' } }), withCache(DOCS_EXAMPLE))).toBe('Next miss: 45k tok');
+        });
+
+        it('shows a plain number under 1k', () => {
+            expect(render(item('cache-if-cold'), withCache({ ...DOCS_EXAMPLE, recache_tokens_if_cold: 512 }))).toBe('Next miss: 512 tok');
         });
 
         it('shows the short label with whole-k tokens in compact mode', () => {
@@ -311,7 +319,7 @@ describe('Prompt cache widgets', () => {
         });
 
         it('previews the docs\' example', () => {
-            expect(render(item('cache-if-cold'), PREVIEW)).toBe('Next miss: 45.0k tok');
+            expect(render(item('cache-if-cold'), PREVIEW)).toBe('Next miss: 45k tok');
         });
 
         it('starts amber, with a compact toggle on s', () => {

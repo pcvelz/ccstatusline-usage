@@ -109,12 +109,11 @@ export class LastCacheMissWidget implements Widget {
         const value = compact
             ? [age.replace(/ ago$/, ''), cause].filter(part => part.length > 0).join(' ')
             : [age, cause].filter(part => part.length > 0).join(', ');
-        const colored = isWarnEnabled(item) ? `${ANSI_RED}${value}${ANSI_FG_RESET}` : value;
+        const text = item.rawValue ? value : `${compact ? COMPACT_LABEL : LABEL}${value}`;
 
-        if (item.rawValue) {
-            return colored;
-        }
-        return `${compact ? COMPACT_LABEL : LABEL}${colored}`;
+        // Warn mode paints the whole widget, label included; off leaves the
+        // text uncolored so the default color applies
+        return isWarnEnabled(item) ? `${ANSI_RED}${text}${ANSI_FG_RESET}` : text;
     }
 
     supportsRawValue(): boolean { return true; }

@@ -31,6 +31,7 @@ interface TimerCase {
     create: () => WeeklyLimitTimerWidget;
     displayName: string;
     label: string;
+    compactLabel: string;
     preview: [full: string, compact: string];
     usage: (percent: number | undefined, resetAt?: string) => RenderUsageData;
 }
@@ -41,8 +42,9 @@ const TIMERS: TimerCase[] = [
         type: 'weekly-limit-timer',
         create: () => new WeeklyLimitTimerWidget(),
         displayName: 'Weekly Limit Timer',
-        label: 'Weekly limit in: ',
-        preview: ['1d 13hr', '1d13h'],
+        label: 'Weekly 100% in: ',
+        compactLabel: 'W 100% in: ',
+        preview: ['1d 13hr', '1d 13h'],
         usage: (weeklyUsage, weeklyResetAt) => ({ weeklyUsage, weeklyResetAt })
     },
     {
@@ -50,8 +52,9 @@ const TIMERS: TimerCase[] = [
         type: 'fable-weekly-limit-timer',
         create: () => new FableWeeklyLimitTimerWidget(),
         displayName: 'Weekly Fable Limit Timer',
-        label: 'Fable limit in: ',
-        preview: ['2d 4hr', '2d4h'],
+        label: 'Fable 100% in: ',
+        compactLabel: 'F 100% in: ',
+        preview: ['2d 4hr', '2d 4h'],
         usage: (weeklyFableUsage, weeklyFableResetAt) => ({ weeklyFableUsage, weeklyFableResetAt })
     }
 ];
@@ -86,11 +89,32 @@ describe.each(TIMERS)('$name', (timer) => {
         const limitInMs = 46 * 60 * 60 * 1000 + 40 * 60 * 1000;
 
         expect(render(ITEM, usage(72))).toBe(`${timer.label}${formatUsageDuration(limitInMs)}`);
-        expect(render(COMPACT, usage(72))).toBe(`${timer.label}${formatUsageDuration(limitInMs, true)}`);
+        expect(render(COMPACT, usage(72))).toBe(`${timer.compactLabel}1d 22h`);
     });
 
-    it('shows the short form with s', () => {
-        expect(render(COMPACT, usage(72))).toBe(`${timer.label}1d22h40m`);
+    it('shows the compact form with days and hours only', () => {
+        expect(render(COMPACT, usage(72))).toBe(`${timer.compactLabel}1d 22h`);
+    });
+
+    it('shows hours alone under a day and minutes under an hour', () => {
+        class StubTimer extends WeeklyLimitTimerWidget {
+            private readonly stubMs: number;
+
+            constructor(stubMs: number) {
+                super(timer.type === 'fable-weekly-limit-timer' ? 'fable-weekly' : 'weekly');
+                this.stubMs = stubMs;
+            }
+
+            protected override getLimitInMs(): number | null {
+                return this.stubMs;
+            }
+        }
+        const renderStub = (ms: number): string | null => new StubTimer(ms).render(COMPACT, {}, DEFAULT_SETTINGS);
+
+        expect(renderStub(2 * DAY + 20 * 60 * 60 * 1000 + 29 * 60 * 1000)).toBe(`${timer.compactLabel}2d 20h`);
+        expect(renderStub(2 * DAY)).toBe(`${timer.compactLabel}2d`);
+        expect(renderStub(20 * 60 * 60 * 1000 + 5 * 60 * 1000)).toBe(`${timer.compactLabel}20h`);
+        expect(renderStub(45 * 60 * 1000)).toBe(`${timer.compactLabel}45m`);
     });
 
     it('drops the label in raw value mode', () => {
@@ -127,7 +151,7 @@ describe.each(TIMERS)('$name', (timer) => {
 
     it('shows a sample in the preview', () => {
         expect(render(ITEM, { isPreview: true })).toBe(`${timer.label}${timer.preview[0]}`);
-        expect(render(COMPACT, { isPreview: true })).toBe(`${timer.label}${timer.preview[1]}`);
+        expect(render(COMPACT, { isPreview: true })).toBe(`${timer.compactLabel}${timer.preview[1]}`);
     });
 
     it('describes itself for the line editor', () => {
@@ -135,8 +159,9 @@ describe.each(TIMERS)('$name', (timer) => {
 
         expect(widget.getDisplayName()).toBe(timer.displayName);
         expect(widget.getCategory()).toBe('Usage');
-        expect(widget.getDefaultColor()).toBe('red');
-        expect(widget.getLabelPrefix()).toBe(timer.label);
+        expect(widget.getDefaultColor()).toBe('ansi256:173');
+        expect(widget.getLabelPrefix(ITEM)).toBe(timer.label);
+        expect(widget.getLabelPrefix(COMPACT)).toBe(timer.compactLabel);
         expect(widget.getEditorDisplay(ITEM).modifierText).toBeUndefined();
         expect(widget.getEditorDisplay(COMPACT).modifierText).toBe('(compact)');
     });
@@ -154,7 +179,7 @@ describe('the weekly limit timers\' windows', () => {
     const render = (widget: WeeklyLimitTimerWidget, usageData: RenderUsageData): string | null => widget.render({ id: 'limit', type: 'weekly-limit-timer' }, { usageData }, DEFAULT_SETTINGS);
 
     it('reads only the all-models window for Weekly Limit Timer', () => {
-        expect(render(new WeeklyLimitTimerWidget(), { weeklyUsage: 72, weeklyResetAt: RESET_AT, weeklyFableUsage: 50, weeklyFableResetAt: RESET_AT })).toBe('Weekly limit in: 1d 22hr 40m');
+        expect(render(new WeeklyLimitTimerWidget(), { weeklyUsage: 72, weeklyResetAt: RESET_AT, weeklyFableUsage: 50, weeklyFableResetAt: RESET_AT })).toBe('Weekly 100% in: 1d 22hr 40m');
         expect(render(new WeeklyLimitTimerWidget(), { weeklyFableUsage: 72, weeklyFableResetAt: RESET_AT })).toBeNull();
     });
 
@@ -164,6 +189,6 @@ describe('the weekly limit timers\' windows', () => {
 
     // As Weekly Fable Usage's time cursor does when the API sends no Fable reset
     it('falls back to the all-models reset for Fable\'s window', () => {
-        expect(render(new FableWeeklyLimitTimerWidget(), { weeklyFableUsage: 72, weeklyResetAt: RESET_AT })).toBe('Fable limit in: 1d 22hr 40m');
+        expect(render(new FableWeeklyLimitTimerWidget(), { weeklyFableUsage: 72, weeklyResetAt: RESET_AT })).toBe('Fable 100% in: 1d 22hr 40m');
     });
 });

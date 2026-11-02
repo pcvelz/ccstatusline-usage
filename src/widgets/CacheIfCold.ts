@@ -60,10 +60,10 @@ export class CacheIfColdWidget implements Widget {
             return null;
         }
 
-        // Compact rounds to whole k regardless of the configured format
+        // Both modes round to whole k regardless of the configured format
         const compact = isMetadataFlagEnabled(item, COMPACT_METADATA_KEY);
-        const formatted = formatTokens(tokens, resolveNumberFormat('token', item, settings), compact ? 0 : 1);
-        const value = compact || tokens < 1000
+        const formatted = formatTokens(tokens, resolveNumberFormat('token', item, settings), 0);
+        const value = compact
             ? formatted
             : `${formatted} tok`;
 

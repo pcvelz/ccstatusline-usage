@@ -27,15 +27,17 @@ export abstract class LimitTimerWidget implements Widget {
     abstract getDisplayName(): string;
 
     protected abstract readonly label: string;
+    // The label in compact mode, usually a shortened form of the longhand label
+    protected abstract readonly compactLabel: string;
     // The TUI preview's sample, in milliseconds
     protected abstract readonly previewLimitInMs: number;
     // Milliseconds until the limit, or null when it comes after the reset or
     // there's nothing to measure
     protected abstract getLimitInMs(context: RenderContext): number | null;
 
-    getDefaultColor(): string { return 'red'; }
+    getDefaultColor(): string { return 'ansi256:173'; }
     getCategory(): string { return 'Usage'; }
-    getLabelPrefix(): string { return this.label; }
+    getLabelPrefix(item: WidgetItem): string { return isUsageCompact(item) ? this.compactLabel : this.label; }
 
     getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
         return {
@@ -49,9 +51,9 @@ export abstract class LimitTimerWidget implements Widget {
     }
 
     render(item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
-        const compact = isUsageCompact(item);
+        const format = (ms: number): string => isUsageCompact(item) ? this.formatCompactDuration(ms) : formatUsageDuration(ms);
         if (context.isPreview) {
-            return formatRawOrLabeledValue(item, this.label, formatUsageDuration(this.previewLimitInMs, compact));
+            return formatRawOrLabeledValue(item, this.getLabelPrefix(item), format(this.previewLimitInMs));
         }
 
         const limitInMs = this.getLimitInMs(context);
@@ -59,11 +61,18 @@ export abstract class LimitTimerWidget implements Widget {
             return null;
         }
 
-        return formatRawOrLabeledValue(item, this.label, formatUsageDuration(Math.max(MIN_SHOWN_MS, limitInMs), compact));
+        return formatRawOrLabeledValue(item, this.getLabelPrefix(item), format(Math.max(MIN_SHOWN_MS, limitInMs)));
     }
 
     getCustomKeybinds(): CustomKeybind[] {
         return [getUsageCompactKeybind()];
+    }
+
+    // The compact duration form. The weekly/fable limit timers override this
+    // with their coarser day/hour-only format; the rest keep the shared
+    // formatUsageDuration compact form.
+    protected formatCompactDuration(limitInMs: number): string {
+        return formatUsageDuration(limitInMs, true);
     }
 
     supportsRawValue(): boolean { return true; }

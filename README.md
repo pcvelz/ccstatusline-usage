@@ -185,6 +185,7 @@ For pinned installs, launch the TUI with `npx -y ccstatusline-usage@latest` or `
 
 ### [v2.5.11](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.11) - Cache widget polish
 
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Limit timers** - clearer labels (Weekly 100% in, W 100% in when compact) in a muted orange
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Last Cache Miss** - shows until your next prompt, red by default, cause only when it is not a cache expiry
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache widgets** - shorter labels with a compact mode: Cache misses: 3/42 (7%), Miss cost, Next miss
 

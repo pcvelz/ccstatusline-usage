@@ -126,6 +126,23 @@ export function formatUsageDuration(durationMs: number, compact = false, useDays
     return parts.length > 0 ? parts.join(sep) : '0m';
 }
 
+// The limit timers' compact form, coarser than formatUsageDuration's: days and
+// hours only ('2d 20h'), hours alone under a day ('20h'), minutes under an
+// hour ('45m'). Once a day or more remains, minutes are too fine to act on.
+export function formatLimitTimerCompact(durationMs: number): string {
+    const clampedMs = Math.max(0, durationMs);
+    const totalMinutes = Math.floor(clampedMs / (1000 * 60));
+    const days = Math.floor(totalMinutes / (24 * 60));
+    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+    if (days > 0) {
+        return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+    }
+    if (hours > 0) {
+        return `${hours}h`;
+    }
+    return `${totalMinutes}m`;
+}
+
 function pad(value: number): string {
     return value.toString().padStart(2, '0');
 }
