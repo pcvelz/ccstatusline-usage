@@ -96,6 +96,14 @@ describe.each(TIMERS)('$name', (timer) => {
         expect(render(COMPACT, usage(72))).toBe(`${timer.compactLabel}1d 22h`);
     });
 
+    it('uses the compact form on a compact-width terminal, longhand at full width', () => {
+        const narrow = { ...usage(72), terminalWidth: 65 };
+        const wide = { ...usage(72), terminalWidth: 200 };
+
+        expect(render(ITEM, narrow)).toBe(`${timer.compactLabel}1d 22h`);
+        expect(render(ITEM, wide)).toBe(`${timer.label}1d 22hr 40m`);
+    });
+
     it('shows hours alone under a day and minutes under an hour', () => {
         class StubTimer extends WeeklyLimitTimerWidget {
             private readonly stubMs: number;

@@ -74,6 +74,18 @@ export function getUsageLabel(context: RenderContext, label: string, shortLabel:
     return width > 0 && width < MOBILE_WIDTH_THRESHOLD ? shortLabel : label;
 }
 
+// The fork's compact-width mode (ccstatusline.ts shouldUseCompactMode): the
+// context's terminalWidth arrives reduced, and the Model widget and CacheTimer
+// collapse to their shorthand below this same threshold. Every other
+// compact-capable text widget joins them via isCompactWidth so one narrow pane
+// shortens all of them together, whether or not its own compact flag is set.
+export const COMPACT_WIDTH_THRESHOLD = 178;
+
+export function isCompactWidth(context: RenderContext): boolean {
+    const width = context.terminalWidth ?? 0;
+    return width > 0 && width < COMPACT_WIDTH_THRESHOLD;
+}
+
 const PROGRESS_TOGGLE_KEYBIND: CustomKeybind = { key: 'p', label: '(p)rogress toggle', action: 'toggle-progress' };
 const INVERT_TOGGLE_KEYBIND: CustomKeybind = { key: 'v', label: 'in(v)ert fill', action: 'toggle-invert' };
 const COMPACT_TOGGLE_KEYBIND: CustomKeybind = { key: 's', label: '(s)hort time', action: 'toggle-compact' };

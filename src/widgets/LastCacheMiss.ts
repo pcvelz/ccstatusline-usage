@@ -19,6 +19,7 @@ import {
     getLastUserPromptSeconds,
     getPromptCache
 } from './shared/prompt-cache';
+import { isCompactWidth } from './shared/usage-display';
 
 const LABEL = 'Last miss: ';
 const COMPACT_LABEL = 'CM ';
@@ -103,7 +104,7 @@ export class LastCacheMissWidget implements Widget {
             return null;
         }
 
-        const compact = isMetadataFlagEnabled(item, COMPACT_METADATA_KEY);
+        const compact = isMetadataFlagEnabled(item, COMPACT_METADATA_KEY) || (!context.isPreview && isCompactWidth(context));
         const cause = formatMissCauseBrief(cache.last_miss_cause, compact);
         const age = formatMissAge(cache.last_miss_at);
         const value = compact

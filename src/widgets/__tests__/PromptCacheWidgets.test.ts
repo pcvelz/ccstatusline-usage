@@ -56,6 +56,9 @@ const item = (type: string, extra: Partial<WidgetItem> = {}): WidgetItem => ({ i
 const hideZero = (type: string): WidgetItem => item(type, { metadata: { hide: 'zero' } });
 const compact = (type: string): WidgetItem => item(type, { metadata: { compact: 'true' } });
 const withCache = (promptCache: PromptCache): RenderContext => ({ data: { prompt_cache: promptCache } });
+// The fork's compact-width mode: a 71-wide pane passes 65 as the context width
+const narrow = (promptCache: PromptCache): RenderContext => ({ ...withCache(promptCache), terminalWidth: 65 });
+const wide = (promptCache: PromptCache): RenderContext => ({ ...withCache(promptCache), terminalWidth: 200 });
 const PREVIEW: RenderContext = { isPreview: true };
 const NO_CACHE: RenderContext = { data: {} };
 
@@ -123,6 +126,11 @@ describe('Prompt cache widgets', () => {
         it('shows the short label in compact mode', () => {
             expect(render(compact('cache-misses'), withCache(DOCS_EXAMPLE))).toBe('CM: 2/14');
             expect(render(item('cache-misses', { rawValue: true, metadata: { compact: 'true' } }), withCache(DOCS_EXAMPLE))).toBe('2/14');
+        });
+
+        it('uses the short label on a compact-width terminal, longhand at full width', () => {
+            expect(render(item('cache-misses'), narrow(DOCS_EXAMPLE))).toBe('CM: 2/14');
+            expect(render(item('cache-misses'), wide(DOCS_EXAMPLE))).toBe('Cache misses: 2/14 (14%)');
         });
 
         it('shows zero misses unless hidden', () => {
@@ -198,6 +206,11 @@ describe('Prompt cache widgets', () => {
             expect(render(item('last-cache-miss'), withCache(serverSide))).toBe(`${RED}Last miss: 3m ago, server-side${RESET}`);
         });
 
+        it('uses the short label and cause codes on a compact-width terminal', () => {
+            expect(render(item('last-cache-miss'), narrow(DOCS_EXAMPLE))).toBe(`${RED}CM 3m tools+2${RESET}`);
+            expect(render(item('last-cache-miss'), wide(DOCS_EXAMPLE))).toBe(`${RED}Last miss: 3m ago, 2 tools added${RESET}`);
+        });
+
         it('renders in its normal color when warn mode is off', () => {
             const warnOff = item('last-cache-miss', { metadata: { warn: 'off' } });
             expect(render(warnOff, withCache(DOCS_EXAMPLE))).toBe('Last miss: 3m ago, 2 tools added');
@@ -267,6 +280,11 @@ describe('Prompt cache widgets', () => {
             expect(render(item('cache-miss-tokens', { rawValue: true, metadata: { compact: 'true' } }), withCache(DOCS_EXAMPLE))).toBe('↻300k');
         });
 
+        it('uses the short label on a compact-width terminal, longhand at full width', () => {
+            expect(render(item('cache-miss-tokens'), narrow(DOCS_EXAMPLE))).toBe('↻300k');
+            expect(render(item('cache-miss-tokens'), wide(DOCS_EXAMPLE))).toBe('Miss cost: 300k tok');
+        });
+
         it('applies the token number format', () => {
             expect(render(item('cache-miss-tokens', { numberFormat: { style: 'whole' } }), withCache(DOCS_EXAMPLE))).toBe('Miss cost: 300k tok');
         });
@@ -310,6 +328,11 @@ describe('Prompt cache widgets', () => {
         it('shows the short label with whole-k tokens in compact mode', () => {
             expect(render(compact('cache-if-cold'), withCache(DOCS_EXAMPLE))).toBe('↻?45k');
             expect(render(item('cache-if-cold', { rawValue: true, metadata: { compact: 'true' } }), withCache(DOCS_EXAMPLE))).toBe('↻?45k');
+        });
+
+        it('uses the short label on a compact-width terminal, longhand at full width', () => {
+            expect(render(item('cache-if-cold'), narrow(DOCS_EXAMPLE))).toBe('↻?45k');
+            expect(render(item('cache-if-cold'), wide(DOCS_EXAMPLE))).toBe('Next miss: 45k tok');
         });
 
         // Null right after a compaction, until the next request

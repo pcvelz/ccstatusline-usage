@@ -21,6 +21,7 @@ import {
     getPromptCache,
     hasNoMisses
 } from './shared/prompt-cache';
+import { isCompactWidth } from './shared/usage-display';
 
 const LABEL = 'Miss cost: ';
 const COMPACT_PREFIX = '↻';
@@ -73,7 +74,7 @@ export class CacheMissTokensWidget implements Widget {
         }
 
         // Both modes round to whole k regardless of the configured format
-        const compact = isMetadataFlagEnabled(item, COMPACT_METADATA_KEY);
+        const compact = isMetadataFlagEnabled(item, COMPACT_METADATA_KEY) || (!context.isPreview && isCompactWidth(context));
         const formatted = formatTokens(cache.miss_recache_tokens, resolveNumberFormat('token', item, settings), 0);
         const value = compact
             ? formatted

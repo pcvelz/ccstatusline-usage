@@ -15,6 +15,7 @@ import {
     toggleMetadataFlag
 } from './shared/metadata';
 import { getPromptCache } from './shared/prompt-cache';
+import { isCompactWidth } from './shared/usage-display';
 
 const LABEL = 'Next miss: ';
 const COMPACT_PREFIX = '↻?';
@@ -61,7 +62,7 @@ export class CacheIfColdWidget implements Widget {
         }
 
         // Both modes round to whole k regardless of the configured format
-        const compact = isMetadataFlagEnabled(item, COMPACT_METADATA_KEY);
+        const compact = isMetadataFlagEnabled(item, COMPACT_METADATA_KEY) || (!context.isPreview && isCompactWidth(context));
         const formatted = formatTokens(tokens, resolveNumberFormat('token', item, settings), 0);
         const value = compact
             ? formatted

@@ -20,6 +20,7 @@ import {
     hasNoMisses
 } from './shared/prompt-cache';
 import { formatRawOrLabeledValue } from './shared/raw-or-labeled';
+import { isCompactWidth } from './shared/usage-display';
 
 const LABEL = 'Cache misses: ';
 const COMPACT_LABEL = 'CM: ';
@@ -71,7 +72,7 @@ export class CacheMissesWidget implements Widget {
             return null;
         }
 
-        const compact = isMetadataFlagEnabled(item, COMPACT_METADATA_KEY);
+        const compact = isMetadataFlagEnabled(item, COMPACT_METADATA_KEY) || (!context.isPreview && isCompactWidth(context));
         const count = typeof cache.requests === 'number' ? `${cache.misses}/${cache.requests}` : `${cache.misses}`;
         const value = compact || typeof cache.requests !== 'number'
             ? count

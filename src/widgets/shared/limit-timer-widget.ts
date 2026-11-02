@@ -12,6 +12,7 @@ import { formatRawOrLabeledValue } from './raw-or-labeled';
 import {
     getUsageCompactKeybind,
     getUsageTextModifierText,
+    isCompactWidth,
     isUsageCompact,
     toggleUsageCompact
 } from './usage-display';
@@ -51,7 +52,10 @@ export abstract class LimitTimerWidget implements Widget {
     }
 
     render(item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
-        const format = (ms: number): string => isUsageCompact(item) ? this.formatCompactDuration(ms) : formatUsageDuration(ms);
+        // Like the Model widget's preview, the TUI sample ignores the width and
+        // shows the configured form; the live render also honours a narrow pane
+        const compact = isUsageCompact(item) || (!context.isPreview && isCompactWidth(context));
+        const format = (ms: number): string => compact ? this.formatCompactDuration(ms) : formatUsageDuration(ms);
         if (context.isPreview) {
             return formatRawOrLabeledValue(item, this.getLabelPrefix(item), format(this.previewLimitInMs));
         }
@@ -61,7 +65,7 @@ export abstract class LimitTimerWidget implements Widget {
             return null;
         }
 
-        return formatRawOrLabeledValue(item, this.getLabelPrefix(item), format(Math.max(MIN_SHOWN_MS, limitInMs)));
+        return formatRawOrLabeledValue(item, compact ? this.compactLabel : this.label, format(Math.max(MIN_SHOWN_MS, limitInMs)));
     }
 
     getCustomKeybinds(): CustomKeybind[] {
