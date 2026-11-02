@@ -11,6 +11,10 @@ import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { StatusJSON } from '../../types/StatusJSON';
 import type { WidgetItem } from '../../types/Widget';
 import * as usage from '../../utils/usage';
+import {
+    SessionUsageWidget,
+    WeeklyUsageWidget
+} from '../../widgets/ApiUsage';
 import { BlockResetTimerWidget } from '../../widgets/BlockResetTimer';
 import * as resolver from '../usage/resolver';
 import {
@@ -307,6 +311,37 @@ describe('usage prefetch', () => {
         expect(mockFetchUsage.mock.calls.length).toBe(0);
     });
 
+    it('renders valid weekly usage when the shared response reports an expired session window', async () => {
+        const partial: UsageData = { weeklyUsage: 40, weeklyResetAt: '2030-01-07T00:00:00.000Z', error: 'rate-limited' };
+        mockFetchUsage.mockResolvedValue(partial);
+        const session: WidgetItem = { id: 'session', type: 'session-usage' };
+        const weekly: WidgetItem = { id: 'weekly', type: 'weekly-usage', rawValue: true };
+
+        const usageData = await prefetchUsageDataIfNeeded([[session, weekly]]);
+
+        expect(mockFetchUsage.mock.calls).toEqual([[{ requiredFields: ['sessionUsage', 'weeklyUsage'] }]]);
+        expect(usageData).toEqual(partial);
+        const context = { isPreview: false, usageData: usageData ?? undefined };
+        // Fork renders a labeled bar (and may add the weekly estimate's decimal), so match the value.
+        const weeklyRendered = new WeeklyUsageWidget().render(weekly, context, DEFAULT_SETTINGS) ?? '';
+        expect(weeklyRendered).toMatch(/\b40(\.\d)?%/);
+        expect(weeklyRendered).not.toContain('Rate limited');
+        expect(new SessionUsageWidget().render(session, context, DEFAULT_SETTINGS)).toBe('[Rate limited]');
+    });
+
+    it('keeps valid reset data when suppressing an error for another expired window', async () => {
+        const weeklyResetAt = '2030-01-07T00:00:00.000Z';
+        mockFetchUsage.mockResolvedValue({ weeklyUsage: 40, weeklyResetAt, error: 'rate-limited' });
+
+        const usageData = await prefetchUsageDataIfNeeded(makeLines([
+            { id: 'session', type: 'reset-timer' },
+            { id: 'weekly', type: 'weekly-reset-timer' }
+        ]));
+
+        expect(mockFetchUsage.mock.calls).toEqual([[{ requiredFields: ['sessionResetAt', 'weeklyResetAt'] }]]);
+        expect(usageData).toEqual({ weeklyUsage: 40, weeklyResetAt });
+    });
+
     it('suppresses API errors when reset timer widgets are only missing reset data', async () => {
         mockFetchUsage.mockResolvedValue({ error: 'rate-limited' });
 
@@ -351,6 +386,60 @@ describe('usage prefetch', () => {
         expect(usageData).toEqual({ sessionUsage: 42 });
         expect(mockFetchUsage.mock.calls).toEqual([
             [{ requiredFields: ['sessionResetAt'] }]
+        ]);
+    });
+
+    it('reads Weekly Limit Timer\'s reset from rate_limits and fetches only its usage', async () => {
+        // Weekly usage comes from the API only (fork rule); the payload supplies the reset.
+        mockFetchUsage.mockResolvedValue({ weeklyUsage: 72 });
+
+        const lines = makeLines([{ id: '1', type: 'weekly-limit-timer' }]);
+
+        const usageData = await prefetchUsageDataIfNeeded(lines, { rate_limits: { seven_day: { used_percentage: 72, resets_at: 1776211200 } } });
+
+        expect(usageData).toEqual({ weeklyUsage: 72, weeklyResetAt: epochToIso(1776211200) });
+        expect(mockFetchUsage.mock.calls).toEqual([
+            [{ requiredFields: ['weeklyUsage'] }]
+        ]);
+    });
+
+    it('fetches the weekly usage and reset Weekly Limit Timer needs and keeps quiet when that fails', async () => {
+        mockFetchUsage.mockResolvedValue({ error: 'rate-limited' });
+
+        const lines = makeLines([{ id: '1', type: 'weekly-limit-timer' }]);
+
+        const usageData = await prefetchUsageDataIfNeeded(lines, { rate_limits: { seven_day: { used_percentage: 72 } } });
+
+        expect(usageData).toBeNull();
+        expect(mockFetchUsage.mock.calls).toEqual([
+            [{ requiredFields: ['weeklyUsage', 'weeklyResetAt'] }]
+        ]);
+    });
+
+    it('fetches Fable\'s percent for Weekly Fable Limit Timer, using the all-models reset when Fable has none', async () => {
+        mockFetchUsage.mockResolvedValue({ weeklyFableUsage: 8 });
+
+        const lines = makeLines([{ id: '1', type: 'fable-weekly-limit-timer' }]);
+
+        const usageData = await prefetchUsageDataIfNeeded(lines, { rate_limits: { seven_day: { used_percentage: 72, resets_at: 1776211200 } } });
+
+        // Weekly usage is API-only (fork rule), so the payload contributes just the reset.
+        expect(usageData).toEqual({ weeklyResetAt: epochToIso(1776211200), weeklyFableUsage: 8 });
+        expect(mockFetchUsage.mock.calls).toEqual([
+            [{ requiredFields: ['weeklyFableUsage'] }]
+        ]);
+    });
+
+    it('keeps quiet when the fetch made only for Weekly Fable Limit Timer fails', async () => {
+        mockFetchUsage.mockResolvedValue({ error: 'rate-limited' });
+
+        const lines = makeLines([{ id: '1', type: 'fable-weekly-limit-timer' }]);
+
+        const usageData = await prefetchUsageDataIfNeeded(lines, { rate_limits: { seven_day: { used_percentage: 72, resets_at: 1776211200 } } });
+
+        expect(usageData).toEqual({ weeklyResetAt: epochToIso(1776211200) });
+        expect(mockFetchUsage.mock.calls).toEqual([
+            [{ requiredFields: ['weeklyFableUsage'] }]
         ]);
     });
 

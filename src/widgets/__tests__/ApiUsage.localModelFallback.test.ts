@@ -199,8 +199,8 @@ describe('ApiUsage widgets with provider resolution', () => {
                 },
                 terminalWidth: 200
             };
-            // Should use payload values (68000) not tokenMetrics (99999)
-            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [█████░░░░░░░░░░░] 68k/200k (34%)');
+            // Should use payload context (50000 + 5000 + 3000 = 58000, output excluded) not tokenMetrics (99999)
+            expect(widget.render(BASE_ITEM, context, DEFAULT_SETTINGS)).toBe('Context: [█████░░░░░░░░░░░] 58k/200k (29%)');
         });
     });
 

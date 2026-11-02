@@ -29,6 +29,8 @@ const OSC8_CLOSE_WITH_PARAMS = '\x1b]8;id=abc;\x1b\\';
 const BEL_OSC8_OPEN = '\x1b]8;;https://example.com/docs\x07';
 const BEL_OSC8_CLOSE = '\x1b]8;;\x07';
 
+// flexMode 'full' reserves 6 right-edge columns; the fork's default
+// 'full-minus-40' would reserve 40 at these small widths.
 function createSettings(overrides: Partial<Settings> = {}): Settings {
     return {
         ...DEFAULT_SETTINGS,
@@ -217,6 +219,30 @@ describe('renderer ANSI/OSC handling', () => {
             }
         }
         expect(getVisibleText(truncateStyledText(text, 9))).toBe('\u2764\uFE0F'.repeat(3) + '...');
+    });
+});
+
+describe('renderer widgets that preserve their own colors', () => {
+    const BG = '\x1b[48;2;17;34;51m';
+    const BOLD = '\x1b[1m';
+    const OUTPUT = '\x1b[32m+5\x1b[0m \x1b[31m-3\x1b[0m';
+
+    function renderCommand(widget: Partial<WidgetItem>, settings: Partial<Settings> = {}): string {
+        const item: WidgetItem = { id: 'cmd', type: 'custom-command', preserveColors: true, ...widget };
+        const context: RenderContext = { isPreview: false, terminalWidth: 200 };
+        const preRenderedWidgets = [{ content: OUTPUT, plainLength: getVisibleWidth(OUTPUT), widget: item }];
+
+        return renderStatusLine([item], createSettings({ colorLevel: 3, ...settings }), context, preRenderedWidgets, []);
+    }
+
+    it('keeps the widget background and bold after the command\'s own resets', () => {
+        expect(renderCommand({ backgroundColor: 'hex:112233', bold: true }))
+            .toBe(`${BOLD}${BG}\x1b[32m+5\x1b[0m${BOLD}${BG} \x1b[31m-3\x1b[0m${BOLD}${BG}\x1b[49m\x1b[22m`);
+    });
+
+    it('keeps a global background override after the command\'s own resets', () => {
+        expect(renderCommand({}, { overrideBackgroundColor: 'hex:112233' }))
+            .toBe(`${BG}\x1b[32m+5\x1b[0m${BG} \x1b[31m-3\x1b[0m${BG}\x1b[49m`);
     });
 });
 

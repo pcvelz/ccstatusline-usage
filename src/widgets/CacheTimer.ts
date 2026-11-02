@@ -14,7 +14,11 @@ import type {
 import { CACHE_EMPTY_HIDEABLE_STATE } from './shared/cache-scope';
 import { makeModifierText } from './shared/editor-display';
 import { isHidden } from './shared/hideable';
-import { removeMetadataKeys } from './shared/metadata';
+import {
+    isMetadataFlagEnabled,
+    removeMetadataKeys,
+    toggleMetadataFlag
+} from './shared/metadata';
 import { formatRawOrLabeledValue } from './shared/raw-or-labeled';
 import {
     getSlotSymbol,
@@ -27,13 +31,19 @@ const LABEL = 'Cache: ';
 
 // Anthropic's ephemeral prompt cache defaults to a 5-minute TTL, but Claude Code
 // also writes 1-hour breakpoints (cache_control ttl: "1h") for the stable prefix.
-// The expiry itself is never exposed (the transcript only records token counts),
-// so this is a best-effort countdown from the last turn; the TTL is configurable
-// to match whichever tier the user cares about.
+// Recent Claude Code reports the real expiry in status JSON as
+// prompt_cache.expires_at, which is used when present. The transcript-derived
+// countdown below stays as the fallback for older versions, where the expiry is
+// not exposed and the configured TTL is the only thing to count down from.
 const TTL_METADATA_KEY = 'ttlSeconds';
 const DEFAULT_TTL_SECONDS = 300;
 const TTL_OPTIONS = [300, 3600] as const; // 5 minutes, 1 hour
 const TOGGLE_TTL_ACTION = 'toggle-ttl';
+
+// Same key, action and metadata flag as the reset timers, so short time works
+// the same way on every timer widget.
+const COMPACT_METADATA_KEY = 'compact';
+const TOGGLE_COMPACT_ACTION = 'toggle-compact';
 
 const SAFETY_MARGIN = 5; // display as COLD 5s before actual expiry
 
@@ -300,13 +310,50 @@ function getRemainingSeconds(lastAssistant: Date, ttlSeconds: number): number {
     return ttlSeconds - SAFETY_MARGIN - elapsedSeconds;
 }
 
-function formatCountdown(remaining: number): string {
+/**
+ * Seconds left according to Claude Code's own prompt_cache.expires_at, or null
+ * when the field is absent (older Claude Code) or the session has not cached
+ * anything yet. Reported expiry beats any countdown inferred from timestamps:
+ * it survives a resumed session, and it is right even when the last turn read a
+ * cache entry written much earlier.
+ */
+function getReportedRemainingSeconds(context: RenderContext): number | null {
+    const cache = context.data?.prompt_cache;
+    if (!cache || cache.caching_observed === false) {
+        return null;
+    }
+    if (cache.warm === false) {
+        return 0;
+    }
+    const expiresAt = cache.expires_at;
+    if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt)) {
+        return null;
+    }
+    return expiresAt - Date.now() / 1000;
+}
+
+function getReportedTtlSeconds(context: RenderContext): number | null {
+    switch (context.data?.prompt_cache?.ttl) {
+        case '5m': return 300;
+        case '1h': return 3600;
+        default: return null;
+    }
+}
+
+// Labeled like the reset timers ('4m 52s' / '4m52s') rather than clock
+// notation, so every timer widget reads the same way. Seconds always render:
+// they are the point of a cache countdown, and dropping a zero part the way
+// formatUsageDuration does would make the widget jump width every minute.
+function formatCountdown(remaining: number, compact: boolean): string {
     if (remaining <= 0) {
         return 'COLD';
     }
-    const m = Math.floor(remaining / 60);
-    const s = Math.floor(remaining % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
+    const total = Math.floor(remaining);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const parts = [h > 0 && `${h}${compact ? 'h' : 'hr'}`, (h > 0 || m > 0) && `${m}m`, `${s}s`];
+    return parts.filter(Boolean).join(compact ? '' : ' ');
 }
 
 // The glyph for the current drain state (excluding HOT, handled in render).
@@ -325,9 +372,9 @@ function getStateSymbol(item: WidgetItem, remaining: number, ttlSeconds: number)
 }
 
 // Glyph display of a countdown: the drain-state glyph followed by the remaining time or COLD.
-function renderGlyphCountdown(item: WidgetItem, label: string, remaining: number, ttlSeconds: number): string {
+function renderGlyphCountdown(item: WidgetItem, label: string, remaining: number, ttlSeconds: number, compact: boolean): string {
     const glyph = getStateSymbol(item, remaining, ttlSeconds);
-    return formatRawOrLabeledValue(item, label, withGlyph(glyph, formatCountdown(remaining)));
+    return formatRawOrLabeledValue(item, label, withGlyph(glyph, formatCountdown(remaining, compact)));
 }
 
 // Fork default display (deliberate deviation from upstream): whole minutes
@@ -454,6 +501,10 @@ export class CacheTimerWidget implements Widget {
         if (warnRaw !== undefined) {
             modifiers.push(`warn ${formatTtlLabel(Number.parseInt(warnRaw, 10))}`);
         }
+
+        if (isMetadataFlagEnabled(item, COMPACT_METADATA_KEY)) {
+            modifiers.push('compact');
+        }
         return {
             displayText: this.getDisplayName(),
             modifierText: makeModifierText(modifiers)
@@ -475,11 +526,16 @@ export class CacheTimerWidget implements Widget {
             return toggleGlyphs(item);
         }
 
+        if (action === TOGGLE_COMPACT_ACTION) {
+            return toggleMetadataFlag(item, COMPACT_METADATA_KEY);
+        }
+
         return null;
     }
 
     render(item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
         const hideWhenEmpty = isHidden(item, CACHE_EMPTY_HIDEABLE_STATE.key);
+        const compact = isMetadataFlagEnabled(item, COMPACT_METADATA_KEY);
 
         const minutes = isMinutesDisplay(item);
 
@@ -487,7 +543,16 @@ export class CacheTimerWidget implements Widget {
             if (minutes) {
                 return renderMinutes(item, context, '42 min', false);
             }
-            return formatRawOrLabeledValue(item, this.getLabelPrefix(), withGlyph(getSlotSymbol(item, FRESH_SLOT), '4:52'));
+            const sample = formatCountdown(292, compact);
+            return formatRawOrLabeledValue(item, this.getLabelPrefix(), withGlyph(getSlotSymbol(item, FRESH_SLOT), sample));
+        }
+
+        // Minutes display reads the payload through renderFromPromptCache below.
+        const reportedRemaining = minutes ? null : getReportedRemainingSeconds(context);
+        if (reportedRemaining !== null) {
+            const ttlSeconds = getReportedTtlSeconds(context) ?? getTtlSeconds(item);
+            const glyph = getStateSymbol(item, reportedRemaining, ttlSeconds);
+            return formatRawOrLabeledValue(item, this.getLabelPrefix(), withGlyph(glyph, formatCountdown(reportedRemaining, compact)));
         }
 
         // The number-only display never shows a word for missing data: it hides.
@@ -525,7 +590,7 @@ export class CacheTimerWidget implements Widget {
                 const ttlSeconds = getTtlSeconds(item, state.detectedTtl);
                 const remaining = getRemainingSeconds(state.workingSince, ttlSeconds);
                 if (remaining <= 0) {
-                    return renderGlyphCountdown(item, this.getLabelPrefix(), remaining, ttlSeconds);
+                    return renderGlyphCountdown(item, this.getLabelPrefix(), remaining, ttlSeconds, compact);
                 }
             }
             return formatRawOrLabeledValue(item, this.getLabelPrefix(), withGlyph(getSlotSymbol(item, HOT_SLOT), 'HOT'));
@@ -543,7 +608,7 @@ export class CacheTimerWidget implements Widget {
             return renderMinutes(item, context, formatMinutes(remaining), warn);
         }
 
-        return renderGlyphCountdown(item, this.getLabelPrefix(), remaining, ttlSeconds);
+        return renderGlyphCountdown(item, this.getLabelPrefix(), remaining, ttlSeconds, compact);
     }
 
     getCustomKeybinds(): CustomKeybind[] {
@@ -552,6 +617,7 @@ export class CacheTimerWidget implements Widget {
             { key: 'w', label: '(w)arn', action: TOGGLE_WARN_ACTION },
             // e is upstream's shared edit-label key on every labeled widget
             { key: 'o', label: 'em(o)ji', action: TOGGLE_GLYPHS_ACTION },
+            { key: 's', label: '(s)hort time', action: TOGGLE_COMPACT_ACTION },
             getSymbolKeybind()
         ];
     }

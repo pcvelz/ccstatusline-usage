@@ -47,6 +47,7 @@ import {
     getTerminalWidth
 } from './utils/terminal';
 import { sanitizeTerminalText } from './utils/terminal-sanitize';
+import { fetchAccountEmail } from './utils/usage';
 import { prefetchUsageDataIfNeeded } from './utils/usage-prefetch';
 import { ensureWindowsUtf8CodePage } from './utils/windows-code-page';
 
@@ -68,6 +69,26 @@ const LAUNCH_ARGS = process.argv.slice(2);
 function hasSessionDurationInStatusJson(data: StatusJSON): boolean {
     const durationMs = data.cost?.total_duration_ms;
     return typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs >= 0;
+}
+
+const DISPATCHABLE_HOOK_EVENT_NAMES = new Set(['PreToolUse', 'UserPromptSubmit']);
+
+// syncWidgetHooks() builds the configured hook command as `${statusCommand} --hook`.
+// When statusCommand is itself a wrapped command (e.g. `bash -c '... ccstatusline'`),
+// that concatenation puts --hook outside the wrapper's quotes, so when Claude Code
+// executes the already-malformed configured command, the flag never reaches this
+// process's argv and the hook payload arrives on the piped-input path instead.
+// StatusJSONSchema is a looseObject that accepts this shape too, so without this
+// check the hook JSON would render as (garbled) status output.
+function isDispatchableHookPayload(data: unknown): boolean {
+    if (typeof data !== 'object' || data === null) {
+        return false;
+    }
+    const { hook_event_name: hookEventName, session_id: sessionId } = data as Record<string, unknown>;
+    return typeof hookEventName === 'string'
+        && DISPATCHABLE_HOOK_EVENT_NAMES.has(hookEventName)
+        && typeof sessionId === 'string'
+        && sessionId.length > 0;
 }
 
 async function readStdin(): Promise<string | null> {
@@ -99,7 +120,7 @@ async function readStdin(): Promise<string | null> {
     }
 }
 
-async function renderMultipleLines(data: StatusJSON) {
+async function renderMultipleLines(data: StatusJSON, rawData: Record<string, unknown>) {
     saveRateLimitSnapshot(data.rate_limits);
 
     const settings = await loadSettings();
@@ -122,6 +143,7 @@ async function renderMultipleLines(data: StatusJSON) {
     const hasCompactionWidget = lines.some(line => line.some(item => item.type === 'compaction-counter'));
     const hasThinkingEffortWidget = lines.some(line => line.some(item => item.type === 'thinking-effort'));
     const hasSessionNameWidget = lines.some(line => line.some(item => item.type === 'session-name'));
+    const hasAccountEmailWidget = lines.some(line => line.some(item => item.type === 'claude-account-email'));
     const needsTranscriptThinkingEffort = hasThinkingEffortWidget
         && (!data.effort || !('level' in data.effort));
     const requestedSpeedWindows = new Set<number>();
@@ -144,11 +166,12 @@ async function renderMultipleLines(data: StatusJSON) {
             includeSessionName: hasSessionNameWidget
         })
         : Promise.resolve(null);
-    const [transcriptAnalysis, usageData, claudeStatusData, llamaSwapData] = await Promise.all([
+    const [transcriptAnalysis, usageData, claudeStatusData, llamaSwapData, accountEmail] = await Promise.all([
         transcriptAnalysisPromise,
         prefetchUsageDataIfNeeded(lines, data),
         prefetchClaudeStatusIfNeeded(lines),
-        prefetchLlamaSwapData(lines, data)
+        prefetchLlamaSwapData(lines, data),
+        hasAccountEmailWidget ? fetchAccountEmail() : Promise.resolve(undefined)
     ]);
     const sessionForecast = computeSessionForecastIfNeeded(lines, usageData, getDefaultSessionUsageHistoryDeps(data));
 
@@ -197,12 +220,14 @@ async function renderMultipleLines(data: StatusJSON) {
     // Create render context
     const context: RenderContext = {
         data,
+        rawData,
         tokenMetrics,
         speedMetrics,
         windowedSpeedMetrics,
         usageData,
         sessionForecast,
         claudeStatusData,
+        accountEmail,
         sessionDuration,
         transcriptSessionName: hasSessionNameWidget
             ? (transcriptAnalysis?.sessionName ?? null)
@@ -392,14 +417,27 @@ async function main() {
         const input = await readStdin();
         if (input && input.trim() !== '') {
             try {
-                // Parse and validate JSON in one step
-                const result = StatusJSONSchema.safeParse(JSON.parse(input));
+                const parsed: unknown = JSON.parse(input);
+
+                // A wrapped statusLine command may have dropped --hook before this
+                // process saw argv (see isDispatchableHookPayload above). Detect that
+                // shape here and dispatch it the same way the explicit --hook mode
+                // does, instead of falling through to status validation/rendering.
+                if (isDispatchableHookPayload(parsed)) {
+                    handleHookInput(input);
+                    return;
+                }
+
+                // Widgets read the validated copy; custom commands get the JSON
+                // as it arrived. Validation fails for anything but an object.
+                const rawData = parsed as Record<string, unknown>;
+                const result = StatusJSONSchema.safeParse(rawData);
                 if (!result.success) {
                     console.error('Invalid status JSON format:', result.error.message);
                     process.exit(1);
                 }
 
-                await renderMultipleLines(result.data);
+                await renderMultipleLines(result.data, rawData);
             } catch (error) {
                 console.error('Error parsing JSON:', error);
                 process.exit(1);

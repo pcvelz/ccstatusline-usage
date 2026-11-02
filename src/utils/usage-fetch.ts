@@ -1,10 +1,15 @@
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import {
+    createHash,
+    randomBytes
+} from 'node:crypto';
 import * as fs from 'node:fs';
 import * as https from 'node:https';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { z } from 'zod';
+
+import type { AccountEmailResult } from '../types/AccountEmail';
 
 import { getClaudeConfigDir } from './claude-settings';
 import { isExcludedFromProxy } from './no-proxy';
@@ -434,7 +439,7 @@ function writeUsageCache(usageData: UsageData, cacheIdentity: UsageCacheIdentity
 
 /**
  * When the usage API sent the values fetchUsageData last returned, in ms, or
- * undefined after an error. Served from the cache, during a rate limit say,
+ * undefined when no usage data is available. Served from the cache during a rate limit,
  * they can be hours old.
  */
 export function getUsageFetchedAtMs(): number | undefined {
@@ -474,12 +479,18 @@ function getStaleUsageOrError(
     errorCacheMaxAge = LOCK_MAX_AGE,
     requiredFields: readonly UsageDataField[] = []
 ): UsageData {
-    const stale = readStaleUsageCache(cacheIdentity);
-    if (stale && !stale.data.error && hasRequiredUsageFields(stale.data, requiredFields)) {
-        if (hasUsageCacheOutlivedRefresh(now)) {
-            staleUsageFallbacks.add(stale.data);
+    const stale = readStaleUsageCache(cacheIdentity, now);
+    if (stale && !stale.data.error) {
+        const complete = hasRequiredUsageFields(stale.data, requiredFields);
+        if (complete || requiredFields.some(field => hasRequiredUsageField(stale.data, field))) {
+            // Widgets share this response: an expired window must not discard
+            // another widget's valid fields. Only missing fields use the error.
+            const data = complete ? stale.data : { ...stale.data, error };
+            if (hasUsageCacheOutlivedRefresh(now)) {
+                staleUsageFallbacks.add(data);
+            }
+            return cacheUsageData(data, now, stale.fetchedAtMs);
         }
-        return cacheUsageData(stale.data, now, stale.fetchedAtMs);
     }
 
     return setCachedUsageError(error, now, errorCacheMaxAge);
@@ -772,6 +783,22 @@ function getUsageCredentialsWithBackoff(now: number): UsageCredentials | null {
     return credentials;
 }
 
+// A stale cache can outlive its windows (overnight, while the API keeps
+// failing). A window whose reset has passed no longer has that usage, so its
+// usage and reset are left out rather than shown, as Claude Code drops a
+// window from rate_limits once its resets_at passes.
+function dropResetWindows(data: UsageData, now: number): UsageData {
+    const result: UsageData = { ...data };
+    for (const [resetField, usageField] of Object.entries(WINDOW_RESET_FIELD_SENTINELS)) {
+        const resetAt = result[resetField as UsageDataField];
+        if (typeof resetAt === 'string' && Date.parse(resetAt) <= now * 1000) {
+            setUsageField(result, resetField as UsageDataField, undefined);
+            setUsageField(result, usageField, undefined);
+        }
+    }
+    return result;
+}
+
 /**
  * The login whose usage the status line shows: the usage cache's fingerprint
  * of it (see getUsageCacheIdentity), or null with no OAuth login found. It
@@ -782,7 +809,7 @@ export function getUsageLoginFingerprint(): string | null {
     return credentials ? getUsageCacheIdentity(credentials).preferredHash : null;
 }
 
-function readStaleUsageCache(cacheIdentity: UsageCacheIdentity | null): { data: UsageData; fetchedAtMs: number } | null {
+function readStaleUsageCache(cacheIdentity: UsageCacheIdentity | null, now: number): { data: UsageData; fetchedAtMs: number } | null {
     try {
         const fetchedAtMs = fs.statSync(getUsageFilePath('json')).mtimeMs;
         const rawCache = fs.readFileSync(getUsageFilePath('json'), 'utf8');
@@ -790,7 +817,7 @@ function readStaleUsageCache(cacheIdentity: UsageCacheIdentity | null): { data: 
             return null;
         }
         const data = parseCachedUsageData(rawCache);
-        return data ? { data, fetchedAtMs } : null;
+        return data ? { data: dropResetWindows(data, now), fetchedAtMs } : null;
     } catch {
         return null;
     }
@@ -900,6 +927,7 @@ function parseRetryAfterSeconds(headerValue: string | string[] | undefined, nowM
 
 const USAGE_API_HOST = 'api.anthropic.com';
 const USAGE_API_PATH = '/api/oauth/usage';
+const PROFILE_API_PATH = '/api/oauth/profile';
 const USAGE_API_TIMEOUT_MS = 5000;
 
 function getUsageApiProxyUrl(): string | null {
@@ -915,7 +943,7 @@ function getUsageApiProxyUrl(): string | null {
 // https.request, but this @types/node version doesn't declare it on RequestOptions yet.
 type UsageApiRequestOptions = https.RequestOptions & { autoSelectFamily?: boolean };
 
-function getUsageApiRequest(token: string): { options: UsageApiRequestOptions; proxy: ClosableProxyAgent | null } | null {
+function getUsageApiRequest(token: string, apiPath: string): { options: UsageApiRequestOptions; proxy: ClosableProxyAgent | null } | null {
     const proxyUrl = getUsageApiProxyUrl();
 
     try {
@@ -923,7 +951,7 @@ function getUsageApiRequest(token: string): { options: UsageApiRequestOptions; p
         return {
             options: {
                 hostname: USAGE_API_HOST,
-                path: USAGE_API_PATH,
+                path: apiPath,
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -944,8 +972,8 @@ function getUsageApiRequest(token: string): { options: UsageApiRequestOptions; p
     }
 }
 
-async function fetchFromUsageApi(token: string, deadlineMs = USAGE_API_TIMEOUT_MS): Promise<UsageApiFetchResult> {
-    const usageRequest = getUsageApiRequest(token);
+async function fetchFromUsageApi(token: string, deadlineMs = USAGE_API_TIMEOUT_MS, apiPath = USAGE_API_PATH): Promise<UsageApiFetchResult> {
+    const usageRequest = getUsageApiRequest(token, apiPath);
     if (!usageRequest) {
         return { kind: 'error' };
     }
@@ -1155,5 +1183,189 @@ export async function fetchFreshUsageData(): Promise<FreshUsageResult> {
     } catch {
         writeUsageLock(now + LOCK_MAX_AGE, 'parse-error');
         return { kind: 'error', error: 'parse-error' };
+    }
+}
+
+// Claude Code records the signed-in account in .claude.json (oauthAccount)
+// at login and does not rewrite it when the credentials change underneath, so
+// that record can name a different account than the one the credentials, and
+// the usage above, belong to (#538). The profile endpoint answers for the
+// credentials themselves.
+// Read the old shared cache for existing entries, but never modify it.
+const LEGACY_ACCOUNT_EMAIL_CACHE_FILE = path.join(CACHE_DIR, 'account-email.json');
+function getAccountEmailPath(tokenHash: string, suffix: 'json' | 'lock' | 'inflight'): string {
+    return path.join(CACHE_DIR, `account-email-${tokenHash}.${suffix}`);
+}
+
+const ProfileApiResponseSchema = z.looseObject({ account: z.looseObject({ email: z.string().min(1).nullable().optional() }).nullable().optional() });
+const CachedAccountEmailSchema = z.object({
+    tokenHash: z.string(),
+    email: z.string().min(1)
+});
+const AccountEmailLockSchema = z.object({
+    blockedUntil: z.number(),
+    tokenHash: z.string()
+});
+
+function readCachedAccountEmail(tokenHash: string): string | null {
+    try {
+        const entry = parseJsonWithSchema(fs.readFileSync(getAccountEmailPath(tokenHash, 'json'), 'utf8'), CachedAccountEmailSchema);
+        if (entry?.tokenHash === tokenHash) {
+            return entry.email;
+        }
+    } catch {
+        // Try a matching entry from the previous shared cache.
+    }
+    try {
+        const entries = parseJsonWithSchema(fs.readFileSync(LEGACY_ACCOUNT_EMAIL_CACHE_FILE, 'utf8'), z.array(CachedAccountEmailSchema));
+        return entries?.find(entry => entry.tokenHash === tokenHash)?.email ?? null;
+    } catch {
+        return null;
+    }
+}
+
+function writeCachedAccountEmail(tokenHash: string, email: string, owner: string): void {
+    const cachePath = getAccountEmailPath(tokenHash, 'json');
+    const tempPath = `${cachePath}.${owner}.tmp`;
+    try {
+        fs.writeFileSync(tempPath, JSON.stringify({ tokenHash, email }), { mode: 0o600, flag: 'wx' });
+        fs.renameSync(tempPath, cachePath);
+    } catch {
+        // Ignore cache write errors.
+    } finally {
+        try {
+            fs.unlinkSync(tempPath);
+        } catch {
+            // Already renamed or never created.
+        }
+    }
+}
+
+// Hold an exclusive lease across the request and its cache/backoff writes.
+// A crashed render cannot block future lookups indefinitely. The lease is
+// longer than the five-second request deadline; an expired owner cannot write.
+const AccountEmailLeaseSchema = z.object({ owner: z.string(), expiresAt: z.number() });
+function acquireAccountEmailLease(tokenHash: string, now: number): string | null {
+    const leasePath = getAccountEmailPath(tokenHash, 'inflight');
+    const owner = randomBytes(16).toString('hex');
+    try {
+        ensureCacheDirExists();
+        try {
+            const existing = fs.readFileSync(leasePath, 'utf8');
+            const lease = parseJsonWithSchema(existing, AccountEmailLeaseSchema);
+            const stale = lease
+                ? lease.expiresAt <= now || lease.expiresAt > now + LOCK_MAX_AGE
+                : Math.abs(now - fs.statSync(leasePath).mtimeMs / 1000) > LOCK_MAX_AGE;
+            if (stale) {
+                fs.unlinkSync(leasePath);
+            }
+        } catch {
+            // Missing lease: exclusive creation below arbitrates contenders.
+        }
+        fs.writeFileSync(leasePath, JSON.stringify({ owner, expiresAt: now + LOCK_MAX_AGE }), { flag: 'wx', mode: 0o600 });
+        return owner;
+    } catch {
+        return null;
+    }
+}
+
+function ownsAccountEmailLease(tokenHash: string, owner: string): boolean {
+    try {
+        const lease = parseJsonWithSchema(fs.readFileSync(getAccountEmailPath(tokenHash, 'inflight'), 'utf8'), AccountEmailLeaseSchema);
+        return lease?.owner === owner && lease.expiresAt > Math.floor(Date.now() / 1000);
+    } catch {
+        return false;
+    }
+}
+
+function releaseAccountEmailLease(tokenHash: string, owner: string): void {
+    try {
+        if (ownsAccountEmailLease(tokenHash, owner)) {
+            fs.unlinkSync(getAccountEmailPath(tokenHash, 'inflight'));
+        }
+    } catch {
+        // Best-effort cleanup; an abandoned lease expires.
+    }
+}
+
+// A failed lookup holds off only the login it failed for. The deadline is
+// bounded like the usage lock's, so one written under a wrong clock cannot
+// stop lookups for good.
+function readAccountEmailBackoff(tokenHash: string, now: number): number {
+    try {
+        const lock = parseJsonWithSchema(fs.readFileSync(getAccountEmailPath(tokenHash, 'lock'), 'utf8'), AccountEmailLockSchema);
+        return lock?.tokenHash === tokenHash && lock.blockedUntil > now && lock.blockedUntil <= now + MAX_LOCK_HORIZON
+            ? lock.blockedUntil
+            : 0;
+    } catch {
+        return 0;
+    }
+}
+
+function writeAccountEmailLock(tokenHash: string, blockedUntil: number): void {
+    try {
+        ensureCacheDirExists();
+        const deadline = Math.max(blockedUntil, readAccountEmailBackoff(tokenHash, Math.floor(Date.now() / 1000)));
+        fs.writeFileSync(getAccountEmailPath(tokenHash, 'lock'), JSON.stringify({ blockedUntil: deadline, tokenHash }));
+    } catch {
+        // Ignore lock file errors
+    }
+}
+
+/**
+ * Distinguish no OAuth login from a failed lookup for an existing login so
+ * the widget never substitutes an unverified account snapshot after failure.
+ * Successful answers are cached per login across access-token refreshes.
+ */
+export async function fetchAccountEmail(): Promise<AccountEmailResult> {
+    const now = Math.floor(Date.now() / 1000);
+    const credentials = getUsageCredentialsWithBackoff(now);
+    if (!credentials) {
+        return { status: 'no-credentials' };
+    }
+
+    // Keyed like the usage cache: a refreshed access token keeps the entry,
+    // and a different login is looked up again.
+    const tokenHash = getUsageCacheIdentity(credentials).preferredHash;
+    const cached = readCachedAccountEmail(tokenHash);
+    if (cached !== null) {
+        return { status: 'available', email: cached };
+    }
+
+    if (readAccountEmailBackoff(tokenHash, now)) {
+        return { status: 'unavailable' };
+    }
+    const owner = acquireAccountEmailLease(tokenHash, now);
+    if (owner === null) {
+        return { status: 'unavailable' };
+    }
+
+    try {
+        // Another render may have finished between our first read and lease.
+        const latest = readCachedAccountEmail(tokenHash);
+        if (latest !== null) {
+            return { status: 'available', email: latest };
+        }
+        if (readAccountEmailBackoff(tokenHash, Math.floor(Date.now() / 1000))) {
+            return { status: 'unavailable' };
+        }
+        const response = await fetchFromUsageApi(credentials.accessToken, USAGE_API_TIMEOUT_MS, PROFILE_API_PATH)
+            .catch((): UsageApiFetchResult => ({ kind: 'error' }));
+        if (!ownsAccountEmailLease(tokenHash, owner)) {
+            return { status: 'unavailable' };
+        }
+        const email = response.kind === 'success'
+            ? parseJsonWithSchema(response.body, ProfileApiResponseSchema)?.account?.email ?? null
+            : null;
+        if (email === null) {
+            const responseTime = Math.floor(Date.now() / 1000);
+            writeAccountEmailLock(tokenHash, responseTime + (response.kind === 'rate-limited' ? response.retryAfterSeconds : LOCK_MAX_AGE));
+            return { status: 'unavailable' };
+        }
+
+        writeCachedAccountEmail(tokenHash, email, owner);
+        return { status: 'available', email };
+    } finally {
+        releaseAccountEmailLease(tokenHash, owner);
     }
 }

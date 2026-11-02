@@ -9,7 +9,9 @@ import type {
     WidgetEditorProps,
     WidgetItem
 } from '../types/Widget';
+import { getContextWindowMetrics } from '../utils/context-window';
 import { observeFiveHourPlan } from '../utils/five-hour-plan';
+import { formatTokens } from '../utils/format-tokens';
 import {
     getContextConfig,
     getModelContextIdentifier
@@ -234,10 +236,10 @@ export class WeeklyUsageWidget implements Widget {
             return 'Weekly: [██░░░░░░░░░░░░░] 12%';
 
         const data = context.usageData ?? {};
-        if (data.error)
-            return getUsageErrorMessage(data.error);
+        // A valid weekly value renders even when the same response carries an error
+        // for another window; the error only stands in for a missing value.
         if (data.weeklyUsage === undefined)
-            return null;
+            return data.error ? getUsageErrorMessage(data.error) : null;
 
         const size = getDisplaySize(context);
 
@@ -396,32 +398,27 @@ export class ContextBarWidget implements Widget {
         const modelId = getModelContextIdentifier(context.data?.model);
         const total = getContextConfig(modelId, Number(cw.context_window_size) || null).maxTokens;
 
-        // current_usage can be a number or an object with token breakdown
-        let used = 0;
-        if (typeof cw.current_usage === 'number') {
-            used = cw.current_usage;
-        } else if (cw.current_usage && typeof cw.current_usage === 'object') {
-            const u = cw.current_usage;
-            used = (Number(u.input_tokens) || 0)
-                + (Number(u.output_tokens) || 0)
-                + (Number(u.cache_creation_input_tokens) || 0)
-                + (Number(u.cache_read_input_tokens) || 0);
-        }
-
-        // When all usage fields are zero (e.g. during an active turn with a local
-        // model where Claude Code hasn't flushed token accounting yet), fall back
-        // to transcript-based metrics instead of showing "0k/200k".
-        if (used === 0 && context.tokenMetrics && context.tokenMetrics.contextLength > 0) {
+        // Context length comes from the shared metrics (fresh input plus cache, no
+        // output tokens), so this widget agrees with the other context widgets. When
+        // the live payload has no usable usage (e.g. a local model before Claude Code
+        // flushes token accounting), fall back to the transcript instead of "0k/200k".
+        let used = getContextWindowMetrics(context.data).contextLengthTokens;
+        if (used === null && context.tokenMetrics) {
             used = context.tokenMetrics.contextLength;
         }
+        // A fresh session reports a window but no usage yet: show the window at 0k
+        // rather than hiding the bar.
+        if (used === null && Number(cw.context_window_size) > 0) {
+            used = 0;
+        }
 
-        if (Number.isNaN(total) || Number.isNaN(used))
+        if (Number.isNaN(total) || used === null)
             return null;
 
-        const percent = total > 0 ? (used / total) * 100 : 0;
+        const percent = total > 0 ? Math.min(100, (used / total) * 100) : 0;
 
         const usedK = Math.round(used / 1000);
-        const totalStr = total >= 1000000 ? `${Math.round(total / 1000000)}M` : `${Math.round(total / 1000)}k`;
+        const totalStr = formatTokens(total, {}, 0);
 
         const size = getDisplaySize(context);
         // While the slot is prefilling, the widget reads as prefill progress:

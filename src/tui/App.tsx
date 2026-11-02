@@ -129,8 +129,8 @@ type AppScreen = 'main'
     | 'items'
     | 'colorLines'
     | 'colors'
-    | 'terminalWidth'
     | 'terminalConfig'
+    | 'terminalWidth'
     | 'globalOverrides'
     | 'offHours'
     | 'confirm'
@@ -533,7 +533,6 @@ export const App: React.FC = () => {
     const [fontInstallMessage, setFontInstallMessage] = useState<string | null>(null);
     const [existingStatusLine, setExistingStatusLine] = useState<string | null>(null);
     const [flashMessage, setFlashMessage] = useState<FlashMessage | null>(null);
-    const [previewIsTruncated, setPreviewIsTruncated] = useState(false);
     const [currentRefreshInterval, setCurrentRefreshInterval] = useState<number | null>(null);
     const [supportsRefreshInterval] = useState(() => isClaudeCodeVersionAtLeast('2.1.97'));
     const [commandAvailability] = useState(() => getPackageCommandAvailability());
@@ -1311,7 +1310,6 @@ export const App: React.FC = () => {
                 lines={previewLines}
                 terminalWidth={terminalWidth}
                 settings={settings}
-                onTruncationChange={setPreviewIsTruncated}
             />
 
             <Box marginTop={1}>
@@ -1330,9 +1328,7 @@ export const App: React.FC = () => {
                         initialSelection={menuSelections.main}
                         onSelectionChange={(index) => { setMenuSelections(prev => ({ ...prev, main: index })); }}
                         powerlineFontStatus={powerlineFontStatus}
-                        settings={settings}
                         installation={effectiveInstallation}
-                        previewIsTruncated={previewIsTruncated}
                     />
                 )}
                 {screen === 'lines' && (

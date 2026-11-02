@@ -223,6 +223,69 @@ describe('ItemsEditor', () => {
         }
     });
 
+    it('offers the shared label editor only in remote-control label formats', async () => {
+        const stdin = createMockStdin();
+        const stdout = createMockStdout();
+        const stderr = createMockStdout();
+        const instance = render(
+            React.createElement(StatefulItemsEditor, {
+                initialWidgets: [{
+                    id: '1',
+                    type: 'remote-control-status',
+                    metadata: { format: 'icon-text', nerdFont: 'true', label: 'RC ' }
+                }]
+            }),
+            { stdin, stdout, stderr, debug: true, exitOnCtrlC: false, patchConsole: false }
+        );
+        const output = () => stripAnsi(stdout.getOutput());
+        const press = async (key: string, expected: string) => {
+            stdout.clearOutput();
+            stdin.write(key);
+            await waitFor(() => {
+                expect(output()).toContain(expected);
+            });
+        };
+
+        try {
+            await waitFor(() => {
+                expect(output()).toContain('(icon-text, nerd font)');
+            });
+            expect(output()).not.toContain('(e)dit label…');
+            expect(output()).not.toContain('(label:');
+            for (const format of ['text', 'word']) {
+                await press('f', `(${format})`);
+                expect(output()).not.toContain('(e)dit label…');
+                expect(output()).not.toContain('(label:');
+            }
+
+            await press('f', '(label-check)');
+            expect(output()).toContain('(e)dit label…');
+            expect(output()).toContain('(label: "RC ")');
+            await press('e', '(default: "remote ")');
+            await press('X', 'RC X');
+            await press('\r', '(label: "RC X")');
+            await press('f', '(label-mark)');
+            expect(output()).toContain('(e)dit label…');
+            expect(output()).toContain('(label: "RC X")');
+
+            await press('r', '(raw value)');
+            expect(output()).not.toContain('(e)dit label…');
+            expect(output()).not.toContain('(label:');
+            await press('r', '(label: "RC X")');
+            await press('e', '(default: "remote ")');
+            await press('\t', '(label-mark)');
+            expect(output()).not.toContain('(label:');
+            await press('f', '(icon)');
+            expect(output()).not.toContain('(e)dit label…');
+        } finally {
+            instance.unmount();
+            instance.cleanup();
+            stdin.destroy();
+            stdout.destroy();
+            stderr.destroy();
+        }
+    });
+
     it.each([
         { query: 'session cost', name: 'Session Cost', keepsLabel: false },
         { query: 'model', name: 'Model', keepsLabel: true }
@@ -511,6 +574,60 @@ describe('ItemsEditor', () => {
             stdin.write('\x1b[B');
             await waitFor(() => {
                 expect(onSelectedIndexChange).toHaveBeenLastCalledWith(2);
+            });
+        } finally {
+            instance.unmount();
+            instance.cleanup();
+            stdin.destroy();
+            stdout.destroy();
+            stderr.destroy();
+        }
+    });
+
+    it('shows and applies the CWD link key without dropping its existing display controls', async () => {
+        const stdin = createMockStdin();
+        const stdout = createMockStdout();
+        const stderr = createMockStdout();
+        const lastFrame = () => {
+            const output = stripAnsi(stdout.getOutput());
+            return output.slice(output.lastIndexOf('Edit Line 1'));
+        };
+        const instance = render(
+            React.createElement(StatefulItemsEditor, {
+                initialWidgets: [{
+                    id: '1',
+                    type: 'current-working-dir',
+                    metadata: { abbreviateHome: 'true', segments: '2' }
+                }]
+            }),
+            { stdin, stdout, stderr, debug: true, exitOnCtrlC: false, patchConsole: false }
+        );
+
+        try {
+            await waitFor(() => {
+                expect(lastFrame()).toContain('Current Working Dir (~, segments: 2)');
+            });
+            expect(lastFrame()).toContain('(l)ink mode');
+            expect(lastFrame()).toContain('(h)ome ~');
+            expect(lastFrame()).toContain('(s)egments');
+            expect(lastFrame()).toContain('(f)ish style');
+
+            stdin.write('l');
+            await waitFor(() => {
+                expect(lastFrame()).toContain('Current Working Dir (~, segments: 2, link: file)');
+            });
+            stdin.write('l');
+            await waitFor(() => {
+                expect(lastFrame()).toContain('link: VS Code');
+            });
+            stdin.write('l');
+            await waitFor(() => {
+                expect(lastFrame()).toContain('link: Cursor');
+            });
+            stdin.write('l');
+            await waitFor(() => {
+                expect(lastFrame()).toContain('Current Working Dir (~, segments: 2)');
+                expect(lastFrame()).not.toContain('link:');
             });
         } finally {
             instance.unmount();

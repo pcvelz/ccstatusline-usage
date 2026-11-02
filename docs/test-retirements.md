@@ -7,6 +7,11 @@ A test file whose `expect(` count went down must be listed here by its
 backticked path with the reason (the `###` file headings count). Entries must
 be backticked: the gate matches `` `title` `` / `` `path` ``, not bare text.
 
+## v2.5.10 -> upstream merge
+
+- `renders disconnected glyph (U+F6AC) when OFF`: upstream #605 changes the disconnected glyph to nf-md-wifi_off (U+F05AA); replaced by "renders nf-md-wifi_off (U+F05AA) when OFF".
+- `is the snapshot path only in a child the supervisor started`: dev-reload hardening no longer honors a state path from the environment alone; the snapshot path is derived only for a child the supervisor started. Replaced by "derives a fixed snapshot path only in a child the supervisor started".
+
 ## v2.5.8 -> upstream merge (28 commits)
 
 - `keeps manual separators when removal is not requested`: upstream 21f010e (#713) drops the "remove manual separators" option, so toggling Powerline never deletes a manual separator; replaced by "does not delete a manual separator across an enable then disable round trip".

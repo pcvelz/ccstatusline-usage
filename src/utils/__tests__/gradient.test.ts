@@ -260,7 +260,6 @@ describe('renderStatusLine with a gradient override', () => {
     function createSettings(overrides: Partial<Settings> = {}): Settings {
         return {
             ...DEFAULT_SETTINGS,
-            flexMode: 'full',
             colorLevel: 3,
             ...overrides,
             powerline: {
@@ -270,8 +269,9 @@ describe('renderStatusLine with a gradient override', () => {
         };
     }
 
+    // flexMode 'full' reserves 6 right-edge columns (the fork default would reserve 40).
     function renderLine(widgets: WidgetItem[], settingsOverrides: Partial<Settings> = {}, terminalWidth = 200): string {
-        const settings = createSettings(settingsOverrides);
+        const settings = createSettings({ flexMode: 'full', ...settingsOverrides });
         const context: RenderContext = { isPreview: false, terminalWidth };
         const preRenderedLines = preRenderAllWidgets([widgets], settings, context);
         const preCalculatedMaxWidths = calculateMaxWidthsFromPreRendered(preRenderedLines, settings);
@@ -279,7 +279,7 @@ describe('renderStatusLine with a gradient override', () => {
     }
 
     function renderLineWithInfo(widgets: WidgetItem[], settingsOverrides: Partial<Settings> = {}, terminalWidth = 200) {
-        const settings = createSettings(settingsOverrides);
+        const settings = createSettings({ flexMode: 'full', ...settingsOverrides });
         const context: RenderContext = { isPreview: false, terminalWidth };
         const preRenderedLines = preRenderAllWidgets([widgets], settings, context);
         const preCalculatedMaxWidths = calculateMaxWidthsFromPreRendered(preRenderedLines, settings);
@@ -312,7 +312,7 @@ describe('renderStatusLine with a gradient override', () => {
         // truncation; the rendered line must still end with the reset.
         const gradient = 'gradient:hex:dbbb6f,hex:c4808a,hex:9070d0,hex:b8cad4,hex:4a8a5e';
         const full = renderLine(widgets, { overrideForegroundColor: gradient });
-        const truncated = renderLine(widgets, { overrideForegroundColor: gradient }, 8);
+        const truncated = renderLine(widgets, { overrideForegroundColor: gradient }, 14);
 
         // truncation actually happened
         expect(getVisibleWidth(truncated)).toBeLessThan(getVisibleWidth(full));
@@ -322,7 +322,7 @@ describe('renderStatusLine with a gradient override', () => {
 
     it('reports truncation after the gradient colors the ellipsis', () => {
         const gradient = 'gradient:hex:dbbb6f,hex:c4808a,hex:9070d0,hex:b8cad4,hex:4a8a5e';
-        const result = renderLineWithInfo(widgets, { overrideForegroundColor: gradient }, 9);
+        const result = renderLineWithInfo(widgets, { overrideForegroundColor: gradient }, 15);
 
         expect(result.wasTruncated).toBe(true);
         expect(result.line.includes('...')).toBe(false);

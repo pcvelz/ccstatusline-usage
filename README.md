@@ -155,7 +155,7 @@ When you install from the TUI, ccstatusline writes a `statusLine` command object
 }
 ```
 
-`refreshInterval` is written only when your Claude Code version supports it (>=2.1.97). The TUI can set it to `1-60` seconds, or remove it by leaving the input empty.
+`refreshInterval` defaults to `10` seconds on fresh installs when Claude Code supports it (>=2.1.97). Reinstalling preserves an existing value even if the version check fails. The TUI can set it to `1-60` seconds, or remove it by leaving the input empty.
 
 Other supported command values are:
 - `bunx -y ccstatusline-usage@latest`

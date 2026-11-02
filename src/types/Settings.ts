@@ -52,8 +52,6 @@ export const DEFAULT_OFF_HOURS: OffHoursConfig = OffHoursConfigSchema.parse({});
 // Schema for v1 settings (before version field was added)
 export const SettingsSchema_v1 = z.object({
     lines: z.array(z.array(WidgetItemSchema)).optional(),
-    flexMode: FlexModeSchema.optional(),
-    compactThreshold: z.number().optional(),
     colorLevel: ColorLevelSchema.optional(),
     defaultSeparator: z.string().optional(),
     defaultPadding: z.string().optional(),

@@ -86,7 +86,7 @@ describe('ImportPreviewDialog helpers', () => {
     it('previews only explicitly imported fields in merge mode', () => {
         const current: Settings = {
             ...DEFAULT_SETTINGS,
-            flexMode: 'full',
+            defaultPaddingSide: 'left',
             lines: [[{ id: 'custom', type: 'model' }]]
         };
         const validation = {
@@ -98,7 +98,7 @@ describe('ImportPreviewDialog helpers', () => {
         const preview = getImportPreviewSettings(current, validation, 'merge');
 
         expect(preview.globalBold).toBe(true);
-        expect(preview.flexMode).toBe('full');
+        expect(preview.defaultPaddingSide).toBe('left');
         expect(preview.lines).toEqual(current.lines);
     });
 
@@ -140,6 +140,53 @@ describe('ImportPreviewDialog helpers', () => {
                 const output = stdout.getOutput();
                 const lastFlexModeRow = output.slice(output.lastIndexOf('flexMode:')).split('\n')[0];
                 expect(lastFlexModeRow).toBe('flexMode: full');
+            });
+        } finally {
+            instance.unmount();
+            instance.cleanup();
+            stdin.destroy();
+            stdout.destroy();
+            stderr.destroy();
+        }
+    });
+
+    it('updates the dynamic preview for the default padding side when merge mode is highlighted', async () => {
+        const stdin = createMockStdin();
+        const stdout = createMockStdout();
+        const stderr = createMockStdout();
+        const current: Settings = {
+            ...DEFAULT_SETTINGS,
+            defaultPaddingSide: 'left'
+        };
+        const instance = render(React.createElement(ImportPreviewDialog, {
+            validation: {
+                status: 'valid',
+                data: { ...DEFAULT_SETTINGS, globalBold: true },
+                presentKeys: ['version', 'globalBold']
+            },
+            currentSettings: current,
+            onApply: () => undefined,
+            onCancel: () => undefined
+        }), {
+            stdin,
+            stdout,
+            stderr,
+            debug: true,
+            exitOnCtrlC: false,
+            patchConsole: false
+        });
+
+        try {
+            await waitFor(() => {
+                expect(stdout.getOutput()).toContain('defaultPaddingSide: left → both');
+            });
+
+            stdout.clearOutput();
+            stdin.write('\u001B[B');
+            await waitFor(() => {
+                const output = stdout.getOutput();
+                const lastPaddingSideRow = output.slice(output.lastIndexOf('defaultPaddingSide:')).split('\n')[0];
+                expect(lastPaddingSideRow).toBe('defaultPaddingSide: left');
             });
         } finally {
             instance.unmount();
