@@ -183,11 +183,13 @@ For pinned installs, launch the TUI with `npx -y ccstatusline-usage@latest` or `
 
 ## 🆕 Recent Updates
 
-### [v2.5.11](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.11) - Cache widget polish
+### [v2.5.11](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.11) - Cache widget polish + upstream sync
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Limit timers** - clearer labels (Weekly 100% in, W 100% in when compact) in a muted orange
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Last Cache Miss** - shows until your next prompt, red by default, cause only when it is not a cache expiry
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache widgets** - shorter labels with a compact mode: Cache misses: 3/42 (7%), Miss cost, Next miss
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Compact width** - the cache and limit timer widgets switch to their short form on narrow terminals, like Model
+- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Weekly Limit Timer, Weekly Fable Limit Timer and prompt cache widgets** - plus `CCSTATUSLINE_CONTEXT_WINDOW_SIZE` and a dozen metric, renderer and usage fixes; merged 38 upstream commits
 
 ### [v2.5.10](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.10) - Session bar auto-hides on plans without a 5-hour limit
 
