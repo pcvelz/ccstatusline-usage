@@ -183,6 +183,11 @@ For pinned installs, launch the TUI with `npx -y ccstatusline-usage@latest` or `
 
 ## 🆕 Recent Updates
 
+### [v2.5.12](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.12) - Extra Usage Today, line bars + upstream sync
+
+- [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Extra Usage Today and thin line bars** - plus a 256-color grid in Edit Colors, Thinking Effort brackets and colors, Zed links and emoji, Nerd Font and settings-save fixes; merged 32 upstream commits
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Fable bar line mode** - the Weekly Fable bar uses upstream's shared bar code, so it supports the new line display too
+
 ### [v2.5.11](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.11) - Cache widget polish + upstream sync
 
 - [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Limit timers** - clearer labels (Weekly 100% in, W 100% in when compact) in a muted orange
