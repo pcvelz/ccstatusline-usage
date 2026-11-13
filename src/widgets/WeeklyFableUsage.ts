@@ -17,20 +17,15 @@ import {
 } from '../utils/usage';
 
 import { isHidden } from './shared/hideable';
-import { makeTimerProgressBar } from './shared/progress-bar';
 import { formatRawOrLabeledValue } from './shared/raw-or-labeled';
 import {
     USAGE_NO_DATA_HIDEABLE_STATE,
     cycleUsageDisplayMode,
-    getUsageDisplayMode,
+    formatUsageBar,
     getUsageLabel,
     getUsagePercentCustomKeybinds,
-    getUsageProgressBarWidth,
     isUsageCursorEnabled,
     isUsageInverted,
-    isUsageProgressMode,
-    isUsageSliderMode,
-    makeSliderBar,
     toggleUsageCursor,
     toggleUsageInverted
 } from './shared/usage-display';
@@ -71,7 +66,6 @@ export class WeeklyFableUsageWidget implements Widget {
 
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
         const format = resolveNumberFormat('percent', item, settings);
-        const displayMode = getUsageDisplayMode(item);
         const inverted = isUsageInverted(item);
         const showCursor = isUsageCursorEnabled(item);
         const label = getUsageLabel(context, LABEL, SHORT_LABEL);
@@ -80,20 +74,8 @@ export class WeeklyFableUsageWidget implements Widget {
             const previewPercent = 13;
             const renderedPercent = inverted ? 100 - previewPercent : previewPercent;
 
-            if (isUsageProgressMode(displayMode)) {
-                const width = getUsageProgressBarWidth(displayMode, context);
-                const progressBar = makeTimerProgressBar(renderedPercent, width, showCursor ? { cursorPercent: 50 } : undefined);
-                const progressDisplay = `[${progressBar}] ${formatPercent(renderedPercent, format)}`;
-                return formatRawOrLabeledValue(item, label, progressDisplay);
-            }
-
-            if (isUsageSliderMode(displayMode)) {
-                const slider = makeSliderBar(renderedPercent, undefined, showCursor ? { cursorPercent: 50 } : undefined);
-                const sliderDisplay = displayMode === 'slider' ? `${slider} ${formatPercent(renderedPercent, format)}` : slider;
-                return formatRawOrLabeledValue(item, label, sliderDisplay);
-            }
-
-            return formatRawOrLabeledValue(item, label, formatPercent(renderedPercent, format));
+            const previewBar = formatUsageBar(item, renderedPercent, format, () => (showCursor ? { cursorPercent: 50 } : undefined), context);
+            return formatRawOrLabeledValue(item, label, previewBar ?? formatPercent(renderedPercent, format));
         }
 
         const data = context.usageData ?? {};
@@ -124,24 +106,12 @@ export class WeeklyFableUsageWidget implements Widget {
             }
 
             const window = resolveWeeklyFableUsageWindow(data);
-            return window ? { cursorPercent: window.elapsedPercent } : undefined;
+            // Same rule as the shared percent widgets: a remaining-percent bar puts its cursor on time left
+            return window ? { cursorPercent: inverted ? window.remainingPercent : window.elapsedPercent } : undefined;
         };
 
-        if (isUsageProgressMode(displayMode)) {
-            const width = getUsageProgressBarWidth(displayMode, context);
-
-            const progressBar = makeTimerProgressBar(renderedPercent, width, getCursorOptions());
-            const progressDisplay = `[${progressBar}] ${formatPercent(renderedPercent, format)}`;
-            return formatRawOrLabeledValue(item, label, progressDisplay);
-        }
-
-        if (isUsageSliderMode(displayMode)) {
-            const slider = makeSliderBar(renderedPercent, undefined, getCursorOptions());
-            const sliderDisplay = displayMode === 'slider' ? `${slider} ${formatPercent(renderedPercent, format)}` : slider;
-            return formatRawOrLabeledValue(item, label, sliderDisplay);
-        }
-
-        return formatRawOrLabeledValue(item, label, formatPercent(renderedPercent, format));
+        const bar = formatUsageBar(item, renderedPercent, format, getCursorOptions, context);
+        return formatRawOrLabeledValue(item, label, bar ?? formatPercent(renderedPercent, format));
     }
 
     getCustomKeybinds(item?: WidgetItem): CustomKeybind[] {

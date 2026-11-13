@@ -7,6 +7,16 @@ A test file whose `expect(` count went down must be listed here by its
 backticked path with the reason (the `###` file headings count). Entries must
 be backticked: the gate matches `` `title` `` / `` `path` ``, not bare text.
 
+## v2.5.11 -> upstream merge (32 commits)
+
+- `gives ASCII control characters no width`: upstream a58e148 (#781) prints a tab as one space instead of a tab-stop width, so a tab now measures 1; replaced by "counts a tab as one column, the space it is printed as" (tab) and "gives other ASCII control characters no width" (DEL).
+- `leaves plain text, Unicode and tabs and newlines alone`: same a58e148 (#781) change - a tab is printed as one space, so it is no longer passed through unchanged; replaced by "leaves plain text, Unicode and newlines alone" and "prints a tab as one space".
+- `setRefreshInterval should do nothing when no statusLine exists`: upstream 11f6e74 (#805) makes setRefreshInterval report failures instead of silently returning; replaced by "setRefreshInterval should reject without writing when no statusLine exists".
+- `setRefreshInterval should leave unreadable settings untouched`: same 11f6e74 (#805) change - setRefreshInterval rejects on unreadable settings and still leaves the file untouched; replaced by "setRefreshInterval should reject and leave unreadable settings untouched".
+- `uninstallStatusLine should warn and return without modifying invalid settings`: same 11f6e74 (#805) change - uninstallStatusLine aborts with an error instead of warning and returning; replaced by "uninstallStatusLine should abort without touching settings that cannot be parsed".
+- `should cycle file, VS Code, Cursor, then off without changing display metadata`: upstream 3dc54cd (#800) adds Zed to the IDE link cycle; replaced by "should cycle file, VS Code, Cursor, Zed, then off without changing display metadata".
+- `should migrate legacy cursor metadata when cycling IDE link modes`: same 3dc54cd (#800) change - the mode after legacy cursor is now Zed, not off; replaced by "should migrate legacy cursor metadata to the next IDE link mode" (asserts `linkToIDE` is `zed`).
+
 ## v2.5.10 -> upstream merge
 
 - `renders disconnected glyph (U+F6AC) when OFF`: upstream #605 changes the disconnected glyph to nf-md-wifi_off (U+F05AA); replaced by "renders nf-md-wifi_off (U+F05AA) when OFF".

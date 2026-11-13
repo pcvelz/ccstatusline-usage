@@ -56,13 +56,15 @@ describe('cycleUsageDisplayMode with slider', () => {
         const fourth = cycleUsageDisplayMode(third, [], true);
         const fifth = cycleUsageDisplayMode(fourth, [], true);
         const sixth = cycleUsageDisplayMode(fifth, [], true);
+        const seventh = cycleUsageDisplayMode(sixth, [], true);
 
         expect(first.metadata?.display).toBe('progress');
         expect(second.metadata?.display).toBe('progress-short');
         expect(third.metadata?.display).toBe('progress-mini');
         expect(fourth.metadata?.display).toBe('slider');
         expect(fifth.metadata?.display).toBe('slider-only');
-        expect(sixth.metadata?.display).toBe('time');
+        expect(sixth.metadata?.display).toBe('line');
+        expect(seventh.metadata?.display).toBe('time');
     });
 
     it('skips slider modes when includeSlider is false', () => {
@@ -70,11 +72,13 @@ describe('cycleUsageDisplayMode with slider', () => {
         const second = cycleUsageDisplayMode(first);
         const third = cycleUsageDisplayMode(second);
         const fourth = cycleUsageDisplayMode(third);
+        const fifth = cycleUsageDisplayMode(fourth);
 
         expect(first.metadata?.display).toBe('progress');
         expect(second.metadata?.display).toBe('progress-short');
         expect(third.metadata?.display).toBe('progress-mini');
-        expect(fourth.metadata?.display).toBe('time');
+        expect(fourth.metadata?.display).toBe('line');
+        expect(fifth.metadata?.display).toBe('time');
     });
 
     it('keeps cursor metadata through slider modes and clears it when returning to time mode', () => {
@@ -88,13 +92,15 @@ describe('cycleUsageDisplayMode with slider', () => {
         const fourth = cycleUsageDisplayMode(third, [], true);
         const fifth = cycleUsageDisplayMode(fourth, [], true);
         const sixth = cycleUsageDisplayMode(fifth, [], true);
+        const seventh = cycleUsageDisplayMode(sixth, [], true);
 
         expect(first.metadata?.cursor).toBe('true');
         expect(second.metadata?.cursor).toBe('true');
         expect(third.metadata?.cursor).toBe('true');
         expect(fourth.metadata?.cursor).toBe('true');
         expect(fifth.metadata?.cursor).toBe('true');
-        expect(sixth.metadata?.cursor).toBeUndefined();
+        expect(sixth.metadata?.cursor).toBe('true');
+        expect(seventh.metadata?.cursor).toBeUndefined();
     });
 });
 

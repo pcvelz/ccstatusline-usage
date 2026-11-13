@@ -72,7 +72,9 @@ export function SearchableOptionEditor<T extends SearchableOption>({
     onCancel
 }: Readonly<SearchableOptionEditorProps<T>>): React.ReactElement {
     const [query, setQuery] = useState('');
-    const [selectedIndex, setSelectedIndex] = useState(() => getInitialSelectedIndex(options, initialValue));
+    // Found in the list the empty search shows, which can order the options
+    // differently from how they're given
+    const [selectedIndex, setSelectedIndex] = useState(() => getInitialSelectedIndex(filterOptions(options, ''), initialValue));
     // Typed text and Enter can arrive before a re-render, so input handling reads
     // the latest query and selection from refs instead of the render-time values.
     const queryRef = useRef(query);

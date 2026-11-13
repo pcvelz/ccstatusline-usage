@@ -129,7 +129,7 @@ The interactive configuration tool provides a terminal UI where you can:
 > export CLAUDE_CONFIG_DIR=/custom/path/to/.claude
 > ```
 
-> 🌐 **HTTPS proxy:** Usage and Claude Status requests honor uppercase `HTTPS_PROXY`, with exclusions from both `NO_PROXY` and `no_proxy` (comma- or space-separated; `*`, a host such as `api.anthropic.com`, or a domain such as `.anthropic.com`, optionally with `:443`). Each request has a five-second total deadline.
+> 🌐 **HTTPS proxy:** Usage, Claude Status and update-check requests honor uppercase `HTTPS_PROXY`, with exclusions from both `NO_PROXY` and `no_proxy` (comma- or space-separated; `*`, a host such as `api.anthropic.com`, or a domain such as `.anthropic.com`, optionally with `:443`). Each request has a five-second total deadline.
 
 > 🪟 **Windows Support:** PowerShell examples, installation notes, fonts, troubleshooting, WSL, and Windows Terminal configuration are in the [Windows Support](#-windows-support) section below.
 

@@ -211,7 +211,7 @@ export function runUsagePercentWidgetSuite<TWidget extends UsageWidgetLike>(conf
         const updated = widget.handleEditorAction('toggle-progress', {
             ...config.baseItem,
             metadata: {
-                display: 'slider-only',
+                display: 'line',
                 invert: 'true',
                 cursor: 'true'
             }
@@ -231,13 +231,15 @@ export function runUsagePercentWidgetSuite<TWidget extends UsageWidgetLike>(conf
         const fourth = widget.handleEditorAction('toggle-progress', third ?? config.baseItem);
         const fifth = widget.handleEditorAction('toggle-progress', fourth ?? config.baseItem);
         const sixth = widget.handleEditorAction('toggle-progress', fifth ?? config.baseItem);
+        const seventh = widget.handleEditorAction('toggle-progress', sixth ?? config.baseItem);
 
         expect(first?.metadata?.display).toBe('progress');
         expect(second?.metadata?.display).toBe('progress-short');
         expect(third?.metadata?.display).toBe('progress-mini');
         expect(fourth?.metadata?.display).toBe('slider');
         expect(fifth?.metadata?.display).toBe('slider-only');
-        expect(sixth?.metadata?.display).toBe('time');
+        expect(sixth?.metadata?.display).toBe('line');
+        expect(seventh?.metadata?.display).toBe('time');
     });
 
     it('toggles invert metadata and shows used/remaining editor modifiers', () => {
@@ -305,7 +307,7 @@ export function runUsageTimerEditorSuite<TWidget extends UsageWidgetLike & { get
 
     it('clears invert metadata when cycling back to time mode', () => {
         const widget = config.createWidget();
-        const lastBarMode = config.supportsSliderMode ? 'slider-only' : 'progress-short';
+        const lastBarMode = 'line';
         const updated = widget.handleEditorAction('toggle-progress', {
             ...config.baseItem,
             metadata: {
@@ -333,12 +335,19 @@ export function runUsageTimerEditorSuite<TWidget extends UsageWidgetLike & { get
             const fifth = widget.handleEditorAction('toggle-progress', fourth ?? config.baseItem);
             const sixth = widget.handleEditorAction('toggle-progress', fifth ?? config.baseItem);
 
+            const seventh = widget.handleEditorAction('toggle-progress', sixth ?? config.baseItem);
+
             expect(third?.metadata?.display).toBe('progress-mini');
             expect(fourth?.metadata?.display).toBe('slider');
             expect(fifth?.metadata?.display).toBe('slider-only');
-            expect(sixth?.metadata?.display).toBe('time');
+            expect(sixth?.metadata?.display).toBe('line');
+            expect(seventh?.metadata?.display).toBe('time');
         } else {
             expect(third?.metadata?.display).toBe('progress-mini');
+            const fourth = widget.handleEditorAction('toggle-progress', third ?? config.baseItem);
+            expect(fourth?.metadata?.display).toBe('line');
+            const fifth = widget.handleEditorAction('toggle-progress', fourth ?? config.baseItem);
+            expect(fifth?.metadata?.display).toBe('time');
         }
     });
 
