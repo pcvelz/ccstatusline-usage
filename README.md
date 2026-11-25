@@ -183,6 +183,10 @@ For pinned installs, launch the TUI with `npx -y ccstatusline-usage@latest` or `
 
 ## 🆕 Recent Updates
 
+### [v2.5.13](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.13) - Cache Timer on local Splash sessions
+
+- [pcvelz/ccstatusline-usage](https://github.com/pcvelz/ccstatusline-usage): **Cache Timer** - on a local Splash session (macOS, `SPLASH_SWAP_PORT_FILE`) shows the last turn's cache hit share, e.g. `C: 99%`, instead of a countdown, since Splash has no cache TTL.
+
 ### [v2.5.12](https://github.com/pcvelz/ccstatusline-usage/releases/tag/v2.5.12) - Extra Usage Today, line bars + upstream sync
 
 - [sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline): **Extra Usage Today and thin line bars** - plus a 256-color grid in Edit Colors, Thinking Effort brackets and colors, Zed links and emoji, Nerd Font and settings-save fixes; merged 32 upstream commits
@@ -913,7 +917,7 @@ bun run example
 - **Claude Session ID** - Shows the current Claude Code session ID from status JSON
 - **Session Name** - Shows the session name set via `/rename` in Claude Code
 - **Chat Ref** *(ccstatusline-usage)* - Shows the address other sessions use to message this one (`Chat ref:` / `R:`); hidden when it equals the user-set session title
-- **Cache Timer** - Minutes left on the prompt cache; *(ccstatusline-usage)* shows `Cache: 42 min` / `C: 42m`, red near expiry, TTL auto-detected; emoji countdown opt-in
+- **Cache Timer** - Minutes left on the prompt cache; *(ccstatusline-usage)* shows `Cache: 42 min` / `C: 42m`, red near expiry, TTL auto-detected; emoji countdown opt-in. On macOS, when `SPLASH_SWAP_PORT_FILE` names a live local Splash front matching `ANTHROPIC_BASE_URL`, the widget shows the last turn's cache hit share instead of a countdown.
 - **Memory Usage** - Shows system memory usage (used/total)
 - **Battery** *(ccstatusline-usage)* - Shows battery percentage on macOS and Linux (only visible when on battery power, hidden when charging)
 - **Block Usage** - Shows 5-hour block (session) API usage percentage

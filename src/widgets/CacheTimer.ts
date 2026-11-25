@@ -10,6 +10,7 @@ import type {
     WidgetEditorProps,
     WidgetItem
 } from '../types/Widget';
+import { isSplashSession } from '../utils/splash';
 
 import { CACHE_EMPTY_HIDEABLE_STATE } from './shared/cache-scope';
 import { makeModifierText } from './shared/editor-display';
@@ -63,7 +64,9 @@ interface TranscriptEntry {
     isApiErrorMessage?: boolean;
     message?: {
         content?: string | { type?: string; text?: string }[];
+        model?: string;
         usage?: {
+            input_tokens?: number;
             cache_read_input_tokens?: number;
             cache_creation_input_tokens?: number;
             cache_creation?: {
@@ -438,9 +441,14 @@ function cycleWarn(item: WidgetItem): WidgetItem {
     };
 }
 
-function renderMinutes(item: WidgetItem, context: RenderContext, value: string, warn: boolean): string {
+// Narrow terminals get the short 'C:' label and no word after the value.
+function isCompactWidth(context: RenderContext): boolean {
     const width = context.terminalWidth ?? 0;
-    const compact = width > 0 && width < COMPACT_WIDTH_THRESHOLD;
+    return width > 0 && width < COMPACT_WIDTH_THRESHOLD;
+}
+
+function renderMinutes(item: WidgetItem, context: RenderContext, value: string, warn: boolean): string {
+    const compact = isCompactWidth(context);
     const text = compact ? value.replace(' min', 'm') : value;
     const colored = warn ? `${ANSI_RED}${text}${ANSI_FG_RESET}` : text;
     if (item.rawValue) {
@@ -481,6 +489,57 @@ function formatMinutes(remaining: number): string {
 // Joins a glyph to its countdown; a blanked glyph collapses the leading space.
 function withGlyph(symbol: string, text: string): string {
     return symbol.length > 0 ? `${symbol} ${text}` : text;
+}
+
+type TranscriptUsage = NonNullable<NonNullable<TranscriptEntry['message']>['usage']>;
+
+// Whether this assistant row measured a request. Claude Code writes its own
+// error rows with model '<synthetic>' and zeroed usage; they measured nothing.
+function hasMeasuredUsage(entry: TranscriptEntry): boolean {
+    const usage = entry.message?.usage;
+    if (!usage || entry.message?.model === '<synthetic>') {
+        return false;
+    }
+    return (usage.cache_read_input_tokens ?? 0) + (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) > 0;
+}
+
+// The usage block of the newest main-chain assistant row that measured a
+// request, or null when the transcript has none yet. Same tail-growing read as
+// getTranscriptState.
+function getLastAssistantUsage(transcriptPath: string): TranscriptUsage | null {
+    for (let bytes = INITIAL_TAIL_BYTES; ; bytes *= 2) {
+        const tail = readFileTail(transcriptPath, bytes);
+        if (!tail || tail.text.length === 0) {
+            return null;
+        }
+        for (const line of tail.text.split('\n').reverse()) {
+            const trimmed = line.trim();
+            if (!trimmed) {
+                continue;
+            }
+            try {
+                const entry = JSON.parse(trimmed) as TranscriptEntry;
+                if (entry.type === 'assistant' && entry.isSidechain !== true && hasMeasuredUsage(entry) && entry.message?.usage) {
+                    return entry.message.usage;
+                }
+            } catch {
+                continue;
+            }
+        }
+        if (tail.isComplete) {
+            return null;
+        }
+    }
+}
+
+// Share of the request's input tokens that were read from the cache, as a whole
+// percent. Null when the request reported no input at all.
+function splashCacheHitPercent(usage: TranscriptUsage): number | null {
+    const cached = usage.cache_read_input_tokens ?? 0;
+    const uncached = usage.input_tokens ?? 0;
+    const written = usage.cache_creation_input_tokens ?? 0;
+    const total = cached + uncached + written;
+    return total > 0 ? Math.round((cached / total) * 100) : null;
 }
 
 export class CacheTimerWidget implements Widget {
@@ -545,6 +604,22 @@ export class CacheTimerWidget implements Widget {
             }
             const sample = formatCountdown(292, compact);
             return formatRawOrLabeledValue(item, this.getLabelPrefix(), withGlyph(getSlotSymbol(item, FRESH_SLOT), sample));
+        }
+
+        // Splash has no cache TTL, so a countdown would be meaningless: show the
+        // last turn's cache hit share instead, without the state glyph.
+        if (isSplashSession()) {
+            const transcriptPath = context.data?.transcript_path;
+            const usage = transcriptPath ? getLastAssistantUsage(transcriptPath) : null;
+            const percent = usage ? splashCacheHitPercent(usage) : null;
+            if (percent === null) {
+                return null;
+            }
+            const value = `${percent}%`;
+            if (isCompactWidth(context)) {
+                return formatRawOrLabeledValue(item, 'C: ', value);
+            }
+            return formatRawOrLabeledValue(item, this.getLabelPrefix(), item.rawValue ? value : `${value} hit`);
         }
 
         // Minutes display reads the payload through renderFromPromptCache below.

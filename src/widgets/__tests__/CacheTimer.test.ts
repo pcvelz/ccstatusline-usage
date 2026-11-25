@@ -539,4 +539,130 @@ describe('CacheTimer widget', () => {
             expect(seen).toEqual(['60', '120', '300', '600', undefined]);
         });
     });
+
+    describe('splash sessions', () => {
+        let portFile: string;
+        let originalPlatform: PropertyDescriptor | undefined;
+        let savedPortFile: string | undefined;
+        let savedBaseUrl: string | undefined;
+        const splashHit = (seconds: number, read: number, input: number): string => assistantUsage(seconds, {
+            input_tokens: input,
+            cache_read_input_tokens: read,
+            cache_creation_input_tokens: 0
+        });
+        // Bun's test runner has no vi.stubEnv, so the env is saved and set by hand.
+        const setEnv = (name: string, value: string | undefined): void => {
+            if (value === undefined) {
+                Reflect.deleteProperty(process.env, name);
+            } else {
+                process.env[name] = value;
+            }
+        };
+
+        beforeEach(() => {
+            savedPortFile = process.env.SPLASH_SWAP_PORT_FILE;
+            savedBaseUrl = process.env.ANTHROPIC_BASE_URL;
+            originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+            Object.defineProperty(process, 'platform', { value: 'darwin' });
+            portFile = path.join(tmpDir, 'swap-port');
+            fs.writeFileSync(portFile, `18170 ${process.pid}\n`, 'utf8');
+            setEnv('SPLASH_SWAP_PORT_FILE', portFile);
+            setEnv('ANTHROPIC_BASE_URL', 'http://localhost:18170');
+        });
+
+        // Platform first, so a failure in the env restore cannot leak darwin into other files.
+        afterEach(() => {
+            if (originalPlatform) {
+                Object.defineProperty(process, 'platform', originalPlatform);
+            }
+            setEnv('SPLASH_SWAP_PORT_FILE', savedPortFile);
+            setEnv('ANTHROPIC_BASE_URL', savedBaseUrl);
+        });
+
+        it('shows the last turn cache hit share instead of a countdown', () => {
+            const widget = new CacheTimerWidget();
+            // A 400 s old row would be COLD on Anthropic's 5-minute countdown.
+            expect(widget.render(item(), transcriptContext([splashHit(400, 990, 10)]), DEFAULT_SETTINGS)).toBe('Cache: 99% hit');
+            expect(widget.render(item({ metadata: { display: 'minutes' } }), transcriptContext([splashHit(400, 990, 10)]), DEFAULT_SETTINGS)).toBe('Cache: 99% hit');
+        });
+
+        it('renders the hit share raw without the label or the hit word', () => {
+            const widget = new CacheTimerWidget();
+            expect(widget.render(item({ rawValue: true }), transcriptContext([splashHit(10, 990, 10)]), DEFAULT_SETTINGS)).toBe('99%');
+        });
+
+        it('uses the newest assistant row with usage', () => {
+            const widget = new CacheTimerWidget();
+            const context = transcriptContext([splashHit(900, 10, 990), splashHit(10, 990, 10)]);
+            expect(widget.render(item(), context, DEFAULT_SETTINGS)).toBe('Cache: 99% hit');
+        });
+
+        it('counts cache writes as uncached input', () => {
+            const widget = new CacheTimerWidget();
+            const context = transcriptContext([assistantUsage(10, { input_tokens: 0, cache_read_input_tokens: 1, cache_creation_input_tokens: 3 })]);
+            expect(widget.render(item(), context, DEFAULT_SETTINGS)).toBe('Cache: 25% hit');
+        });
+
+        it('skips a synthetic zero-usage error row and reports the real request before it', () => {
+            const widget = new CacheTimerWidget();
+            const realMiss = assistantUsage(400, { input_tokens: 120000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
+            const syntheticError = JSON.stringify({
+                type: 'assistant',
+                timestamp: isoAgo(5),
+                message: {
+                    model: '<synthetic>',
+                    content: [{ type: 'text', text: 'API Error: 503 overloaded' }],
+                    usage: { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
+                }
+            });
+            expect(widget.render(item(), transcriptContext([realMiss, syntheticError]), DEFAULT_SETTINGS)).toBe('Cache: 0% hit');
+            expect(widget.render(item({ rawValue: true }), transcriptContext([realMiss, syntheticError]), DEFAULT_SETTINGS)).toBe('0%');
+        });
+
+        it('skips a zero-usage row without a synthetic marker', () => {
+            const widget = new CacheTimerWidget();
+            const realHit = assistantUsage(400, { input_tokens: 10, cache_read_input_tokens: 990, cache_creation_input_tokens: 0 });
+            const zero = assistantUsage(5, { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
+            expect(widget.render(item(), transcriptContext([realHit, zero]), DEFAULT_SETTINGS)).toBe('Cache: 99% hit');
+        });
+
+        it('returns null when only synthetic error rows exist', () => {
+            const widget = new CacheTimerWidget();
+            const syntheticError = JSON.stringify({ type: 'assistant', timestamp: isoAgo(5), message: { model: '<synthetic>', usage: { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } });
+            expect(widget.render(item(), transcriptContext([syntheticError]), DEFAULT_SETTINGS)).toBeNull();
+        });
+
+        it('uses the C: label and drops the word hit on narrow terminals, like the countdown', () => {
+            const widget = new CacheTimerWidget();
+            const context = { ...transcriptContext([splashHit(400, 990, 10)]), terminalWidth: 100 };
+            expect(widget.render(item(), context, DEFAULT_SETTINGS)).toBe('C: 99%');
+            expect(widget.render(item({ rawValue: true }), context, DEFAULT_SETTINGS)).toBe('99%');
+        });
+
+        it('keeps the full label and the word hit on wide terminals', () => {
+            const widget = new CacheTimerWidget();
+            const context = { ...transcriptContext([splashHit(400, 990, 10)]), terminalWidth: 200 };
+            expect(widget.render(item(), context, DEFAULT_SETTINGS)).toBe('Cache: 99% hit');
+        });
+
+        it('returns null when no assistant row with usage exists yet', () => {
+            const widget = new CacheTimerWidget();
+            expect(widget.render(item(), transcriptContext([]), DEFAULT_SETTINGS)).toBeNull();
+            expect(widget.render(item(), transcriptContext([pendingUser]), DEFAULT_SETTINGS)).toBeNull();
+            expect(widget.render(item(), transcriptContext([assistant(10)]), DEFAULT_SETTINGS)).toBeNull();
+            expect(widget.render(item(), {}, DEFAULT_SETTINGS)).toBeNull();
+        });
+
+        it('keeps the countdown for a session whose port does not match ANTHROPIC_BASE_URL', () => {
+            setEnv('ANTHROPIC_BASE_URL', 'http://localhost:8001');
+            const widget = new CacheTimerWidget();
+            expect(widget.render(item(), transcriptContext([assistant(400)]), DEFAULT_SETTINGS)).toBe('Cache: ❄️ COLD');
+        });
+
+        it('keeps the countdown for a non-Splash session', () => {
+            setEnv('SPLASH_SWAP_PORT_FILE', '');
+            const widget = new CacheTimerWidget();
+            expect(widget.render(item(), transcriptContext([assistant(400)]), DEFAULT_SETTINGS)).toBe('Cache: ❄️ COLD');
+        });
+    });
 });

@@ -56,6 +56,7 @@ src/utils/renderer.ts context.onLineOverflow?.();
 src/widgets/shared/usage-display.ts export function getUsageProgressBarWidth(mode: UsageDisplayMode, context?: RenderContext): number {
 src/widgets/CacheTimer.ts return item.metadata?.[DISPLAY_METADATA_KEY] !== GLYPHS_DISPLAY;
 src/widgets/CacheTimer.ts function detectTtlSeconds(entry: TranscriptEntry): number | undefined {
+src/widgets/CacheTimer.ts isSplashSession
 src/widgets/AgentAddress.ts if (!name || entry.nameSource === 'user') {
 
 # README branding (upstream merges have overwritten these before)
