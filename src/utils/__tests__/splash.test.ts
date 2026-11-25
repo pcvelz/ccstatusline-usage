@@ -6,24 +6,41 @@ import {
     beforeEach,
     describe,
     expect,
-    it
+    it,
+    vi
 } from 'vitest';
 
 import { isSplashSession } from '../splash';
 
 const DEAD_PID = 2147483646;
-const esrch = (): Error => Object.assign(new Error('kill ESRCH'), { code: 'ESRCH' });
+// The error shape process.kill(pid, 0) throws under both Node and Bun.
+const errno = (code: string, syscall: string): Error => Object.assign(new Error(`${syscall} ${code}`), { code, syscall });
 
 describe('isSplashSession', () => {
     let tmpDir: string;
     let portFile: string;
+    let originalPlatform: PropertyDescriptor | undefined;
+
+    const setPlatform = (value: NodeJS.Platform): void => {
+        Object.defineProperty(process, 'platform', { value });
+    };
+    const failKill = (error: Error): void => {
+        vi.spyOn(process, 'kill').mockImplementation(() => { throw error; });
+    };
 
     beforeEach(() => {
         tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ccstatusline-splash-'));
         portFile = path.join(tmpDir, 'swap-port');
+        originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+        setPlatform('darwin');
     });
 
+    // Platform first, so a failure in the rest of the cleanup cannot leak darwin into other files.
     afterEach(() => {
+        if (originalPlatform) {
+            Object.defineProperty(process, 'platform', originalPlatform);
+        }
+        vi.restoreAllMocks();
         fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
@@ -35,46 +52,54 @@ describe('isSplashSession', () => {
     const writePortFile = (contents: string): void => {
         fs.writeFileSync(portFile, contents, 'utf8');
     };
-    const darwin = { platform: 'darwin' as const };
 
     it('is false when SPLASH_SWAP_PORT_FILE is unset', () => {
         writePortFile(`18170 ${process.pid}\n`);
-        expect(isSplashSession({ ANTHROPIC_BASE_URL: 'http://localhost:18170' }, darwin)).toBe(false);
+        expect(isSplashSession({ ANTHROPIC_BASE_URL: 'http://localhost:18170' })).toBe(false);
     });
 
     it('is false on platforms other than macOS', () => {
         writePortFile(`18170 ${process.pid}\n`);
-        expect(isSplashSession(env(), { platform: 'linux' })).toBe(false);
-        expect(isSplashSession(env(), { platform: 'win32' })).toBe(false);
+        setPlatform('linux');
+        expect(isSplashSession(env())).toBe(false);
+        setPlatform('win32');
+        expect(isSplashSession(env())).toBe(false);
     });
 
     it('is false when the recorded pid is dead', () => {
         writePortFile(`18170 ${DEAD_PID}\n`);
-        expect(isSplashSession(env(), { ...darwin, kill: () => { throw esrch(); } })).toBe(false);
+        failKill(errno('ESRCH', 'kill'));
+        expect(isSplashSession(env())).toBe(false);
     });
 
-    it('treats EPERM as a live process', () => {
+    it('treats EPERM from the pid probe as a live process', () => {
         writePortFile(`18170 ${DEAD_PID}\n`);
-        const eperm = Object.assign(new Error('kill EPERM'), { code: 'EPERM' });
-        expect(isSplashSession(env(), { ...darwin, kill: () => { throw eperm; } })).toBe(true);
+        failKill(errno('EPERM', 'kill'));
+        expect(isSplashSession(env())).toBe(true);
+    });
+
+    it('does not take EPERM from anything but the pid probe as alive', () => {
+        writePortFile(`18170 ${DEAD_PID}\n`);
+        failKill(errno('EPERM', 'open'));
+        expect(isSplashSession(env())).toBe(false);
     });
 
     it('is false when the port in ANTHROPIC_BASE_URL differs from the port file', () => {
         writePortFile(`18170 ${process.pid}\n`);
-        expect(isSplashSession(env({ ANTHROPIC_BASE_URL: 'http://localhost:8001' }), darwin)).toBe(false);
-        expect(isSplashSession(env({ ANTHROPIC_BASE_URL: 'http://127.0.0.1:18171' }), darwin)).toBe(false);
+        expect(isSplashSession(env({ ANTHROPIC_BASE_URL: 'http://localhost:8001' }))).toBe(false);
+        expect(isSplashSession(env({ ANTHROPIC_BASE_URL: 'http://127.0.0.1:18171' }))).toBe(false);
     });
 
     it('is false when ANTHROPIC_BASE_URL is not a loopback address', () => {
         writePortFile(`18170 ${process.pid}\n`);
-        expect(isSplashSession(env({ ANTHROPIC_BASE_URL: 'https://api.example.com:18170' }), darwin)).toBe(false);
-        expect(isSplashSession(env({ ANTHROPIC_BASE_URL: undefined }), darwin)).toBe(false);
+        expect(isSplashSession(env({ ANTHROPIC_BASE_URL: 'https://api.example.com:18170' }))).toBe(false);
+        expect(isSplashSession(env({ ANTHROPIC_BASE_URL: undefined }))).toBe(false);
     });
 
     it('is true when the port matches and the pid is alive', () => {
         writePortFile(`18170 ${process.pid}\n`);
-        expect(isSplashSession(env(), darwin)).toBe(true);
-        expect(isSplashSession(env({ ANTHROPIC_BASE_URL: 'http://127.0.0.1:18170' }), darwin)).toBe(true);
+        expect(isSplashSession(env())).toBe(true);
+        expect(isSplashSession(env({ ANTHROPIC_BASE_URL: 'http://127.0.0.1:18170' }))).toBe(true);
     });
 
     it.each([
@@ -88,10 +113,10 @@ describe('isSplashSession', () => {
         '18170 0'
     ])('is false for a malformed port file: %j', (contents) => {
         writePortFile(contents);
-        expect(isSplashSession(env(), darwin)).toBe(false);
+        expect(isSplashSession(env())).toBe(false);
     });
 
     it('is false when the port file does not exist', () => {
-        expect(isSplashSession(env(), darwin)).toBe(false);
+        expect(isSplashSession(env())).toBe(false);
     });
 });

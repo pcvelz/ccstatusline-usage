@@ -36,6 +36,10 @@ const DARK_RED_CLOSE = '\x1b[39m';
 
 const BASE_ITEM: WidgetItem = { id: 'test', type: 'test' };
 
+// The split bar is under test here, not the weekly decimal. The estimator reads
+// the live usage cache, which turns 99.0% into e.g. 99.9% on a machine in use.
+const SETTINGS = { ...DEFAULT_SETTINGS, weeklyEstimate: false };
+
 function makeContext(
     usageData: RenderContext['usageData'],
     terminalWidth: number
@@ -63,7 +67,7 @@ describe('WeeklyUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 14,
             extraUsageLimit: 100
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         // Bar structure stays the same; 100.0% is replaced by Extra amounts
         expect(result).toContain(`Weekly: [███████|${DARK_RED_OPEN}█░░░░░░${DARK_RED_CLOSE}]`);
@@ -81,7 +85,7 @@ describe('WeeklyUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageLimit: 100
         }, 150);
         // medium width=8, halfWidth=floor((8-1)/2)=3, fill=round(0.5*3)=2
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).toContain(`Weekly: [███|${DARK_RED_OPEN}██░${DARK_RED_CLOSE}]`);
         expect(result).toContain(DARK_RED_OPEN);
@@ -97,7 +101,7 @@ describe('WeeklyUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageLimit: 100
         }, 100);
         // mobile width=4, weekly=100% → all 4 filled; no split bar but amounts shown
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).toContain('W: [████]');
         expect(result).toContain(DARK_RED_OPEN);
@@ -114,7 +118,7 @@ describe('WeeklyUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 14,
             extraUsageLimit: 100
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).not.toContain('|');
         expect(result).not.toContain(DARK_RED_OPEN);
@@ -128,7 +132,7 @@ describe('WeeklyUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 14,
             extraUsageLimit: 100
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).not.toContain('|');
         expect(result).not.toContain(DARK_RED_OPEN);
@@ -141,7 +145,7 @@ describe('WeeklyUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageEnabled: true,
             extraUsageLimit: 100
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).not.toContain('|');
         expect(result).not.toContain(DARK_RED_OPEN);
@@ -154,7 +158,7 @@ describe('WeeklyUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 200,
             extraUsageLimit: 100
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).toContain(`Weekly: [███████|${DARK_RED_OPEN}███████${DARK_RED_CLOSE}]`);
         expect(result).toContain(DARK_RED_OPEN);
@@ -170,7 +174,7 @@ describe('WeeklyUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 0,
             extraUsageLimit: 100
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).toContain(`Weekly: [███████|${DARK_RED_OPEN}░░░░░░░${DARK_RED_CLOSE}]`);
         expect(result).toContain(DARK_RED_OPEN);
@@ -183,7 +187,7 @@ describe('WeeklyUsageWidget — split bar at 100% with extra usage', () => {
             weeklyUsage: 101,
             extraUsageEnabled: false
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).toContain('100.0%');
         expect(result).not.toContain('101');
@@ -205,7 +209,7 @@ describe('SessionUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 14,
             extraUsageLimit: 100
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).toContain(`Session: [███████|${DARK_RED_OPEN}█░░░░░░${DARK_RED_CLOSE}]`);
         expect(result).toContain(DARK_RED_OPEN);
@@ -221,7 +225,7 @@ describe('SessionUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 14,
             extraUsageLimit: 100
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).not.toContain('|');
         expect(result).not.toContain(DARK_RED_OPEN);
@@ -235,7 +239,7 @@ describe('SessionUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 14,
             extraUsageLimit: 100
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).toContain(`Session: [███████|${DARK_RED_OPEN}█░░░░░░${DARK_RED_CLOSE}]`);
         expect(result).toContain(DARK_RED_OPEN);
@@ -251,7 +255,7 @@ describe('SessionUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 50,
             extraUsageLimit: 100
         }, 100);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).toContain('S: [████]');
         expect(result).toContain(DARK_RED_OPEN);
@@ -268,7 +272,7 @@ describe('SessionUsageWidget — split bar at 100% with extra usage', () => {
             extraUsageUsed: 14,
             extraUsageLimit: 100
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).not.toContain('|');
         expect(result).not.toContain(DARK_RED_OPEN);
@@ -280,7 +284,7 @@ describe('SessionUsageWidget — split bar at 100% with extra usage', () => {
             weeklyUsage: 50,
             extraUsageEnabled: false
         }, 200);
-        const result = widget.render(BASE_ITEM, context, DEFAULT_SETTINGS);
+        const result = widget.render(BASE_ITEM, context, SETTINGS);
 
         expect(result).toContain('100.0%');
         expect(result).not.toContain('101');
